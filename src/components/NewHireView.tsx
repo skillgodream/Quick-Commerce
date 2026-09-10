@@ -719,22 +719,30 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
         </div>
 
-        {/* Readiness Score & Subtitle */}
-        <div className="mb-6 space-y-1">
-          <div className="flex items-baseline gap-1.5">
+        {/* Readiness Score & Side Text (Matched to Reference Image Layout) */}
+        <div className="mb-7 mt-2 flex items-center gap-3.5 sm:gap-6 pt-1">
+          <div className="flex items-baseline gap-1.5 shrink-0">
             <span className="large-time-text select-none">
               {authoritativeReadiness ?? 35}
             </span>
-            <span className="text-3xl sm:text-4xl font-extrabold text-black/60 tracking-tighter leading-none">
+            <span className="text-3xl sm:text-5xl md:text-6xl font-black text-black/60 tracking-tighter leading-none inline-block transform scale-y-[1.35] origin-bottom font-ref">
               %
             </span>
           </div>
-          <p className="text-xs sm:text-sm font-semibold text-slate-700 tracking-tight">
-            {isHindi ? "रेडिनेस स्कोर · प्रमाणन विंडो के लिए 6 दिन शेष" : "Readiness score · "}
-            <span className="font-extrabold text-black">
-              {isHindi ? "" : `6 ${isHindi ? "दिन" : "days"} to certification window`}
-            </span>
-          </p>
+
+          <div className="flex flex-col justify-center text-sm sm:text-lg md:text-xl font-normal text-black leading-tight sm:leading-snug tracking-tight select-none">
+            {isHindi ? (
+              <>
+                <span className="font-normal text-black">प्रमाणन विंडो के लिए</span>
+                <span className="font-normal text-black">6 दिन शेष</span>
+              </>
+            ) : (
+              <>
+                <span className="font-normal text-black">6 days to</span>
+                <span className="font-normal text-black">certification window</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Status Pills Row */}
