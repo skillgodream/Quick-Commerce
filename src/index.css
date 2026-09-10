@@ -87,3 +87,42 @@ body {
     radial-gradient(ellipse at 85% 85%, rgba(14, 38, 98, 0.3) 0%, transparent 50%),
     linear-gradient(155deg, #102d76 0%, #0c235d 36%, #08173f 68%, #050e26 100%);
 }
+
+/* Blinking yellow icon animation for current focus tab */
+@keyframes icon-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.95));
+  }
+  50% {
+    opacity: 0.22;
+    transform: scale(0.92);
+    filter: drop-shadow(0 0 1px rgba(250, 204, 21, 0.2));
+  }
+}
+
+.animate-icon-blink {
+  animation: icon-blink 1s ease-in-out infinite;
+}
+
+/* Continuous arrow animation moving from right to left */
+@keyframes arrow-move-rtl {
+  0% {
+    transform: translateX(10px);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateX(-8px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(10px);
+    opacity: 0.35;
+  }
+}
+
+.animate-arrow-rtl {
+  animation: arrow-move-rtl 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+

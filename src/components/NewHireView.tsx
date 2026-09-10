@@ -38,6 +38,7 @@ import {  Mic,
   MessageCircle,
   User,
   ArrowRight,
+  ArrowLeft,
   ChevronRight, ChevronUp,
   Footprints,
   ShieldCheck,
@@ -630,16 +631,13 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           <div className="relative" ref={learnerDropdownRef}>
             <button
               id="home-learner-dropdown-btn"
+              type="button"
               onClick={() => setIsLearnerDropdownOpen(!isLearnerDropdownOpen)}
-              className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-white shadow-xs border border-slate-200/80 hover:bg-slate-50 transition-all cursor-pointer"
+              className="w-10 h-10 rounded-full bg-white shadow-xs border border-slate-200/80 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
+              title={newHire.name}
+              aria-label="Learner profile"
             >
-              <img
-                src={newHire.avatar}
-                alt={newHire.name}
-                className="w-8 h-8 rounded-full object-cover border border-slate-200"
-              />
-              <span className="text-xs font-black text-black tracking-tight max-w-[100px] truncate">{newHire.name}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+              <User className="w-5 h-5 text-slate-700" />
             </button>
 
             {isLearnerDropdownOpen && newHires && newHires.length > 0 && (
@@ -657,11 +655,13 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                       if (onSelectHire) onSelectHire(hire.id);
                       setIsLearnerDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-colors cursor-pointer ${
+                    className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors cursor-pointer ${
                       hire.id === newHire.id ? "bg-slate-100 text-black font-black" : "hover:bg-slate-50 text-slate-700 font-medium"
                     }`}
                   >
-                    <img src={hire.avatar} alt={hire.name} className="w-8 h-8 rounded-full object-cover" />
+                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
                     <div className="overflow-hidden">
                       <p className="text-xs font-black text-black tracking-tight truncate">{hire.name}</p>
                       <p className="text-[10px] text-slate-500 tracking-tight truncate">{hire.role}</p>
@@ -764,23 +764,23 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
 
         {/* Current Focus Card - Coordinate Navigation */}
         <div
+          id="home-current-focus-card"
           onClick={() => setShowTodaysGoalView(true)}
-          className="bg-[#000000] text-white rounded-3xl p-4 border border-black shadow-md mb-4 flex items-center justify-between cursor-pointer hover:bg-neutral-900 transition-all active:scale-[0.99] group"
+          className="bg-[#000000] text-white rounded-3xl p-4 border border-black shadow-md mb-20 sm:mb-24 flex items-center justify-between cursor-pointer hover:bg-neutral-900 transition-all active:scale-[0.99] group relative"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0 group-hover:bg-white/15 transition-colors shadow-2xs">
-              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 group-hover:scale-110 transition-transform" />
+              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 animate-icon-blink" />
             </div>
             <div>
-              <span className="text-[10px] font-black tracking-widest text-neutral-400 block uppercase">
+              <span className="text-sm sm:text-base font-black tracking-widest text-white block uppercase">
                 {isHindi ? "वर्तमान फोकस" : "CURRENT FOCUS"}
               </span>
-              <h3 className="text-sm font-black text-white tracking-tight group-hover:text-neutral-200 transition-colors mt-0.5">
-                {isHindi ? "आज का लक्ष्य" : "Today's Goal"}
-              </h3>
             </div>
           </div>
-          <ChevronRight className="w-5 h-5 text-neutral-400 group-hover:text-white group-hover:translate-x-0.5 transition-transform" />
+          <div className="flex items-center pr-1 shrink-0">
+            <ArrowLeft className="w-6 h-6 text-yellow-400 animate-arrow-rtl" />
+          </div>
         </div>
 
         {/* Course Completion Card */}
