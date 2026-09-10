@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", "Inter Tight", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Geist", "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: "Geist", "Inter Tight", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-ref {
+  font-family: "Geist", "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.ref-num {
+  font-family: "Geist", "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: "tnum" on, "zero" on;
+  letter-spacing: -0.06em;
+}
+
+/* Large display text styling like reference image */
+.large-time-text {
+  font-family: "Geist", "Inter Tight", "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 800;
+  font-size: clamp(4.75rem, 18vw, 6.75rem);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  font-feature-settings: "tnum" on, "zero" on;
+  color: #000000;
+  display: inline-block;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.moving-dark-gradient {
+  background: linear-gradient(-45deg, #090a0f, #2a2e35, #121417, #3b424c, #16191c, #2d333b, #090a0f);
+  background-size: 300% 300%;
+  animation: gradient-shift 12s ease infinite;
+}
+
+.dotted-halftone-pattern {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.11) 1.5px, transparent 1.5px);
+  background-size: 14px 14px;
+}
+
+.module-pic-bg {
+  background-color: #9cb2f6;
+  background-image:
+    radial-gradient(at 10% 12%, rgba(136, 166, 246, 0.95) 0px, transparent 48%),
+    radial-gradient(at 90% 10%, rgba(170, 142, 246, 0.9) 0px, transparent 50%),
+    radial-gradient(at 52% 45%, rgba(224, 208, 252, 0.65) 0px, transparent 52%),
+    radial-gradient(at 88% 85%, rgba(188, 155, 248, 0.85) 0px, transparent 52%),
+    radial-gradient(at 12% 88%, rgba(148, 178, 252, 0.8) 0px, transparent 48%),
+    radial-gradient(at 78% 42%, rgba(246, 210, 236, 0.5) 0px, transparent 42%),
+    linear-gradient(135deg, #93acf6 0%, #b2a3f6 32%, #cdbff8 65%, #beaaf6 100%);
+  background-attachment: fixed;
+}
+
+.hero-card-screenshot-bg {
+  background-color: #021a4d;
+  background-image:
+    radial-gradient(ellipse at 50% 92%, rgba(33, 136, 248, 0.45) 0%, transparent 64%),
+    linear-gradient(180deg, #021a4d 0%, #05276c 30%, #0a4095 62%, #125ebb 85%, #186ed3 100%);
+}
+
+.module-banner-card-bg {
+  background-color: #050e26;
+  background-image:
+    radial-gradient(ellipse at 25% 20%, rgba(34, 88, 204, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse at 85% 85%, rgba(14, 38, 98, 0.3) 0%, transparent 50%),
+    linear-gradient(155deg, #102d76 0%, #0c235d 36%, #08173f 68%, #050e26 100%);
+}

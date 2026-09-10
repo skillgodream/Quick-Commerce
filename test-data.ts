@@ -1,0 +1,3 @@
+import fs from 'fs';
+
+const data = JSON.parse(fs.readFileSync('src/data/mockData.ts', 'utf8').replace('export const MOCK_NEW_HIRES', '')); // just parsing mock data is hard if it's TS...
