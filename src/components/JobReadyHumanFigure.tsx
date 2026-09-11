@@ -27,7 +27,7 @@ import {
   CapabilityState,
   DARK_STORE_CAPABILITIES,
 } from "../types";
-import { evaluateDay10Outcome, assessReadiness } from "../services/intelligence";
+
 
 interface JobReadyHumanFigureProps {
   newHire: NewHire;
@@ -128,9 +128,7 @@ export const JobReadyHumanFigure: React.FC<JobReadyHumanFigureProps> = ({
   const assessPct = Math.round(assessRatio * 30);
 
   // Authoritative Overall Job Readiness calculation
-  const overallReadiness = typeof newHire.overallReadinessScore === "number"
-    ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore))
-    : assessReadiness(capabilities, newHire);
+  const overallReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   const categories: CapabilityCategory[] = [
     {

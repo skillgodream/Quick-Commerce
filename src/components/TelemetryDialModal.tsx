@@ -3,7 +3,6 @@ import { CircularDialWidget } from "./CircularDialWidget";
 import { StoreZonesGrid } from "./StoreZonesGrid";
 import { X, Briefcase, Sparkles, MapPin, ScanLine, Phone } from "lucide-react";
 import { NewHire } from "../types";
-import { assessReadiness } from "../services/intelligence";
 
 interface TelemetryDialModalProps {
   isOpen: boolean;
@@ -34,9 +33,7 @@ export const TelemetryDialModal: React.FC<TelemetryDialModalProps> = ({
   const actualPickRate = currentRecord.workSignal?.actualPickRate || currentRecord.pickRate || 35;
   const targetPickRate = currentRecord.workSignal?.targetPickRate || currentRecord.targetPickRate || 50;
   const accuracyRate = currentRecord.workSignal?.accuracyRate || 98;
-  const readinessScore = typeof newHire.overallReadinessScore === "number"
-    ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore))
-    : (newHire.capabilities ? assessReadiness(newHire.capabilities, newHire) : undefined);
+  const readinessScore = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   return (
     <div

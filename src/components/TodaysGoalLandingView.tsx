@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { NewHire, TrainingModule, DayRecord } from "../types";
 import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
-import { assessReadiness } from "../services/intelligence";
 import { LearnerSection } from "./FloatingGlassMenu";
 import { CoordinateNavigationModuleView } from "./CoordinateNavigationModuleView";
 
@@ -116,14 +115,10 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
 
   // Authoritative live career readiness score calculation
   const baseReadiness =
-    typeof newHire.overallReadinessScore === "number"
-      ? newHire.overallReadinessScore <= 1
-        ? Math.round(newHire.overallReadinessScore * 100)
-        : Math.round(newHire.overallReadinessScore)
-      : (newHire.capabilities ? assessReadiness(newHire.capabilities, newHire) : 0);
+    (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   const tasksBonus = Object.values(completedTaskIds).filter(Boolean).length * 2;
-  const liveReadinessPct = Math.min(100, baseReadiness + tasksBonus);
+  const liveReadinessPct = baseReadiness;
 
   // Today's shift performance / daily progress score matching Home page
   const completedCount = newHire.modulesCompleted ?? 3;
@@ -457,7 +452,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             </h3>
           </div>
 
-          <div className="bg-white rounded-[24px] p-4 shadow-xs text-slate-900 space-y-3 border border-slate-100">
+          <div className="bg-[#e0e0e0] rounded-[24px] p-4 shadow-xs text-slate-900 space-y-3 border-transparent">
             <div className="flex items-center justify-between">
               <span className="text-xs sm:text-[13px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -470,7 +465,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
 
             <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
               {/* 1. Live Module Completion % */}
-              <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden">
+              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "मॉड्यूल" : "Modules"}
                 </span>
@@ -485,7 +480,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               </div>
 
               {/* 2. Pick Rate Live */}
-              <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden">
+              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "पिक रेट" : "Pick Rate"}
                 </span>
@@ -500,7 +495,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               </div>
 
               {/* 3. Accuracy Live */}
-              <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden">
+              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "सटीकता" : "Accuracy"}
                 </span>
@@ -515,7 +510,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               </div>
 
               {/* 4. Quality Check */}
-              <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden">
+              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "क्वालिटी" : "QC Check"}
                 </span>

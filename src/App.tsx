@@ -195,6 +195,7 @@ export default function App() {
           currentCapabilityId: execution.currentCapabilityId,
           overallReadinessScore: execution.overallReadinessScore,
           capabilities: execution.updatedCapabilities,
+          day10Evaluation: execution.day10Evaluation,
           daysHistory: newHistory,
         };
       })

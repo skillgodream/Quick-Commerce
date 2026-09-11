@@ -412,6 +412,7 @@ export interface NewHire {
   currentCapabilityId?: number;                // Primary capability currently active/focused
   overallReadinessScore?: number;             // 0-100% summary of verified floor capabilities
   capabilities?: Record<number, CapabilityState>; // Ledger of all 20 capabilities
+  day10Evaluation?: any;
   daysHistory: DayRecord[];
 }
 

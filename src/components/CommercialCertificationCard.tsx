@@ -18,7 +18,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { NewHire } from "../types";
-import { evaluateDay10Outcome, Day10EvaluationResult } from "../services/intelligence";
+import {Day10EvaluationResult} from "../services/intelligence";
 
 interface CommercialCertificationCardProps {
   newHire: NewHire;
@@ -57,7 +57,7 @@ export const CommercialCertificationCard: React.FC<CommercialCertificationCardPr
   onOpenBuddy,
 }) => {
   // Authoritative Day 10 outcome evaluation from intelligence service
-  const evaluation: Day10EvaluationResult = evaluateDay10Outcome(newHire);
+  const evaluation: Day10EvaluationResult = (newHire.day10Evaluation || { isCommercialReady: false, isReady: false, reasons: [], unresolvedBlockers: [], criteria: {} });
 
   const workerFirstName = (newHire.name || "Worker").split(" ")[0];
 

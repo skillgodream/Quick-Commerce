@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { NewHire, DayRecord } from "../types";
 import { speakMessage, stopSpeaking } from "../utils/speech";
-import { assessReadiness } from "../services/intelligence";
 
 interface DailyCoachReportViewProps {
   newHire: NewHire;
@@ -40,9 +39,7 @@ export const DailyCoachReportView: React.FC<DailyCoachReportViewProps> = ({
   const yAccuracy = workSignal?.accuracyRate ?? 98;
   const yScanAccuracy = yAccuracy;
 
-  const readiness = typeof newHire.overallReadinessScore === "number"
-    ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore))
-    : (newHire.capabilities ? assessReadiness(newHire.capabilities, newHire) : 0);
+  const readiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
   const completedModules = newHire.modulesCompleted ?? 3;
   const totalModules = 5;
 

@@ -36,7 +36,6 @@ import {
 import { NewHire, TrainingModule, ModuleActivity, DARK_STORE_CAPABILITIES } from "../types";
 import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
 
-import { assessReadiness } from "../services/intelligence";
 import { CoordinateNavigationModuleView } from "./CoordinateNavigationModuleView";
 export function checkDeanModuleGate(mod: TrainingModule, newHire: NewHire): { isGated: boolean; reason: string; correctiveAction: string } {
   const capabilities = newHire.capabilities || {};
@@ -131,7 +130,7 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 
   const modulesCompletedCount = newHire.modulesCompleted ?? 3;
   const capabilities = newHire.capabilities || DARK_STORE_CAPABILITIES;
-  const overallReadiness = typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : assessReadiness(capabilities, newHire);
+  const overallReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
   const completedIds = newHire.completedModuleIds || [
     "lms-mod-01",
     "lms-mod-02",
@@ -746,7 +745,7 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                 const isActCompleted = isModCompleted || act.completed;
                 const isModLocked =
                   !isModCompleted &&
-                  activeDetailModule.dayNumber > modulesCompletedCount + 1;
+                  checkDeanModuleGate(activeDetailModule, newHire).isGated;
 
                 return (
                   <div

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NewHire, DailySignal, DARK_STORE_CAPABILITIES } from "../types";
 import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
-import { analyzeDailyReport, assessReadiness, evaluateDay10Outcome } from "../services/intelligence";
+import {analyzeDailyReport} from "../services/intelligence";
 import { speakMessage, stopSpeaking } from "../utils/speech";
 import { CircularDialWidget } from "./CircularDialWidget";
 import { StoreZonesGrid } from "./StoreZonesGrid";
@@ -155,12 +155,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const isShiftScoreBad = yesterdayShiftScore < targetShiftScore;
 
   // Automated Certification Readiness Evaluation
-  const readinessEval = evaluateDay10Outcome(
-    newHire,
-    yesterdayRecord?.workSignal,
-    yesterdayRecord?.dailySignal,
-    yesterdayRecord?.managerSignal
-  );
+  const readinessEval = (newHire.day10Evaluation || { isCommercialReady: false, isReady: false, reasons: [], unresolvedBlockers: [], criteria: {} });
   const blockerCount = readinessEval.unresolvedBlockers.length;
   const isCertifiedReady = readinessEval.isReady;
   const automatedDate = yesterdayRecord?.date || (isHindi ? `दिन ${yesterdayNumber}` : `Day ${yesterdayNumber}`);
@@ -249,9 +244,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   } | null>(null);
 
   // Authoritative Overall Job Readiness calculation
-  const authoritativeReadiness = typeof newHire.overallReadinessScore === "number"
-    ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore))
-    : (newHire.capabilities ? assessReadiness(newHire.capabilities, newHire) : undefined);
+  const authoritativeReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   // Derive simple human state from existing intelligence ledger
   const isSupportCompleted = Boolean(
@@ -631,7 +624,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
       <div className="max-w-md mx-auto p-1.5 sm:p-2 pb-36 select-none min-h-screen bg-white text-slate-900 relative font-ref antialiased">
         
         {/* Full-Bleed Hero Banner containing Top Header and Readiness Score */}
-        <div className="bg-gradient-to-b from-[#0E4AA9] to-[#021F54] rounded-[40px] px-5 pt-5 pb-12 mb-7 shadow-xl flex flex-col text-white border border-blue-500/20 relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#0E4AA9] to-[#021F54] rounded-[40px] px-5 pt-5 pb-12 mb-7 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.4),0_15px_25px_-10px_rgba(0,0,0,0.2),inset_0_3px_8px_rgba(255,255,255,0.15),inset_0_-3px_8px_rgba(0,0,0,0.15)] flex flex-col text-white border border-white/10 relative overflow-hidden">
           
           {/* Top Header: Learner Profile Switcher (Left) & Manager Console / Bell / Language (Right) */}
           <div className="flex items-center justify-between mb-8 relative z-20">

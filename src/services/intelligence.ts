@@ -289,9 +289,7 @@ export function deriveLearnerRoadmap(
   const currentPickRate = currentRecord?.workSignal?.actualPickRate ?? 35;
   const accuracy = currentRecord?.workSignal?.accuracyRate ?? 98;
   const modulesCompleted = hire.modulesCompleted ?? Math.min(10, currentDay);
-  const readinessScore = typeof hire.overallReadinessScore === "number"
-    ? (hire.overallReadinessScore <= 1 ? Math.round(hire.overallReadinessScore * 100) : Math.round(hire.overallReadinessScore))
-    : assessReadiness(capabilities, hire);
+  const readinessScore = (typeof hire.overallReadinessScore === "number" ? (hire.overallReadinessScore <= 1 ? Math.round(hire.overallReadinessScore * 100) : Math.round(hire.overallReadinessScore)) : 0);
 
   const demonstratedCount = (Object.values(capabilities) as CapabilityState[]).filter(
     (c) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")

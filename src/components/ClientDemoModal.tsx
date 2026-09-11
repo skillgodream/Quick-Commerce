@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { DEMO_FEED_PRESETS, GoogleFormFeedPayload } from "../services/googleFormFeedAdapter";
 import { NewHire } from "../types";
-import { evaluateDay10Outcome } from "../services/intelligence";
+
 
 interface ClientDemoModalProps {
   isOpen: boolean;
@@ -235,7 +235,7 @@ export const ClientDemoModal: React.FC<ClientDemoModalProps> = ({
   };
 
   // Day 10 evaluation from live intelligence
-  const day10Result = evaluateDay10Outcome(currentHire);
+  const day10Result = (currentHire.day10Evaluation || { isCommercialReady: false, isReady: false, reasons: [], unresolvedBlockers: [], criteria: {} });
 
   return (
     <div

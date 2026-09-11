@@ -26,7 +26,7 @@ import {
   CapabilityState,
   WorkSignal,
 } from "../types";
-import { assessReadiness } from "../services/intelligence";
+
 
 export interface MilestoneDefinition {
   dayNumber: number;
@@ -219,9 +219,7 @@ export const TenDaySkillJourneyView: React.FC<TenDaySkillJourneyViewProps> = ({
   const isBehind = activeHire.status === "At risk" || activeHire.status === "Needs attention" || modulesCompleted < learnerDay - 1;
 
   // Authoritative Overall Job Readiness calculation
-  const authoritativeReadiness = typeof activeHire.overallReadinessScore === "number"
-    ? (activeHire.overallReadinessScore <= 1 ? Math.round(activeHire.overallReadinessScore * 100) : Math.round(activeHire.overallReadinessScore))
-    : (activeHire.capabilities ? assessReadiness(activeHire.capabilities, activeHire) : 0);
+  const authoritativeReadiness = (typeof activeHire.overallReadinessScore === "number" ? (activeHire.overallReadinessScore <= 1 ? Math.round(activeHire.overallReadinessScore * 100) : Math.round(activeHire.overallReadinessScore)) : 0);
 
   const [expandedLevel, setExpandedLevel] = useState<number | null>(learnerDay <= 3 ? 3 : learnerDay <= 5 ? 5 : learnerDay <= 7 ? 7 : learnerDay <= 9 ? 9 : 10);
 

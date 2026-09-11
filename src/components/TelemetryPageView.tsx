@@ -9,7 +9,7 @@ import {
   Columns,
   Clock,
   User,
-  ArrowLeftRight,
+  ArrowLeftRight, CheckCircle2, Check,
 } from "lucide-react";
 import { LearnerSection } from "./FloatingGlassMenu";
 
@@ -389,6 +389,128 @@ export const TelemetryPageView: React.FC<TelemetryPageViewProps> = ({
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Active Floor Checklist & Drills */}
+        <div className="bg-white rounded-[32px] sm:rounded-[36px] p-4 sm:p-5 shadow-xs border border-black/[0.03] mt-2 relative overflow-hidden">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start gap-2 pt-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#00D084] shrink-0 mt-1" />
+              <h2 className="text-[13px] sm:text-[14px] font-black text-[#18181B] tracking-wide uppercase leading-tight max-w-[160px]">
+                {isHindi ? "एक्टिव फ्लोर चेकलिस्ट व ड्रिल" : "Active Floor Checklist & Drills"}
+              </h2>
+            </div>
+            <div className="bg-[#F4F3EE] px-3 py-1.5 rounded-[16px] shrink-0 text-center">
+              <span className="text-[11px] font-bold text-[#18181B] leading-tight block">
+                {isHindi ? "लाइव फ्लोर" : "Live Floor"}
+              </span>
+              <span className="text-[11px] font-bold text-[#18181B] leading-tight block">
+                {isHindi ? "प्रैक्टिस" : "Practice"}
+              </span>
+            </div>
+          </div>
+
+          <div className="h-px w-full bg-[#F4F3EE] mb-4 absolute left-0 right-0" style={{ width: 'calc(100% + 40px)', marginLeft: '-20px' }} />
+
+          {/* Progress Bar Container */}
+          <div className="bg-[#F4F3EE] rounded-[16px] p-4 mb-4 mt-8">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[13px] font-bold text-[#18181B]">
+                {isHindi ? "आज का कार्य पूरा हुआ" : "Today's Task Completion"}
+              </span>
+              <span className="text-[13px] font-bold text-[#18181B]">
+                0 / 11 {isHindi ? "पूरे हुए" : "Completed"}
+              </span>
+            </div>
+            <div className="h-2 w-full bg-[#E5E4DE] rounded-full overflow-hidden">
+              <div className="h-full bg-[#18181B] rounded-full w-0" />
+            </div>
+          </div>
+
+          {/* Checklist Cards */}
+          <div className="space-y-4">
+            {/* Card 1 */}
+            <div className="border border-stone-800 rounded-[28px] p-4 bg-white relative">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#18181B] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <CheckCircle2 className="w-5 h-5 stroke-[2]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] font-bold text-[#18181B] leading-tight truncate w-[160px] sm:w-[180px]">
+                      {isHindi ? "आइसल 4-8 फिजिकल वॉकथ्रू..." : "Aisle 4-8 physical walkthr..."}
+                    </h3>
+                    <p className="text-[12px] text-[#8E8C85] mt-0.5 leading-tight truncate w-[160px] sm:w-[180px]">
+                      {isHindi ? "फिजिकल शेल्फ की ऊंचाई और..." : "Review physical shelf heights an..."}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-[#18181B] px-3 py-1.5 rounded-[16px] shrink-0 text-center flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-white uppercase tracking-wider leading-tight block">
+                    {isHindi ? "मैप वॉक" : "MAP WALK"}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="h-px w-full bg-[#F4F3EE] mb-4 absolute left-0 right-0" style={{ width: 'calc(100% + 40px)', marginLeft: '-20px' }} />
+
+              <div className="space-y-3 mb-4 mt-8">
+                {/* Checkbox 1 */}
+                <label className="flex items-start gap-3 p-3.5 rounded-[14px] border border-[#E5E4DE] bg-white cursor-pointer hover:bg-stone-50 transition-colors">
+                  <input type="checkbox" className="mt-0.5 w-[18px] h-[18px] rounded-[4px] border-stone-300 text-[#18181B] focus:ring-[#18181B]" />
+                  <span className="text-[13px] font-semibold text-[#18181B] leading-tight flex-1">
+                    {isHindi ? "जांचें कि बिन के निर्देशांक पीडीए दिशानिर्देशों के अनुरूप हैं" : "Verify bin coordinates align with PDA guidelines"}
+                  </span>
+                </label>
+                {/* Checkbox 2 */}
+                <label className="flex items-start gap-3 p-3.5 rounded-[14px] border border-[#E5E4DE] bg-white cursor-pointer hover:bg-stone-50 transition-colors">
+                  <input type="checkbox" className="mt-0.5 w-[18px] h-[18px] rounded-[4px] border-stone-300 text-[#18181B] focus:ring-[#18181B]" />
+                  <span className="text-[13px] font-semibold text-[#18181B] leading-tight flex-1">
+                    {isHindi ? "आइसल 4-8 में वर्टिकल लेवल लेबल (लेवल 1 से 5) ट्रेस करें" : "Trace vertical level labels (Levels 1 to 5) in Aisles 4-8"}
+                  </span>
+                </label>
+                {/* Checkbox 3 */}
+                <label className="flex items-start gap-3 p-3.5 rounded-[14px] border border-[#E5E4DE] bg-white cursor-pointer hover:bg-stone-50 transition-colors">
+                  <input type="checkbox" className="mt-0.5 w-[18px] h-[18px] rounded-[4px] border-stone-300 text-[#18181B] focus:ring-[#18181B]" />
+                  <span className="text-[13px] font-semibold text-[#18181B] leading-tight flex-1">
+                    {isHindi ? "बडी विक्रम के साथ फ्लोर बारकोड की पुष्टि करें" : "Confirm floor barcode integrity with Buddy Vikram"}
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button type="button" className="bg-[#F4F3EE] hover:bg-[#E5E4DE] transition-colors px-4 py-2 rounded-xl text-[12px] font-bold text-[#18181B]">
+                  {isHindi ? "सभी पूर्ण चिह्नित करें" : "Mark All Done"}
+                </button>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div className="border border-[#E5E4DE] rounded-[28px] p-4 bg-[#F4F3EE]/50 relative">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white border border-[#E5E4DE] text-[#18181B] flex items-center justify-center shrink-0 shadow-xs">
+                    <CheckCircle2 className="w-5 h-5 stroke-[2]" />
+                  </div>
+                  <div>
+                    <h3 className="text-[14px] font-bold text-[#18181B] leading-tight truncate w-[160px] sm:w-[180px]">
+                      {isHindi ? "रिंग-स्कैनर द्वारा 50 ऑर्डर पिक करें..." : "Pick 50 orders via ring-..."}
+                    </h3>
+                    <p className="text-[12px] text-[#8E8C85] mt-0.5 leading-tight truncate w-[160px] sm:w-[180px]">
+                      {isHindi ? "0 मिस-स्कैन के साथ पिक करें..." : "Pick with 0 mis-scans using li..."}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-[#E5E4DE] px-3 py-1.5 rounded-[16px] shrink-0 text-center flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[#18181B] uppercase tracking-wider leading-tight block">
+                    {isHindi ? "स्कैनर" : "SCANNER"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
