@@ -17,6 +17,7 @@ import { DailyCoachReportView } from "./DailyCoachReportView";
 import { DashboardHeader } from "./DashboardHeader";
 import { CommercialCertificationCard } from "./CommercialCertificationCard";
 import { TelemetryPageView } from "./TelemetryPageView";
+import { ControlTowerView } from "./ControlTowerView";
 import {
   Mic,
   MicOff,
@@ -724,7 +725,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           <div className="flex flex-col items-center justify-center relative z-10 pt-2">
             
             {/* Circular Progress Gauge */}
-            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7 bg-[#e0e0e0] rounded-full shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
+            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7 bg-[#e0e0e0] rounded-full shadow-[3px_3px_6px_#b8b8b8,-3px_-3px_6px_#ffffff]">
               <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90 drop-shadow-md">
                 {/* Background Track */}
                 <circle
@@ -844,14 +845,14 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         </div>
 
                         {/* Yesterday's Shift Performance */}
-        <div className="mb-6 space-y-3">
+        <div className="mb-6 space-y-3 bg-[#e0e0e0] p-4 sm:p-5 rounded-[32px]">
           <div className="px-1">
-            <h3 className="text-sm font-black text-black tracking-tight uppercase">
+            <h3 className="text-[13px] font-black text-slate-800 tracking-wider uppercase">
               {isHindi ? "कल के मेट्रिक्स" : "Yesterday's Metrics"}
             </h3>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-3">
             {[
               {
                 id: "speed",
@@ -1514,6 +1515,13 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         </div>
       )}
 
+
+
+      {activeSection === "control_tower" && (
+        <div className="relative z-10 min-h-screen bg-slate-50/50 -mx-4 -my-3 pb-36 animate-in fade-in duration-200">
+          <ControlTowerView newHire={newHire} currentDay={currentDay} />
+        </div>
+      )}
 
       {activeSection === "dashboard" && (
         <div className="space-y-4 animate-in fade-in duration-200 bg-white text-slate-900 min-h-screen pb-36 px-0 pt-0 -mx-4 -my-3">

@@ -223,6 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
                       )}
                     </button>
 
+
                     {/* Item 2: Store Ops */}
                     <button
                       id="eye-menu-store-ops"

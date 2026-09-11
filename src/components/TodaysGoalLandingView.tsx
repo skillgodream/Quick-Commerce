@@ -889,7 +889,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             <div className="space-y-1 pr-8">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-mono">
-                  {isHindi ? "कंट्रोल टॉवर व्यू" : "Control Tower View"}
+                  {isHindi ? "ट्रेनिंग व्यू" : "Training View"}
                 </span>
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -897,12 +897,12 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-black text-black leading-tight">
-                {isHindi ? "डीन द्वारा निर्धारित आज की गतिविधियां" : "Dean Prescribed Activities & 5-Activity Breakdown"}
+                {isHindi ? "आज की ट्रेनिंग" : "Today's Training"}
               </h2>
               <p className="text-[11px] text-slate-700 font-medium">
                 {isHindi
-                  ? "यह केवल नियंत्रण कक्ष (Control Tower) का अवलोकन है। यहां से कोई कार्रवाई या सबमिशन नहीं होता।"
-                  : "Read-only control tower viewpoint. Displays all prescribed LMS sub-modules and floor tasks with shift tracking."}
+                  ? "यह ट्रेनिंग अवलोकन है। यहां से कोई कार्रवाई या सबमिशन नहीं होता।"
+                  : "Read-only training viewpoint. Displays all LMS sub-modules and floor tasks with shift tracking."}
               </p>
             </div>
 
@@ -937,7 +937,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             {/* Flat Control Tower List of Prescribed LMS Modules and 5 Sub-Activities */}
             <div className="space-y-3">
               <span className="text-[10px] font-black uppercase tracking-wider text-black block">
-                {isHindi ? "1. निर्धारित एलएमएस मॉड्यूल (5 उप-गतिविधियां)" : "1. Prescribed LMS Modules (All 5 Sub-Activities)"}
+                {isHindi ? "1. निर्धारित एलएमएस मॉड्यूल" : "1. LMS Modules"}
               </span>
 
               <div className="space-y-2">
@@ -1017,7 +1017,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             {/* Flat Control Tower List of Floor Practice Tasks */}
             <div className="space-y-2.5 pt-1">
               <span className="text-[10px] font-black uppercase tracking-wider text-black block">
-                {isHindi ? "2. फ्लोर अभ्यास और व्यावहारिक कार्य" : "2. Prescribed Floor Practice Tasks"}
+                {isHindi ? "2. फ्लोर अभ्यास और कार्य" : "2. Floor Practice Tasks"}
               </span>
 
               <div className="space-y-1.5">
@@ -1073,7 +1073,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 onClick={() => setIsTodaysActivityModalOpen(false)}
                 className="py-3 px-6 rounded-xl font-black text-xs uppercase tracking-wider bg-black hover:bg-neutral-900 text-white transition-all w-full cursor-pointer shadow-md"
               >
-                <span>{isHindi ? "बंद करें" : "Close Control Tower View"}</span>
+                <span>{isHindi ? "बंद करें" : "Close Training View"}</span>
               </button>
             </div>
           </div>
