@@ -17,10 +17,14 @@ import { DailyCoachReportView } from "./DailyCoachReportView";
 import { DashboardHeader } from "./DashboardHeader";
 import { CommercialCertificationCard } from "./CommercialCertificationCard";
 import { TelemetryPageView } from "./TelemetryPageView";
-import {  Mic,
+import {
+  Mic,
   MicOff,
   Send,
   Volume2,
+  Calendar,
+  AlertTriangle,
+  FileText,
   Phone,
   CheckCircle2,
   AlertCircle,
@@ -624,128 +628,167 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
 
   if (activeSection === "home") {
     return (
-      <div className="max-w-md mx-auto pb-36 select-none min-h-screen bg-[#EEEEEE] text-slate-900 px-4 pt-5 relative font-ref antialiased">
-        {/* Top Header: Learner Profile Switcher (Left) & Manager Console / Bell / Language (Right) */}
-        <div className="flex items-center justify-between mb-6">
-          {/* Top-Left Learner Profile & Switcher Dropdown */}
-          <div className="relative" ref={learnerDropdownRef}>
-            <button
-              id="home-learner-dropdown-btn"
-              type="button"
-              onClick={() => setIsLearnerDropdownOpen(!isLearnerDropdownOpen)}
-              className="w-10 h-10 rounded-full bg-white shadow-xs border border-slate-200/80 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
-              title={newHire.name}
-              aria-label="Learner profile"
-            >
-              <User className="w-5 h-5 text-slate-700" />
-            </button>
-
-            {isLearnerDropdownOpen && newHires && newHires.length > 0 && (
-              <div
-                id="home-learner-dropdown-popover"
-                className="absolute top-12 left-0 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
+      <div className="max-w-md mx-auto p-1.5 sm:p-2 pb-36 select-none min-h-screen bg-white text-slate-900 relative font-ref antialiased">
+        
+        {/* Full-Bleed Hero Banner containing Top Header and Readiness Score */}
+        <div className="bg-gradient-to-b from-[#0E4AA9] to-[#021F54] rounded-[40px] px-5 pt-5 pb-12 mb-7 shadow-xl flex flex-col text-white border border-blue-500/20 relative overflow-hidden">
+          
+          {/* Top Header: Learner Profile Switcher (Left) & Manager Console / Bell / Language (Right) */}
+          <div className="flex items-center justify-between mb-8 relative z-20">
+            {/* Top-Left Learner Profile & Switcher Dropdown */}
+            <div className="relative" ref={learnerDropdownRef}>
+              <button
+                id="home-learner-dropdown-btn"
+                type="button"
+                onClick={() => setIsLearnerDropdownOpen(!isLearnerDropdownOpen)}
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
+                title={newHire.name}
+                aria-label="Learner profile"
               >
-                <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  {isHindi ? "प्रशिक्षु स्विच करें" : "Switch Learner Profile"}
+                <User className="w-5 h-5 text-white" />
+              </button>
+
+              {isLearnerDropdownOpen && newHires && newHires.length > 0 && (
+                <div
+                  id="home-learner-dropdown-popover"
+                  className="absolute top-12 left-0 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1 text-slate-900"
+                >
+                  <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                    {isHindi ? "प्रशिक्षु स्विच करें" : "Switch Learner Profile"}
+                  </div>
+                  {newHires.map((hire) => (
+                    <button
+                      key={hire.id}
+                      onClick={() => {
+                        if (onSelectHire) onSelectHire(hire.id);
+                        setIsLearnerDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors cursor-pointer ${
+                        hire.id === newHire.id ? "bg-slate-100 text-black font-black" : "hover:bg-slate-50 text-slate-700 font-medium"
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                        <User className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="text-xs font-black text-black tracking-tight truncate">{hire.name}</p>
+                        <p className="text-[10px] text-slate-500 tracking-tight truncate">{hire.role}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                {newHires.map((hire) => (
-                  <button
-                    key={hire.id}
-                    onClick={() => {
-                      if (onSelectHire) onSelectHire(hire.id);
-                      setIsLearnerDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-colors cursor-pointer ${
-                      hire.id === newHire.id ? "bg-slate-100 text-black font-black" : "hover:bg-slate-50 text-slate-700 font-medium"
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
-                      <User className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-xs font-black text-black tracking-tight truncate">{hire.name}</p>
-                      <p className="text-[10px] text-slate-500 tracking-tight truncate">{hire.role}</p>
-                    </div>
-                  </button>
-                ))}
+              )}
+            </div>
+
+            {/* Top-Right Controls: Manager Console, Bell & Language Switcher */}
+            <div className="flex items-center gap-2">
+              {onOpenManagerConsole && (
+                <button
+                  type="button"
+                  onClick={onOpenManagerConsole}
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
+                  title="Manager Console"
+                >
+                  <Eye className="w-5 h-5 text-white" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowNextStepModal(true)}
+                className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
+                title="Action Highlights & Context"
+              >
+                <Bell className="w-5 h-5 text-white" />
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white/50 animate-pulse" />
+              </button>
+
+              {/* Language Toggle Pill: EN vs हिंदी */}
+              <div className="bg-white/10 backdrop-blur-md rounded-full p-1 flex items-center gap-1 border border-white/20 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setIsHindi(false)}
+                  className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
+                    !isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHindi(true)}
+                  className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
+                    isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                  }`}
+                >
+                  हिंदी
+                </button>
               </div>
-            )}
+            </div>
           </div>
 
-          {/* Top-Right Controls: Manager Console, Bell & Language Switcher */}
-          <div className="flex items-center gap-2">
-            {onOpenManagerConsole && (
-              <button
-                type="button"
-                onClick={onOpenManagerConsole}
-                className="w-10 h-10 rounded-full bg-white shadow-xs border border-slate-200/80 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
-                title="Manager Console"
-              >
-                <Eye className="w-5 h-5 text-slate-700" />
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setShowNextStepModal(true)}
-              className="relative w-10 h-10 rounded-full bg-white shadow-xs border border-slate-200/80 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-all cursor-pointer"
-              title="Action Highlights & Context"
-            >
-              <Bell className="w-5 h-5 text-slate-700" />
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
-            </button>
-
-            {/* Language Toggle Pill: EN vs हिंदी */}
-            <div className="bg-slate-200/80 rounded-full p-1 flex items-center gap-1 border border-slate-300/60 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setIsHindi(false)}
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                  !isHindi ? "bg-white text-black shadow-xs" : "text-slate-600 hover:text-black"
-                }`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsHindi(true)}
-                className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                  isHindi ? "bg-black text-white shadow-xs" : "text-slate-600 hover:text-black"
-                }`}
-              >
-                हिंदी
-              </button>
+          {/* Readiness Score Content */}
+          <div className="flex flex-col items-center justify-center relative z-10 pt-2">
+            
+            {/* Circular Progress Gauge */}
+            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7">
+              <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90 drop-shadow-md">
+                {/* Background Track */}
+                <circle
+                  cx="90"
+                  cy="90"
+                  r="76"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.15)"
+                  strokeWidth="14"
+                />
+                {/* Progress Arc */}
+                <circle
+                  cx="90"
+                  cy="90"
+                  r="76"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * Math.PI * 76}
+                  strokeDashoffset={(2 * Math.PI * 76) - ((authoritativeReadiness ?? 35) / 100) * (2 * Math.PI * 76)}
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+              
+              {/* Center Content (Number and Label) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span 
+                    className="font-bold text-white tracking-[-0.04em] leading-none font-sans"
+                    style={{ fontSize: 'clamp(4.5rem, 15vw, 5.5rem)' }}
+                  >
+                    {authoritativeReadiness ?? 35}
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-bold text-white/80">
+                    %
+                  </span>
+                </div>
+                <span className="text-[11px] sm:text-[12px] font-bold text-white/80 tracking-[0.15em] uppercase">
+                  {isHindi ? "भूमिका तत्परता" : "Role Readiness"}
+                </span>
+              </div>
+            </div>
+            
+            {/* Translucent tab under the circle */}
+            <div className="relative z-10 inline-flex items-center justify-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-sm">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="text-xs sm:text-sm font-semibold text-white tracking-wide">
+                {isHindi ? "प्रमाणन के लिए 6 दिन शेष" : "6 days to certification"}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Readiness Score & Side Text (Matched to Reference Image Layout) */}
-        <div className="mb-7 mt-2 flex items-center gap-3.5 sm:gap-6 pt-1">
-          <div className="flex items-baseline gap-1.5 shrink-0">
-            <span className="large-time-text select-none">
-              {authoritativeReadiness ?? 35}
-            </span>
-            <span className="text-3xl sm:text-5xl md:text-6xl font-black text-black/60 tracking-tighter leading-none inline-block transform scale-y-[1.35] origin-bottom font-ref">
-              %
-            </span>
-          </div>
-
-          <div className="flex flex-col justify-center text-sm sm:text-lg md:text-xl font-normal text-black leading-tight sm:leading-snug tracking-tight select-none">
-            {isHindi ? (
-              <>
-                <span className="font-normal text-black">प्रमाणन विंडो के लिए</span>
-                <span className="font-normal text-black">6 दिन शेष</span>
-              </>
-            ) : (
-              <>
-                <span className="font-normal text-black">6 days to</span>
-                <span className="font-normal text-black">certification window</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Status Pills Row */}
+        {/* Content Below Banner (add horizontal padding back since we removed it from the wrapper) */}
+        <div className="px-4">
+          {/* Status Pills Row */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1 no-scrollbar">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black text-white text-xs font-black tracking-tight shadow-xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -779,7 +822,9 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             </div>
           </div>
           <div className="flex items-center pr-1 shrink-0">
-            <ArrowLeft className="w-6 h-6 text-yellow-400 animate-arrow-rtl" />
+            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400">
+              <ArrowRight className="w-5 h-5 text-yellow-400" />
+            </div>
           </div>
         </div>
 
@@ -805,7 +850,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
         </div>
 
-        {/* Yesterday's Shift Performance */}
+                        {/* Yesterday's Shift Performance */}
         <div className="mb-6 space-y-3">
           <div className="px-1">
             <h3 className="text-sm font-black text-black tracking-tight uppercase">
@@ -1037,6 +1082,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             </div>
           </div>
         )}
+        </div> {/* End of px-4 wrapper for content below banner */}
 
         <FloatingGlassMenu
           activeSection={activeSection}
@@ -1235,6 +1281,45 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             onNavigateToSection={(sec) => setActiveSection(sec)}
             onOpenTodaysGoal={() => setShowTodaysGoalView(true)}
           />
+
+          {/* Quick Bridge Card to Floor Shift & Training Modules */}
+          <div className="grid grid-cols-2 gap-3.5">
+            <div className="bg-white/10 rounded-[28px] p-5 text-white shadow-xl border border-white/10 space-y-3 flex flex-col justify-between backdrop-blur-md">
+              <div>
+                <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-black uppercase tracking-wider">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>{isHindi ? "शिफ्ट टूल्स" : "Floor Shift"}</span>
+                </div>
+                <p className="text-xs text-slate-350 mt-2 font-semibold leading-relaxed">
+                  {isHindi ? "पिक रेट डायल, स्टोर मैप व गाइड" : "Pick dial, store zone map & guides"}
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveModal("work")}
+                className="w-full py-2.5 rounded-2xl bg-cyan-400 text-slate-950 text-xs font-black cursor-pointer shadow-md shadow-cyan-950/10 active:scale-95 transition-all hover:bg-cyan-300 uppercase tracking-wider"
+              >
+                {isHindi ? "टूल्स खोलें 🛠️" : "Floor Tools 🛠️"}
+              </button>
+            </div>
+
+            <div className="bg-white/10 rounded-[28px] p-5 text-white shadow-xl border border-white/10 space-y-3 flex flex-col justify-between backdrop-blur-md">
+              <div>
+                <div className="flex items-center gap-1.5 text-purple-300 text-xs font-black uppercase tracking-wider">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>{isHindi ? "एलएमएस मॉड्यूल" : "LMS Training"}</span>
+                </div>
+                <p className="text-xs text-slate-350 mt-2 font-semibold leading-relaxed">
+                  {newHire.modulesCompleted ?? 3}/10 {isHindi ? "मॉड्यूल पूरे" : "Modules done"}
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveSection("modules")}
+                className="w-full py-2.5 rounded-2xl bg-purple-500 text-white text-xs font-black cursor-pointer shadow-md shadow-purple-950/10 active:scale-95 transition-all hover:bg-purple-400 uppercase tracking-wider"
+              >
+                {isHindi ? "मॉड्यूल देखें 📚" : "View Modules 📚"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1438,7 +1523,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
 
 
       {activeSection === "dashboard" && (
-        <div className="space-y-4 animate-in fade-in duration-200 bg-[#EEEEEE] text-slate-900 min-h-screen pb-36 px-4 pt-4 -mx-4 -my-3">
+        <div className="space-y-4 animate-in fade-in duration-200 bg-white text-slate-900 min-h-screen pb-36 px-0 pt-0 -mx-4 -my-3">
           {/* Royal Blue Full-Bleed Dashboard Header */}
           <DashboardHeader
             newHire={newHire}
@@ -1469,44 +1554,6 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             onOpenModules={() => setActiveSection("modules")}
           />
 
-          {/* Quick Bridge Card to Floor Shift & Training Modules */}
-          <div className="grid grid-cols-2 gap-3.5">
-            <div className="bg-white/10 rounded-[28px] p-5 text-white shadow-xl border border-white/10 space-y-3 flex flex-col justify-between backdrop-blur-md">
-              <div>
-                <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-black uppercase tracking-wider">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span>{isHindi ? "शिफ्ट टूल्स" : "Floor Shift"}</span>
-                </div>
-                <p className="text-xs text-slate-350 mt-2 font-semibold leading-relaxed">
-                  {isHindi ? "पिक रेट डायल, स्टोर मैप व गाइड" : "Pick dial, store zone map & guides"}
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveModal("work")}
-                className="w-full py-2.5 rounded-2xl bg-cyan-400 text-slate-950 text-xs font-black cursor-pointer shadow-md shadow-cyan-950/10 active:scale-95 transition-all hover:bg-cyan-300 uppercase tracking-wider"
-              >
-                {isHindi ? "टूल्स खोलें 🛠️" : "Floor Tools 🛠️"}
-              </button>
-            </div>
-
-            <div className="bg-white/10 rounded-[28px] p-5 text-white shadow-xl border border-white/10 space-y-3 flex flex-col justify-between backdrop-blur-md">
-              <div>
-                <div className="flex items-center gap-1.5 text-purple-300 text-xs font-black uppercase tracking-wider">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>{isHindi ? "एलएमएस मॉड्यूल" : "LMS Training"}</span>
-                </div>
-                <p className="text-xs text-slate-350 mt-2 font-semibold leading-relaxed">
-                  {newHire.modulesCompleted ?? 3}/10 {isHindi ? "मॉड्यूल पूरे" : "Modules done"}
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveSection("modules")}
-                className="w-full py-2.5 rounded-2xl bg-purple-500 text-white text-xs font-black cursor-pointer shadow-md shadow-purple-950/10 active:scale-95 transition-all hover:bg-purple-400 uppercase tracking-wider"
-              >
-                {isHindi ? "मॉड्यूल देखें 📚" : "View Modules 📚"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

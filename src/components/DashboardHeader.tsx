@@ -10,6 +10,9 @@ import {
   AlertTriangle,
   ArrowRight,
   TrendingUp,
+  Sun,
+  Bookmark,
+  Hash
 } from "lucide-react";
 import { NewHire } from "../types";
 
@@ -116,7 +119,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         "Your trolley handling is steady. Practice route efficiency in heavy cereal aisles to minimize step lag.",
       actionGuidanceHi:
         "ट्रॉली हैंडलिंग बहुत अच्छी है। भारी सामान की गलियों में रूट दक्षता और सुधारें।",
-      icon: <Dumbbell className="w-4 h-4" />,
+      icon: <Hash className="w-4 h-4" />,
       accentColor: "#10b981",
     },
     {
@@ -178,7 +181,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         "Complete the scanner handling check with your coach Vikram to clear this assessment.",
       actionGuidanceHi:
         "यह असेसमेंट पूरा करने के लिए अपने गाइड विक्रम भैया से स्कैनर हैंडलिंग जांच करवाएं।",
-      icon: <FileCheck2 className="w-4 h-4" />,
+      icon: <Bookmark className="w-4 h-4" />,
       accentColor: "#f59e0b",
     },
   ];
@@ -193,123 +196,98 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   return (
     <>
       <header
-        id="dashboard-royal-blue-header"
-        className="-mx-4 -mt-3 pt-3.5 pb-3 px-4 sm:px-5 bg-gradient-to-r from-[#081b4e] via-[#0d2a6b] to-[#09183e] text-white rounded-b-2xl shadow-xl shadow-blue-950/40 border-b border-blue-400/20 relative overflow-hidden select-none"
+        id="dashboard-header-banner"
+        className="px-1.5 sm:px-2 pt-1.5 sm:pt-2 pb-2 relative select-none"
       >
-        {/* Ambient subtle backlights */}
-        <div className="absolute -top-12 -left-12 w-32 h-32 bg-blue-400/15 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute top-0 right-0 w-36 h-28 bg-cyan-400/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 space-y-3">
-          {/* Top row: Title + Subtitle on Left, 22% Progression Ring on Right */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-black tracking-tight text-white truncate leading-tight">
-                {isHindi ? `${firstName} के मॉड्यूल्स` : `${firstName} ke modules`}
-              </h1>
-              <p className="text-[11px] font-semibold text-blue-200/80 tracking-wide mt-0.5 truncate">
-                {isHindi ? "संबद्ध ट्रेनिंग मॉड्यूल्स" : "affiliated training modules"}
-              </p>
+        <div className="relative z-10 bg-[#e5e5e5] rounded-[40px] p-5 sm:p-6 shadow-sm border border-slate-200/80 space-y-6">
+          {/* Top row: Sun icon + Language Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 rounded-full bg-[#1c1c1c] text-white flex items-center justify-center shadow-md">
+              <Sun className="w-5 h-5" />
             </div>
-
-            {/* Right side: Language toggle pill + 22% circular progress ring */}
-            <div className="flex items-center gap-2.5 shrink-0">
-              {onToggleLanguage && (
+            
+            {onToggleLanguage && (
+              <div className="flex items-center bg-[#e2e1dc]/80 p-1 rounded-full text-[11px] font-bold">
                 <button
                   type="button"
                   onClick={onToggleLanguage}
-                  className="px-2 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-[10px] font-black text-blue-200 flex items-center gap-1 transition-all cursor-pointer active:scale-95"
-                  title="Toggle Language"
+                  className={`px-3 py-1.5 rounded-full transition-all ${
+                    !isHindi ? "bg-[#1c1c1c] text-white" : "text-slate-500 hover:text-slate-700"
+                  }`}
                 >
-                  <Languages className="w-3 h-3 text-cyan-300" />
-                  <span>{isHindi ? "English" : "हिंदी"}</span>
+                  EN
                 </button>
-              )}
-
-              {/* Small circle of 22% progression */}
-              <div
-                id="dashboard-22-percent-circle"
-                className="flex items-center gap-2 bg-blue-950/40 backdrop-blur-xs pl-2 pr-2.5 py-1 rounded-full border border-blue-400/20 shadow-xs"
-              >
-                <div className="relative w-[38px] h-[38px] flex items-center justify-center shrink-0">
-                  <svg
-                    className="w-full h-full -rotate-90 transform"
-                    viewBox="0 0 42 42"
-                  >
-                    <circle
-                      cx="21"
-                      cy="21"
-                      r={radius}
-                      stroke="currentColor"
-                      strokeWidth={strokeWidth}
-                      fill="transparent"
-                      className="text-blue-900/60"
-                    />
-                    <circle
-                      cx="21"
-                      cy="21"
-                      r={radius}
-                      stroke="url(#progress-gradient-blue)"
-                      strokeWidth={strokeWidth}
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                      strokeLinecap="round"
-                      fill="transparent"
-                      className="transition-all duration-700 ease-out"
-                    />
-                    <defs>
-                      <linearGradient
-                        id="progress-gradient-blue"
-                        x1="0%"
-                        y1="0%"
-                        x2="100%"
-                        y2="100%"
-                      >
-                        <stop offset="0%" stopColor="#38bdf8" />
-                        <stop offset="100%" stopColor="#2563eb" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <span className="absolute text-[10px] font-black text-white tracking-tight">
-                    22%
-                  </span>
-                </div>
-                <div className="text-left leading-tight hidden xs:block">
-                  <span className="text-[9px] font-bold text-blue-200 block uppercase tracking-wider">
-                    {isHindi ? "प्रगति" : "Progress"}
-                  </span>
-                  <span className="text-[10px] font-black text-cyan-300">
-                    22%
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  onClick={onToggleLanguage}
+                  className={`px-3 py-1.5 rounded-full transition-all ${
+                    isHindi ? "bg-[#1c1c1c] text-white" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  हिंदी
+                </button>
               </div>
+            )}
+          </div>
+
+          {/* Title row */}
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-black tracking-tight text-[#1c1c1c] truncate leading-tight">
+                {isHindi ? "रोल रेडीनेस" : "Role Readiness"}
+              </h1>
+              <p className="text-[13px] font-semibold text-slate-500 tracking-wide mt-1 truncate">
+                {isHindi ? "संबद्ध ट्रेनिंग मॉड्यूल्स" : "Affiliated training modules"}
+              </p>
+            </div>
+
+            {/* Right side: 22% circular progress ring */}
+            <div
+              id="dashboard-22-percent-circle"
+              className="relative w-[60px] h-[60px] shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100"
+            >
+              <svg
+                className="absolute inset-0 w-full h-full -rotate-90 transform"
+                viewBox="0 0 42 42"
+              >
+                <circle
+                  cx="21"
+                  cy="21"
+                  r={radius}
+                  stroke="#1c1c1c"
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className="transition-all duration-700 ease-out"
+                />
+              </svg>
+              <span className="text-[13px] font-black text-[#1c1c1c] tracking-tight z-10">
+                22%
+              </span>
             </div>
           </div>
 
           {/* Bottom row: 4 interactive circular pillar icons */}
-          <div className="grid grid-cols-4 gap-2 pt-0.5">
+          <div className="grid grid-cols-4 gap-2.5 pt-2">
             {pillars.map((pillar) => (
               <button
                 key={pillar.id}
                 id={`header-pillar-${pillar.id}`}
                 type="button"
                 onClick={() => setActivePillar(pillar)}
-                className="group flex flex-col items-center justify-center p-1.5 rounded-xl bg-white/10 hover:bg-white/15 active:scale-95 border border-white/10 transition-all cursor-pointer select-none"
+                className="group flex flex-col items-center justify-center bg-white p-3 rounded-[20px] shadow-sm border border-slate-100 hover:border-slate-300 active:scale-95 transition-all cursor-pointer select-none"
               >
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-xs transition-transform group-hover:scale-110"
-                  style={{
-                    backgroundColor: `${pillar.accentColor}25`,
-                    color: pillar.accentColor,
-                    border: `1px solid ${pillar.accentColor}40`,
-                  }}
+                  className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center transition-transform group-hover:scale-110 mb-2 text-[#1c1c1c]"
                 >
                   {pillar.icon}
                 </div>
-                <span className="text-[10px] font-bold text-slate-100 mt-1 truncate max-w-full text-center">
+                <span className="text-[12px] font-black text-[#1c1c1c] truncate max-w-full text-center">
                   {isHindi ? pillar.titleHi : pillar.title}
                 </span>
-                <span className="text-[8px] font-semibold text-blue-200/70 -mt-0.5">
+                <span className="text-[10px] font-semibold text-slate-500 mt-1">
                   {pillar.weight}%
                 </span>
               </button>

@@ -68,23 +68,18 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
   );
 
   let statusLabel = isHindi ? "लक्ष्य पर" : "On Track";
-  let statusColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (compositeScore < 65) {
     statusLabel = isHindi ? "ध्यान दें" : "Needs Attention";
-    statusColor = "bg-red-50 text-red-700 border-red-200";
   } else if (compositeScore < 80) {
     statusLabel = isHindi ? "स्थिर रफ़्तार" : "Ramping Steady";
-    statusColor = "bg-amber-50 text-amber-700 border-amber-200";
   }
 
-  const prevDailySignal = yesterdayRecord?.dailySignal;
-  const prevPattern = yesterdayRecord?.identifiedPattern;
-  const prevActionOutcome = yesterdayRecord?.actionOutcome;
+  const isTrainingRed = completedCount < 3 || quizAvg < 85;
+  const isSpeedRed = actualPace < targetPace;
+  const isAccuracyRed = accuracy < 95;
+  const isOrdersRed = ordersCompleted < targetOrders;
+  const anyCardRed = isTrainingRed || isSpeedRed || isAccuracyRed || isOrdersRed;
 
-  const isPaceBelow = actualPace < targetPace - 3;
-  const isShiftGood = compositeScore >= 75;
-
-  // Audio speech narration
   const handlePlayAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (playingAudio) {
@@ -92,23 +87,14 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
       setPlayingAudio(false);
       return;
     }
-
     const text = isHindi
       ? `कल का समग्र प्रदर्शन स्कोर ${compositeScore} प्रतिशत है। ट्रेनिंग ${trainingScore}%, पिकिंग स्पीड ${actualPace} सामान प्रति घंटा, एक्यूरेसी ${accuracy}%, और ${ordersCompleted} ऑर्डर पूरे हुए। स्थिति: ${statusLabel}।`
       : `Yesterday's overall daily performance score is ${compositeScore} percent. Training ${trainingScore} percent, pick rate ${actualPace} items per hour, ${accuracy} percent accuracy, and ${ordersCompleted} orders fulfilled. Status: ${statusLabel}.`;
-
     setPlayingAudio(true);
     speakMessage(text, isHindi, () => {
       setPlayingAudio(false);
     });
   };
-
-  // Threshold calculations to identify individual underperforming (red) states
-  const isTrainingRed = completedCount < 3 || quizAvg < 85;
-  const isSpeedRed = actualPace < targetPace;
-  const isAccuracyRed = accuracy < 95;
-  const isOrdersRed = ordersCompleted < targetOrders;
-  const anyCardRed = isTrainingRed || isSpeedRed || isAccuracyRed || isOrdersRed;
 
   const handleCardClick = () => {
     if (isDashboardVariant && onOpenDetailedModal) {
@@ -118,9 +104,118 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
     }
   };
 
+  if (isDashboardVariant) {
+    return (
+      <div 
+        id="dashboard-yesterday-snapshot-card"
+        onClick={handleCardClick}
+        className="mb-6 bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 cursor-pointer active:scale-[0.99] transition-transform"
+      >
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-start gap-4">
+            <div className="w-[52px] h-[52px] rounded-[18px] bg-[#f0eee4] flex items-center justify-center shrink-0">
+              <Calendar className="w-6 h-6 text-black stroke-[1.5]" />
+            </div>
+            <div className="pt-0.5">
+              <h3 className="text-2xl font-black text-black leading-none tracking-tight mb-1">
+                {isHindi ? "कल का" : "Yesterday"}<br/>{isHindi ? "स्नैपशॉट" : "snapshot"}
+              </h3>
+              <p className="text-[14px] text-slate-500 font-medium leading-snug">
+                {isHindi ? `दिन ${Math.max(1, currentDay - 1)} शिफ्ट` : `Day ${Math.max(1, currentDay - 1)} shift`}<br/>{isHindi ? "निष्पादन और मेट्रिक्स" : "execution & metrics"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-3">
+            <button 
+              type="button" 
+              onClick={handlePlayAudio}
+              className="w-11 h-11 rounded-2xl bg-[#f0eee4] flex items-center justify-center hover:bg-[#e4e2d8] transition-colors"
+            >
+              <Volume2 className="w-5 h-5 text-black stroke-[2]" />
+            </button>
+            <div className="px-3.5 py-1.5 bg-[#111111] text-white rounded-full text-[15px] font-black tracking-wide shadow-sm">
+              {compositeScore}%
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2.5 mb-6">
+          {/* TRAINING */}
+          <div className="bg-[#f0eee4] rounded-[22px] p-3 flex flex-col items-center text-center justify-between h-[116px]">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+              TRAI...
+            </span>
+            <span className="text-3xl font-black text-black leading-none my-1 tracking-tight">
+              {completedCount}/3
+            </span>
+            <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
+              {quizAvg}%<br/>quiz
+            </span>
+          </div>
+          {/* SPEED */}
+          <div className={`rounded-[22px] p-3 flex flex-col items-center text-center justify-between h-[116px] ${isSpeedRed ? "bg-[#f0eee4]" : "bg-[#f0eee4]"}`}>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+              SPEED
+            </span>
+            <div className="flex items-center gap-1 my-1">
+              <span className={`text-3xl font-black leading-none tracking-tight ${isSpeedRed ? "text-black" : "text-black"}`}>
+                {actualPace}
+              </span>
+              {isSpeedRed && <AlertTriangle className="w-[18px] h-[18px] text-[#db4a39] stroke-[2.5]" />}
+            </div>
+            <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
+              target<br/>{targetPace}/h
+            </span>
+          </div>
+          {/* ACCURACY */}
+          <div className="bg-[#f0eee4] rounded-[22px] p-3 flex flex-col items-center text-center justify-between h-[116px]">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+              ACC...
+            </span>
+            <span className="text-3xl font-black text-black leading-none my-1 tracking-tight">
+              {accuracy}%
+            </span>
+            <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
+              <br/>Verified
+            </span>
+          </div>
+          {/* ORDERS */}
+          <div className={`rounded-[22px] p-3 flex flex-col items-center text-center justify-between h-[116px] ${isOrdersRed ? "bg-[#f0eee4]" : "bg-[#f0eee4]"}`}>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+              ORDE...
+            </span>
+            <div className="flex items-center gap-1 my-1">
+              <span className={`text-3xl font-black leading-none tracking-tight ${isOrdersRed ? "text-black" : "text-black"}`}>
+                {ordersCompleted}
+              </span>
+              {isOrdersRed && <AlertTriangle className="w-[18px] h-[18px] text-[#db4a39] stroke-[2.5]" />}
+            </div>
+            <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
+              target<br/>{targetOrders}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t border-[#e5e5e5] pt-5 flex items-center justify-between">
+          <div className="flex items-start gap-2.5">
+            <FileText className="w-[18px] h-[18px] shrink-0 mt-0.5 text-slate-500 stroke-[1.5]" />
+            <span className="text-[14px] font-medium max-w-[170px] leading-snug text-slate-600">
+              {isHindi ? "विस्तृत रिपोर्ट देखें" : "Tap for full shift details & breakdown"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 pr-1">
+            <span className="text-[16px] font-black text-black">{isHindi ? "विवरण" : "Details"}</span>
+            <ArrowRight className="w-5 h-5 text-black stroke-[3]" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to the dark mode card for other contexts (e.g. today's goals landing view)
   return (
     <div
-      id={isDashboardVariant ? "dashboard-yesterday-snapshot-card" : "yesterday-quick-snapshot-card"}
+      id="yesterday-quick-snapshot-card"
       onClick={handleCardClick}
       className={`rounded-[26px] p-4.5 sm:p-5 border shadow-xl space-y-3.5 cursor-pointer select-none transition-all hover:border-white/40 active:scale-[0.995] ${
         anyCardRed
@@ -142,18 +237,15 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
             </span>
           </div>
         </div>
-
         <div className="flex items-center gap-2 shrink-0">
-          {/* Circular badge with 89% without any text */}
+          {/* Circular badge with compositeScore% without any text */}
           <div className={`w-12 h-12 rounded-full font-black text-sm flex items-center justify-center shadow-xs ${
             anyCardRed
               ? "bg-red-500/20 border border-red-500/40 text-red-300"
               : "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300"
           }`}>
-            89%
+            {compositeScore}%
           </div>
-
-          
         </div>
       </div>
 
@@ -251,17 +343,8 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
       {/* 3. TACTILE ACTION FOOTER */}
       <div className="pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
         <span className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-          {isDashboardVariant ? (
-            <>
-              <FileText className="w-4 h-4 text-slate-400" />
-              <span>{isHindi ? "पूरा विवरण देखें" : "Tap for full shift details"}</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-slate-400" />
-              <span>{isHindi ? "डैशबोर्ड रिपोर्ट देखें" : "Tap for full details"}</span>
-            </>
-          )}
+          <Sparkles className="w-4 h-4 text-slate-400" />
+          <span>{isHindi ? "डैशबोर्ड रिपोर्ट देखें" : "Tap for full details"}</span>
         </span>
         <div className="text-xs font-bold text-slate-200 hover:text-white flex items-center gap-1 transition-colors">
           <span>{isHindi ? "विवरण →" : "Details →"}</span>

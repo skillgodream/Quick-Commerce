@@ -127,6 +127,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
 
   // Today's shift performance / daily progress score matching Home page
   const completedCount = newHire.modulesCompleted ?? 3;
+  const totalActivities = 20;
   const quizAvg = newHire.quizAverageScore ?? 94;
   const ordersCompleted = currentRecord.workSignal?.ordersCompleted ?? 38;
   const targetOrders = currentRecord.workSignal?.targetOrders ?? 42;
@@ -300,16 +301,16 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#eef0f4] text-slate-900 pb-28 select-none relative font-sans">
+    <div className="min-h-screen bg-white text-slate-900 pb-28 select-none relative font-sans">
       {/* MAIN CONTENT CONTAINER */}
-      <div className="max-w-md mx-auto px-3 sm:px-4 space-y-3.5 pt-3 sm:pt-4">
+      <div className="max-w-md mx-auto p-1.5 sm:p-2 space-y-3">
         {/* ========================================================= */}
         {/* SECTION 1: 3-TAB PROGRESS CARD (DAY, CAREER, YESTERDAY)   */}
         {/* ========================================================= */}
         <div className="space-y-2">
           <div
             id="circular-telemetry-dial-widget"
-            className="bg-gradient-to-b from-[#1b42df] via-[#0c268a] to-[#040b32] rounded-[24px] px-3.5 py-3 shadow-xl space-y-2 select-none relative overflow-hidden text-white border border-blue-500/20"
+            className="bg-[#e5e5e5] rounded-[40px] px-5 py-5 shadow-sm space-y-2 select-none relative overflow-hidden text-black border border-slate-200/80"
           >
             {/* Top Bar inside Hero Banner: Back Button, Blinking Green Dot, and Hindi Language Icon */}
             <div className="flex items-center justify-between relative z-20 pb-0.5">
@@ -317,19 +318,19 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               <button
                 type="button"
                 onClick={onBack}
-                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white border border-white/15 cursor-pointer"
+                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center text-slate-800 border border-slate-200 cursor-pointer shadow-sm"
                 title={isHindi ? "वापस जाएं" : "Back to Home"}
               >
                 <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
               </button>
 
               {/* Green Blinking Status Dot */}
-              <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30">
+              <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 shadow-sm">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">
                   {isHindi ? "लाइव" : "LIVE"}
                 </span>
               </div>
@@ -339,10 +340,10 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <button
                   type="button"
                   onClick={onToggleLanguage}
-                  className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-black tracking-wide border border-white/15 transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-[11px] font-black tracking-wide border border-slate-200 transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-sm"
                   title="Toggle Hindi / English"
                 >
-                  <Languages className="w-3 h-3 text-cyan-400" />
+                  <Languages className="w-3 h-3 text-cyan-600" />
                   <span>{isHindi ? "हिंदी" : "EN"}</span>
                 </button>
               ) : (
@@ -350,136 +351,99 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               )}
             </div>
 
-            {/* The Circular Dial / Gauge */}
-            <div className="relative flex items-center justify-center py-0.5">
-              <div className="relative w-40 h-40 sm:w-44 sm:h-44 flex items-center justify-center">
-                <svg
-                  viewBox="0 0 220 220"
-                  className="w-full h-full select-none -rotate-90"
-                >
-                  <defs>
-                    <radialGradient id="midnightSphereGrad" cx="50%" cy="40%" r="60%">
-                      <stop offset="0%" stopColor="#1a3475" stopOpacity="1" />
-                      <stop offset="100%" stopColor="#081432" stopOpacity="1" />
-                    </radialGradient>
-                  </defs>
-
-                  {/* Inner Shaded Sphere */}
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r="68"
-                    fill="url(#midnightSphereGrad)"
-                    className="rotate-90 origin-center"
-                  />
-
-                  {/* Outer Track */}
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r="84"
-                    fill="none"
-                    stroke="#1e3a6e"
-                    strokeWidth="16"
-                  />
-
-                  {/* Active Solid White Progress Arc */}
-                  <circle
-                    cx="110"
-                    cy="110"
-                    r="84"
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth="16"
-                    strokeLinecap="round"
-                    strokeDasharray={2 * Math.PI * 84}
-                    strokeDashoffset={
-                      (2 * Math.PI * 84) - (displayedPercentage / 100) * (2 * Math.PI * 84)
-                    }
-                    className="transition-all duration-700 ease-out"
-                  />
-                </svg>
-
-                {/* Centered Gauge Typography - Dead center in circle */}
-                <div className="absolute inset-0 flex items-center justify-center text-center select-none pointer-events-none">
-                  <div className="flex items-center justify-center text-white">
-                    <span className="ref-num text-5xl sm:text-[58px] font-black tracking-[-0.04em] leading-none text-white inline-block transform scale-y-[1.38] scale-x-[1.04] origin-center font-['Inter_Tight',sans-serif]">
-                      {displayedPercentage}
-                    </span>
-                    <span className="text-2xl sm:text-[28px] font-black text-white/80 ml-1 leading-none inline-block transform scale-y-[1.38] origin-center font-['Inter_Tight',sans-serif]">
-                      %
-                    </span>
-                  </div>
+            <div className="flex items-center justify-between">
+              {/* Large Left-Aligned Number */}
+              <div className="flex items-center gap-3 sm:gap-4 pt-1 pb-1">
+                <div className="flex items-baseline shrink-0 leading-[0.85]">
+                  <span 
+                    className="font-medium text-black tracking-[-0.05em]"
+                    style={{ fontSize: 'clamp(5rem, 22vw, 6.5rem)' }}
+                  >
+                    {String(displayedPercentage).padStart(2, '0')}
+                  </span>
+                  <span 
+                    className="font-bold text-black/60 tracking-[-0.02em] ml-1 sm:ml-1.5"
+                    style={{ fontSize: 'clamp(2.5rem, 9vw, 3.5rem)' }}
+                  >
+                    %
+                  </span>
+                </div>
+                <div className="text-xs sm:text-sm font-medium text-slate-700 leading-tight tracking-tight max-w-[100px]">
+                  {dialSubtext}
                 </div>
               </div>
-            </div>
 
-            {/* Three Character / Role Icons UNDER the circle - Small & Compact */}
-            <div className="flex items-center justify-center gap-5 pt-0.5 pb-0.5">
-              {/* Character Icon 1: Day (Shift Progress) */}
-              <button
-                type="button"
-                onClick={() => setActiveDialTab("day")}
-                title={isHindi ? "दैनिक शिफ्ट प्रोग्रेस" : "Day / Shift Progress"}
-                className="flex flex-col items-center gap-0.5 transition-all cursor-pointer group active:scale-95"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
+              {/* Three Character / Role Icons ON THE RIGHT - Vertical */}
+              <div className="flex flex-col items-center justify-start gap-2">
+                {/* Character Icon 1: Day (Shift Progress) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveDialTab("day")}
+                  title={isHindi ? "दैनिक शिफ्ट प्रोग्रेस" : "Day / Shift Progress"}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "day"
-                      ? "bg-white text-slate-900 border-white shadow-md scale-105 ring-2 ring-white/50"
-                      : "bg-white/10 text-white/80 border-white/15 hover:bg-white/20 hover:text-white"
+                      ? "bg-white text-black border-slate-200 shadow-sm"
+                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
                   }`}
                 >
-                  <Zap className={`w-3.5 h-3.5 ${activeDialTab === "day" ? "text-amber-500 fill-amber-400" : "text-amber-300"}`} />
-                </div>
-                <span className={`text-[9.5px] font-bold tracking-tight ${activeDialTab === "day" ? "text-white font-extrabold" : "text-white/60"}`}>
-                  {isHindi ? "दिन" : "Day"}
-                </span>
-              </button>
+                  <Zap className={`w-4 h-4 ${activeDialTab === "day" ? "text-amber-500 fill-amber-400" : "text-slate-400"}`} />
+                </button>
 
-              {/* Character Icon 2: Career (Role Readiness / 85%) */}
-              <button
-                type="button"
-                onClick={() => setActiveDialTab("career")}
-                title={isHindi ? "करियर रेडीनेस (85%+)" : "Career Readiness (85%+)"}
-                className="flex flex-col items-center gap-0.5 transition-all cursor-pointer group active:scale-95"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
+                {/* Character Icon 2: Career (Role Readiness / 85%) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveDialTab("career")}
+                  title={isHindi ? "करियर रेडीनेस (85%+)" : "Career Readiness (85%+)"}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "career"
-                      ? "bg-white text-slate-900 border-white shadow-md scale-105 ring-2 ring-white/50"
-                      : "bg-white/10 text-white/80 border-white/15 hover:bg-white/20 hover:text-white"
+                      ? "bg-white text-black border-slate-200 shadow-sm"
+                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
                   }`}
                 >
-                  <TrendingUp className={`w-3.5 h-3.5 ${activeDialTab === "career" ? "text-cyan-600 stroke-[2.5]" : "text-cyan-300"}`} />
-                </div>
-                <span className={`text-[9.5px] font-bold tracking-tight ${activeDialTab === "career" ? "text-white font-extrabold" : "text-white/60"}`}>
-                  {isHindi ? "करियर" : "Career"}
-                </span>
-              </button>
+                  <TrendingUp className={`w-4 h-4 ${activeDialTab === "career" ? "text-cyan-600 stroke-[2.5]" : "text-slate-400"}`} />
+                </button>
 
-              {/* Character Icon 3: Yesterday (Shift Performance) */}
-              <button
-                type="button"
-                onClick={() => setActiveDialTab("yesterday")}
-                title={isHindi ? "कल का शिफ्ट प्रदर्शन" : "Yesterday Performance"}
-                className="flex flex-col items-center gap-0.5 transition-all cursor-pointer group active:scale-95"
-              >
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center border transition-all ${
+                {/* Character Icon 3: Yesterday (Shift Performance) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveDialTab("yesterday")}
+                  title={isHindi ? "कल का शिफ्ट प्रदर्शन" : "Yesterday Performance"}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "yesterday"
-                      ? "bg-white text-slate-900 border-white shadow-md scale-105 ring-2 ring-white/50"
-                      : "bg-white/10 text-white/80 border-white/15 hover:bg-white/20 hover:text-white"
+                      ? "bg-white text-black border-slate-200 shadow-sm"
+                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
                   }`}
                 >
-                  <Clock className={`w-3.5 h-3.5 ${activeDialTab === "yesterday" ? "text-indigo-600 stroke-[2.5]" : "text-indigo-300"}`} />
-                </div>
-                <span className={`text-[9.5px] font-bold tracking-tight ${activeDialTab === "yesterday" ? "text-white font-extrabold" : "text-white/60"}`}>
-                  {isHindi ? "कल" : "Yesterday"}
-                </span>
-              </button>
+                  <Clock className={`w-4 h-4 ${activeDialTab === "yesterday" ? "text-indigo-600 stroke-[2.5]" : "text-slate-400"}`} />
+                </button>
+              </div>
             </div>
           </div>
+          
+          {/* Progress Completion Tab positioned UNDER the banner */}
+          <div className="bg-white rounded-[32px] p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-black text-black tracking-tight">
+                {isHindi ? "कोर्स पूरा हुआ" : "Course Completion"}
+              </span>
+              <span className="text-lg font-black text-black leading-none">
+                {Math.round((completedCount / totalActivities) * 100)}%
+              </span>
+            </div>
+            {/* Horizontal Progress Bar */}
+            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#f97316] rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${(completedCount / totalActivities) * 100}%` }}
+              />
+            </div>
+            <div className="flex justify-start">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                {completedCount}/{totalActivities} TASKS
+              </span>
+            </div>
+          </div>
+          
         </div>
 
         {/* ========================================================= */}
@@ -527,11 +491,11 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 <div className="my-1.5 py-0.5 flex items-center justify-center">
                   <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    {actualPickRate}
+                    {Math.round(actualPickRate)}
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-blue-600 truncate w-full">
-                  /{targetPickRate} P/H
+                  /{Math.round(targetPickRate)} P/H
                 </span>
               </div>
 
@@ -542,7 +506,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 <div className="my-1.5 py-0.5 flex items-center justify-center">
                   <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    {accuracyRate}%
+                    {Math.round(accuracyRate)}%
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 truncate w-full">
@@ -557,7 +521,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 <div className="my-1.5 py-0.5 flex items-center justify-center">
                   <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    98.5%
+                    99%
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-blue-600 truncate w-full">
