@@ -724,7 +724,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           <div className="flex flex-col items-center justify-center relative z-10 pt-2">
             
             {/* Circular Progress Gauge */}
-            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7">
+            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7 bg-[#e0e0e0] rounded-full shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
               <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90 drop-shadow-md">
                 {/* Background Track */}
                 <circle
@@ -732,7 +732,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   cy="90"
                   r="76"
                   fill="none"
-                  stroke="rgba(255, 255, 255, 0.15)"
+                  stroke="rgba(0, 0, 0, 0.1)"
                   strokeWidth="14"
                 />
                 {/* Progress Arc */}
@@ -741,7 +741,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   cy="90"
                   r="76"
                   fill="none"
-                  stroke="#ffffff"
+                  stroke="#0E4AA9"
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray={2 * Math.PI * 76}
@@ -754,16 +754,16 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
                 <div className="flex items-baseline gap-1 mb-1">
                   <span 
-                    className="font-bold text-white tracking-[-0.04em] leading-none font-sans"
+                    className="font-bold text-slate-900 tracking-[-0.04em] leading-none font-sans"
                     style={{ fontSize: 'clamp(4.5rem, 15vw, 5.5rem)' }}
                   >
                     {authoritativeReadiness ?? 35}
                   </span>
-                  <span className="text-2xl sm:text-3xl font-bold text-white/80">
+                  <span className="text-2xl sm:text-3xl font-bold text-slate-700">
                     %
                   </span>
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-white/80 tracking-[0.15em] uppercase">
+                <span className="text-[11px] sm:text-[12px] font-bold text-slate-700 tracking-[0.15em] uppercase">
                   {isHindi ? "भूमिका तत्परता" : "Role Readiness"}
                 </span>
               </div>
