@@ -835,7 +835,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         >
           <div className="flex items-center justify-between">
             <h2 className="text-base font-black text-black tracking-tight group-hover:text-slate-800 transition-colors">
-              {isHindi ? "कोर्स पूर्णता" : "Course Completion"}
+              {isHindi ? "आज के कार्य पूर्णता" : "Today's Task Completion"}
             </h2>
             <span className="ref-num text-lg font-black text-black tracking-[-0.04em]">
               {courseCompletionPercentage}%

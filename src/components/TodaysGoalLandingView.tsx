@@ -424,7 +424,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
           <div className="bg-white rounded-[32px] p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-base font-black text-black tracking-tight">
-                {isHindi ? "कोर्स पूरा हुआ" : "Course Completion"}
+                {isHindi ? "आज के कार्य पूर्णता" : "Today's Task Completion"}
               </span>
               <span className="text-lg font-black text-black leading-none">
                 {Math.round((completedCount / totalActivities) * 100)}%
@@ -541,7 +541,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             onClick={() => setIsTodaysActivityModalOpen(true)}
             className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-full px-5 py-2 shadow-sm select-none cursor-pointer transition-all active:scale-95 group"
           >
-            <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform animate-pulse">
               <Activity className="w-3.5 h-3.5 stroke-[2.5]" />
             </div>
             <span className="text-xs font-black text-black tracking-wide">
