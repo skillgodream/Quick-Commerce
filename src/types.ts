@@ -340,6 +340,12 @@ export interface RecommendedAction {
   whyThisAction?: string;      // Explanatory rationale
 }
 
+export interface CandidatePattern {
+  isPattern: boolean;
+  category?: "Recurring Capability Issue" | "Persistent Performance Gap" | "Intervention Response" | "Intervention Failure / Partial Response" | "Environmental Pattern" | "Improvement Pattern" | "Evidence Gap";
+  supportingEvidence?: string;
+}
+
 export interface ActionOutcome {
   id: string;
   actionId: string;
@@ -351,6 +357,11 @@ export interface ActionOutcome {
   subsequentPickRate?: number;
   subsequentAccuracy?: number;
   evaluatedAt?: string;
+  // Treatment Memory Context (AI Interpreted)
+  treatmentContext?: {
+    reason?: string;
+    remainingIssue?: string;
+  };
 }
 
 export interface DayRecord {

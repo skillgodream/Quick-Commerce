@@ -56,8 +56,8 @@ function buildRahulLedger(): Record<number, CapabilityState> {
   ledger[4] = {
     capabilityId: 4,
     exposure: "exposed",
-    evidence: "emerging",
-    performance: "below_target",
+    evidence: "none",
+    performance: "unknown",
     mastery: "in_progress",
     lastAssessedAt: "Day 2",
     reinforcementCount: 0,

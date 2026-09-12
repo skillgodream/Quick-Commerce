@@ -5,6 +5,7 @@ import {
   Zap,
   Activity,
   Eye,
+  ShieldCheck,
   User,
   Sliders,
   ChevronRight,
@@ -166,7 +167,7 @@ export const Header: React.FC<HeaderProps> = ({
                     : "text-slate-200 hover:text-white bg-white/10 hover:bg-white/20"
                 }`}
               >
-                <Eye className="w-4 h-4 stroke-[2.2]" />
+                <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
                 {/* Alert badge if any hires need attention or are at risk */}
                 {(needsAttentionCount > 0 || atRiskCount > 0) && !isEyeMenuOpen && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#ff2a6d] ring-2 ring-[#16181f] animate-pulse" />

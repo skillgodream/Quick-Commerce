@@ -19,6 +19,7 @@ import {
   SignalCategory,
   SnapshotEvidenceItem,
   SnapshotEvidenceCategory,
+  CandidatePattern,
 } from "../types";
 import { createDefaultCapabilitiesLedger } from "../data/seedData";
 
@@ -52,6 +53,52 @@ export interface LoopExecutionInput {
   actionOutcome?: ActionOutcome;
   previousRecord?: DayRecord;
   existingAction?: RecommendedAction;
+  candidatePattern?: CandidatePattern;
+}
+
+export async function analyzeLongitudinalHistory(
+  historyText: string
+): Promise<CandidatePattern | undefined> {
+  try {
+    const res = await fetch("/api/signals/understand-longitudinal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ historyText }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data as CandidatePattern;
+    }
+  } catch (err) {
+    console.warn("Client fallback for longitudinal analysis:", err);
+  }
+  return undefined;
+}
+
+export async function analyzeOutcomeNotes(
+  notes: string,
+  actionTitle?: string
+): Promise<{ reason?: string; remainingIssue?: string }> {
+  try {
+    const res = await fetch("/api/signals/understand-outcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes, actionTitle }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        reason: data.reason,
+        remainingIssue: data.remainingIssue,
+      };
+    }
+  } catch (err) {
+    console.warn("Client fallback for outcome analysis:", err);
+  }
+  return {
+    reason: "No AI interpretation available.",
+    remainingIssue: "Unknown"
+  };
 }
 
 export async function analyzeDailyReport(
@@ -1024,6 +1071,8 @@ interface ObservedSignals {
   managerObservesAccuracy: boolean;
   managerObservesSpeed: boolean;
   previousInterventionFailed: boolean;
+  previousInterventionPartial: boolean;
+  previousTreatmentContext?: string;
   dailySignal?: DailySignal;
   managerSignal?: ManagerSignal;
   structuredEvidence: SnapshotEvidenceItem[];
@@ -1180,6 +1229,13 @@ function observe(input: LoopExecutionInput): ObservedSignals {
   const managerObservesAccuracy = managerSignal?.issueCategory === "Accuracy";
   const managerObservesSpeed = managerSignal?.issueCategory === "Speed";
 
+  const prevOutcome = actionOutcome || previousRecord?.actionOutcome;
+  const previousInterventionPartial = Boolean(prevOutcome?.improved === "partial");
+  let previousTreatmentContext = undefined;
+  if (prevOutcome?.treatmentContext?.reason) {
+     previousTreatmentContext = `Previous treatment (${prevOutcome.improved}): ${prevOutcome.treatmentContext.reason}`;
+  }
+  
   const previousInterventionFailed =
     Boolean(
       (actionOutcome && actionOutcome.improved === "no") ||
@@ -1328,6 +1384,8 @@ function observe(input: LoopExecutionInput): ObservedSignals {
     managerObservesAccuracy,
     managerObservesSpeed,
     previousInterventionFailed,
+    previousInterventionPartial,
+    previousTreatmentContext,
     dailySignal,
     managerSignal,
     structuredEvidence,
@@ -1376,6 +1434,25 @@ function linkEvidenceToCapabilities(
 // INTERNAL HELPER 2: understand() - Root cause & Exposure vs Mastery
 // -------------------------------------------------------------
 function understand(
+  observed: ObservedSignals,
+  linkedEvidence: Record<number, SnapshotEvidenceItem[]>,
+  hire: NewHire,
+  capabilities: Record<number, CapabilityState>,
+  existingAction?: RecommendedAction,
+  candidatePattern?: CandidatePattern
+): UnderstoodDiagnosis {
+  const diagnosis = understandInternal(observed, linkedEvidence, hire, capabilities, existingAction);
+  
+  if (candidatePattern && candidatePattern.isPattern && candidatePattern.category) {
+    // Integrate the AI candidate pattern safely.
+    // It enriches the diagnosisText rather than overriding the hard determinism of rootCause.
+    diagnosis.diagnosisText += ` | Longitudinal Pattern (${candidatePattern.category}): ${candidatePattern.supportingEvidence}`;
+  }
+  
+  return diagnosis;
+}
+
+function understandInternal(
   observed: ObservedSignals,
   linkedEvidence: Record<number, SnapshotEvidenceItem[]>,
   hire: NewHire,
@@ -1596,6 +1673,22 @@ function connect(
 // INTERNAL HELPER 4: chooseNextAction() - The Adaptive Core
 // -------------------------------------------------------------
 function chooseNextAction(
+  understood: UnderstoodDiagnosis,
+  connected: ConnectedContext,
+  hire: NewHire,
+  observed: ObservedSignals,
+  capabilities: Record<number, CapabilityState>
+): DecidedAction {
+  const result = chooseNextActionInternal(understood, connected, hire, observed, capabilities);
+  
+  // Append treatment memory to rationale if relevant
+  if (observed.previousTreatmentContext && result.decisionRationale && result.decisionType !== "no_action_monitor") {
+    result.decisionRationale += ` | Context from memory: ${observed.previousTreatmentContext}`;
+  }
+  return result;
+}
+
+function chooseNextActionInternal(
   understood: UnderstoodDiagnosis,
   connected: ConnectedContext,
   hire: NewHire,
@@ -2019,6 +2112,9 @@ function check(stageInput: CheckStageInput): {
           : "below_target";
       capState.mastery = "proficient";
       capState.notes = `Intervention closed: ${actionOutcome.notes || "Standard met on floor"}`;
+      if (actionOutcome.treatmentContext?.reason) {
+        capState.notes += ` | Context: ${actionOutcome.treatmentContext.reason}`;
+      }
     } else if (isPartial) {
       finalStatus = "Needs attention";
       finalStatusReason = `Pick rate partially improved to ${outcomePickRate}/hr; continued buddy practice on Capability ${targetCapId} recommended.`;
@@ -2030,6 +2126,9 @@ function check(stageInput: CheckStageInput): {
       capState.mastery = "in_progress";
       capState.reinforcementCount += 1;
       capState.notes = `Partial recovery (${outcomePickRate}/hr). Continued practice required.`;
+      if (actionOutcome.treatmentContext?.reason) {
+        capState.notes += ` | Context: ${actionOutcome.treatmentContext.reason}`;
+      }
     } else {
       finalStatus = "At risk";
       finalStatusReason = `Performance stalled at ${outcomePickRate}/hr despite intervention; reassessing root cause for next shift.`;
@@ -2041,9 +2140,12 @@ function check(stageInput: CheckStageInput): {
       capState.mastery = "in_progress";
       capState.reinforcementCount += 1;
       capState.notes = "Intervention failed to close gap. Must reassess approach.";
+      if (actionOutcome.treatmentContext?.reason) {
+        capState.notes += ` | Context: ${actionOutcome.treatmentContext.reason}`;
+      }
     }
   } else {
-    if (decisionType === "reinforce_current" || decisionType === "return_prerequisite") {
+    if (decisionType === "reinforce_current" || decisionType === "return_prerequisite" || decisionType === "supervisor_demo" || decisionType === "communication_support") {
       capState.exposure = capState.exposure === "not_exposed" ? "exposed" : "reinforced";
       capState.evidence = "inconsistent";
       capState.performance = "below_target";
@@ -2099,7 +2201,7 @@ export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynth
   const linkedEvidence = linkEvidenceToCapabilities(observed.structuredEvidence);
 
   // 3. UNDERSTAND (D3: Diagnosis)
-  const understood = understand(observed, linkedEvidence, input.hire, observed.currentCapabilities, input.existingAction);
+  const understood = understand(observed, linkedEvidence, input.hire, observed.currentCapabilities, input.existingAction, input.candidatePattern);
 
   // 4. CONNECT (D2/D3 Graph & Metadata Connection)
   const connected = connect(understood, input.hire);

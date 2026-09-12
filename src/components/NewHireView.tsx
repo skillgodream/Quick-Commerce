@@ -9,6 +9,7 @@ import { JobReadyHumanFigure } from "./JobReadyHumanFigure";
 import { ModulesView } from "./ModulesView";
 import { TenDaySkillJourneyView } from "./TenDaySkillJourneyView";
 import { FloatingGlassMenu, LearnerSection } from "./FloatingGlassMenu";
+import { LearningProgressView } from "./LearningProgressView";
 import { LearnerJourneyRoadmap } from "./LearnerJourneyRoadmap";
 import { LearnerDailyReportCard } from "./LearnerDailyReportCard";
 import { YesterdayShiftDetailModal } from "./YesterdayShiftDetailModal";
@@ -18,6 +19,7 @@ import { DashboardHeader } from "./DashboardHeader";
 import { CommercialCertificationCard } from "./CommercialCertificationCard";
 import { TelemetryPageView } from "./TelemetryPageView";
 import { ControlTowerView } from "./ControlTowerView";
+import { LearnerDashboardView } from "./LearnerDashboardView";
 import {
   Mic,
   MicOff,
@@ -65,6 +67,34 @@ import {
   Snowflake,
   Truck,
 } from "lucide-react";
+
+
+const HOME_LEARNING_METRICS = [
+  {
+    id: "basics",
+    titleEn: "Basics & Safety",
+    titleHi: "मूल बातें और सुरक्षा",
+    capIds: [1, 2, 3, 4, 5]
+  },
+  {
+    id: "accuracy",
+    titleEn: "Accuracy & Product Handling",
+    titleHi: "सटीकता और उत्पाद प्रबंधन",
+    capIds: [6, 7, 8, 10]
+  },
+  {
+    id: "exceptions",
+    titleEn: "Floor Exceptions",
+    titleHi: "फ़्लोर अपवाद",
+    capIds: [11, 12, 13, 18]
+  },
+  {
+    id: "flow",
+    titleEn: "Flow & Completion",
+    titleHi: "प्रवाह और समापन",
+    capIds: [9, 14, 15, 16, 17, 19]
+  }
+];
 
 interface NewHireViewProps {
   newHire: NewHire;
@@ -680,10 +710,11 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                 <button
                   type="button"
                   onClick={onOpenManagerConsole}
-                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
+                  className="h-10 px-3 rounded-full bg-indigo-500 hover:bg-indigo-400 backdrop-blur-md border border-indigo-400 flex items-center justify-center gap-1.5 text-white transition-all cursor-pointer shadow-md"
                   title="Manager Console"
                 >
-                  <Eye className="w-5 h-5 text-white" />
+                  <ShieldCheck className="w-4 h-4 text-white" />
+                  <span className="text-xs font-bold whitespace-nowrap">Manager</span>
                 </button>
               )}
 
@@ -797,6 +828,52 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           >
             <span>{isHindi ? "ध्यान आवश्यक" : "Needs attention"}</span>
           </div>
+        </div>
+
+                        {/* 4-Grid Visual Capability Dashboard */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {HOME_LEARNING_METRICS.map(metric => {
+            // Check if any capability in this metric needs attention
+            let hasAttention = false;
+            let hasEvidence = false;
+            
+            metric.capIds.forEach(capId => {
+              const state = newHire.capabilities?.[capId];
+              if (state && state.evidence !== "none") {
+                hasEvidence = true;
+              }
+              if (state && state.performance === "below_target") {
+                hasAttention = true;
+              }
+            });
+
+            return (
+              <div 
+                key={metric.id}
+                onClick={() => {
+                  setActiveSection("learner_dashboard");
+                }}
+                className={`rounded-2xl p-3 border ${hasAttention ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'} flex flex-col justify-between min-h-[88px] cursor-pointer active:scale-95 transition-all shadow-sm`}
+              >
+                <div className="flex items-start justify-between gap-1 mb-2">
+                  <span className={`text-xs font-bold leading-tight ${hasAttention ? 'text-rose-900' : 'text-slate-700'}`}>
+                    {isHindi ? metric.titleHi : metric.titleEn}
+                  </span>
+                  {hasAttention && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                </div>
+                <div className="mt-auto">
+                  <span className={`text-[10px] font-black uppercase tracking-wider ${hasAttention ? 'text-rose-600' : 'text-slate-400'}`}>
+                    {hasAttention 
+                      ? (isHindi ? "ध्यान आवश्यक" : "Needs attention") 
+                      : (!hasEvidence 
+                          ? (isHindi ? "पर्याप्त साक्ष्य नहीं" : "Not enough evidence") 
+                          : (isHindi ? "ट्रैक पर" : "On track"))
+                    }
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Current Focus Card - Coordinate Navigation */}
@@ -1523,6 +1600,17 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         </div>
       )}
 
+      {activeSection === "progress" && (
+        <div className="relative z-10 min-h-screen bg-slate-50/50 -mx-4 -my-3 pb-36 animate-in fade-in duration-200">
+          <LearningProgressView newHire={newHire} currentDay={currentDay} />
+        </div>
+      )}
+
+      {activeSection === "learner_dashboard" && (
+        <div className="relative z-10 animate-in fade-in duration-200">
+          <LearnerDashboardView newHire={newHire} currentDay={currentDay} />
+        </div>
+      )}
       {activeSection === "dashboard" && (
         <div className="space-y-4 animate-in fade-in duration-200 bg-white text-slate-900 min-h-screen pb-36 px-0 pt-0 -mx-4 -my-3">
           {/* Royal Blue Full-Bleed Dashboard Header */}

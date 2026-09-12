@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,7 +25,7 @@ import {
   AlertCircle,
   XCircle,
 } from "lucide-react";
-import { NewHire, TrainingModule, DayRecord } from "../types";
+import { NewHire, TrainingModule, DayRecord, DARK_STORE_CAPABILITIES } from "../types";
 import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
 import { LearnerSection } from "./FloatingGlassMenu";
 import { CoordinateNavigationModuleView } from "./CoordinateNavigationModuleView";
@@ -44,8 +44,8 @@ interface TodaysGoalLandingViewProps {
 }
 
 interface CustomModule extends TrainingModule {
-  rxReason: string;
-  rxReasonHi: string;
+  rxReason?: string;
+  rxReasonHi?: string;
 }
 
 interface CustomTask {
@@ -90,8 +90,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   const [activeDialTab, setActiveDialTab] = useState<"day" | "career" | "yesterday">("day");
 
   // Expandable sections state (Prescribed training & Required floor actions)
-  const [isPrescribedExpanded, setIsPrescribedExpanded] = useState<boolean>(false);
-  const [isFloorActionsExpanded, setIsFloorActionsExpanded] = useState<boolean>(false);
+  const [isPrescribedExpanded, setIsPrescribedExpanded] = useState<boolean>(true);
+  const [isFloorActionsExpanded, setIsFloorActionsExpanded] = useState<boolean>(true);
   const [isRxAlertActive, setIsRxAlertActive] = useState<boolean>(true);
   const [isDiagnosisNotesOpen, setIsDiagnosisNotesOpen] = useState<boolean>(false);
   const [isTodaysActivityModalOpen, setIsTodaysActivityModalOpen] = useState<boolean>(false);
@@ -192,80 +192,82 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
     return { x1, y1, x2, y2, isActive, key: i };
   });
 
+  const recAction = (currentRecord as any).recommendedAction || (newHire as any).recommendedAction;
+  const actionOutcome = (currentRecord as any).actionOutcome;
+
+  let longitudinalContext: { category: string; evidence: string } | null = null;
+  const patternDiagnosis = (currentRecord as any).identifiedPattern?.diagnosis;
+  if (patternDiagnosis) {
+    const match = patternDiagnosis.match(/\|\s*Longitudinal Pattern\s*\((.*?)\):\s*(.*)/);
+    if (match) {
+      longitudinalContext = {
+        category: match[1],
+        evidence: match[2],
+      };
+    }
+  }
+
   // Concise Doctor's suggestion for today
-  const doctorDiagnosis = isHindi
-    ? "डॉक्टर सुझाव: आइसल 4-8 में पिक लैग मिला है। 85% रेडीनेस बेंचमार्क पाने के लिए स्कैनर व कोल्ड चेन ड्रिल पूरी करें।"
-    : "Store Doctor Rx: Pick lag in Aisles 4-8. Complete scanner drill and Cold Room SOP to reach 85% readiness.";
+  const [isPlanExpanded, setIsPlanExpanded] = useState(false);
 
   // Today's prescribed modules
-  const todaysPrescribedModules: CustomModule[] = [
-    {
-      dayNumber: 3,
-      id: "lms-mod-03",
-      code: "LMS-MOD-03",
-      title: "Barcode Scanner Alignment",
-      titleHi: "तेज़ बारकोड स्कैनिंग",
-      description: "Quick scanner positioning and avoiding red-light mis-scans.",
-      descriptionHi: "ऑप्टिकल स्कैनर का सही एंगल और एरर-मुक्त कोआर्डिनेशन।",
-      durationMinutes: 15,
-      mappedCapabilityIds: [3],
-      passingScore: 80,
-      rxReason: "Rx: Barcode read lag in Aisle 6.",
-      rxReasonHi: "Rx: आइसल 6 में स्कैनिंग सुस्ती को ठीक करने के लिए।",
-      activities: [],
-    },
-    {
-      dayNumber: 4,
-      id: "lms-mod-04",
-      code: "LMS-MOD-04",
-      title: "Cold Chain & Dairy Packaging",
-      titleHi: "कोल्ड चेन और डेयरी पैकेजिंग",
-      description: "90-second freezer retrieval protocols and insulated bag sealing.",
-      descriptionHi: "90 सेकंड में फ्रीजर पिक और सुरक्षित डेयरी बैग पैकिंग नियम।",
-      durationMinutes: 20,
-      mappedCapabilityIds: [4],
-      passingScore: 85,
-      rxReason: "Rx: Required for afternoon dairy shift.",
-      rxReasonHi: "Rx: दोपहर के डेयरी पीक समय से पहले आवश्यक नियम।",
-      activities: [],
-    },
-  ];
+  const targetCapId = (recAction && recAction.targetCapabilityId) || newHire.currentCapabilityId;
+  const targetCapability = DARK_STORE_CAPABILITIES.find(c => c.id === targetCapId);
+  const todaysPrescribedModules: CustomModule[] = [];
+    
+  if (targetCapId) {
+    const mappedModules = MANDATORY_TRAINING_MODULES.filter(m => 
+      m.mappedCapabilityIds.includes(targetCapId)
+    );
+    mappedModules.forEach(m => {
+      todaysPrescribedModules.push({
+        ...m,
+      });
+    });
+  }
+
+  const unmasteredCaps = useMemo(() => {
+    return DARK_STORE_CAPABILITIES.filter((cap) => {
+      if (cap.id === 20) return false;
+      if (cap.id === targetCapId) return false;
+      const state = newHire?.capabilities?.[cap.id];
+      return !state || state.mastery !== "proficient";
+    }).sort((a, b) => a.defaultOrder - b.defaultOrder);
+  }, [newHire?.capabilities, targetCapId]);
+
+  const predictivePath = useMemo(() => {
+    const path = [];
+    let capIndex = 0;
+    for (let d = currentDay + 1; d <= 10; d++) {
+      if (d === 10) {
+        path.push({ day: 10, isCheckpoint: true });
+      } else if (capIndex < unmasteredCaps.length) {
+        path.push({ day: d, cap: unmasteredCaps[capIndex] });
+        capIndex++;
+      } else {
+        path.push({ day: d, cap: null });
+      }
+    }
+    return path;
+  }, [currentDay, unmasteredCaps]);
+
+  const doctorDiagnosis = recAction
+    ? (recAction.whyThisAction || recAction.rationale || recAction.title)
+    : "No current intervention required. Follow standard floor operations.";
+
 
   // Today's floor tasks with rich details for popups
-  const todaysTasks: CustomTask[] = [
-    {
-      id: "task_1",
-      title: isHindi ? "आइसल 4-8 वॉकथ्रू" : "Aisle 4-8 walkthrough",
-      category: isHindi ? "साथी वॉक" : "Buddy Walk",
-      duration: "10 min",
-      detailsEn: "Walk through Aisles 4-8 with your dedicated buddy, Vikram. He will show you the exact sequence for locating items, shelf arrangement, and coordinate reading.",
-      detailsHi: "अपने सीनियर साथी विक्रम के साथ आइसल 4-8 का फिजिकल वॉकथ्रू करें। वे आपको सामान खोजने का सही क्रम, कोआर्डिनेशन और शेल्फ नेविगेशन समझाएंगे।",
-    },
-    {
-      id: "task_2",
-      title: isHindi ? "फिंगर स्कैनर से 50 सफल ऑर्डर" : "Pick 50 orders with finger scanner",
-      category: isHindi ? "फ्लोर पिक" : "Floor Pick",
-      duration: "30 min",
-      detailsEn: "Using your wearable finger-ring scanner, scan and pick 50 real dark store orders. Focus on scanning barcodes from the recommended 15cm angle to avoid mis-scans.",
-      detailsHi: "वियरेबल फिंगर-रिंग स्कैनर का उपयोग करके 50 ऑर्डर चुनें। स्कैनर को 15 सेंटीमीटर की सही दूरी और एंगल पर रखकर स्कैन करें ताकि कोई मिस-स्कैन न हो।",
-    },
-    {
-      id: "task_3",
-      title: isHindi ? "डेयरी 90-सेकंड एसओपी ड्रिल" : "Cold Room dairy 90-sec SOP",
-      category: isHindi ? "गुणवत्ता एसओपी" : "Quality SOP",
-      duration: "15 min",
-      detailsEn: "Complete the 90-second entry-to-exit protocol for Cold Room dairy. Ensure the insulated storage bags are sealed immediately upon exit to prevent temperature disruption.",
-      detailsHi: "कोल्ड रूम डेयरी से सामान निकालने का 90-सेकंड प्रोटोकॉल सीखें। बाहर निकलने पर तापमान बिगड़ने से बचाने के लिए इंसुलेटेड बैग को तुरंत सील करें।",
-    },
-    {
-      id: "task_4",
-      title: isHindi ? "शिफ्ट रिपोर्ट और वॉयस चेक-इन" : "Submit shift status & voice report",
-      category: isHindi ? "रिपोर्ट" : "Report",
-      duration: "5 min",
-      detailsEn: "Use the built-in voice assist to record and submit your shift progress report. Summarize orders picked, any shelf exceptions, and final store hand-over.",
-      detailsHi: "वॉयस असिस्टेंट का उपयोग करके अपनी शिफ्ट की अंतिम रिपोर्ट दर्ज करें। इसमें आपके द्वारा चुने गए कुल ऑर्डर और शेल्फ विसंगतियों की जानकारी शामिल होनी चाहिए।",
-    },
-  ];
+  const todaysTasks: CustomTask[] = [];
+  if (recAction) {
+    todaysTasks.push({
+      id: recAction.id,
+      title: recAction.title,
+      category: recAction.targetActor || "Floor Task",
+      duration: recAction.smallestPracticalStep || "15 min",
+      detailsEn: recAction.description,
+      detailsHi: recAction.description,
+    });
+  }
 
   const handleStartModule = (modId: string) => {
     setActiveModule(null);
@@ -527,351 +529,337 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
           </div>
         </div>
 
+                {/* ========================================================= */}
+        {/* PREDICTIVE LEARNING PLAN                                  */}
         {/* ========================================================= */}
-        {/* TODAY'S ACTIVITY PILL (CLICKABLE TO OPEN DETAILED MODAL)  */}
-        {/* ========================================================= */}
-        <div className="pt-0.5 flex justify-center">
+        <div className="bg-slate-50 rounded-[24px] border border-slate-200 overflow-hidden shadow-sm transition-all duration-300">
           <button
             type="button"
-            onClick={() => setIsTodaysActivityModalOpen(true)}
-            className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-full px-5 py-2 shadow-sm select-none cursor-pointer transition-all active:scale-95 group"
+            onClick={() => setIsPlanExpanded(!isPlanExpanded)}
+            className="w-full flex items-center justify-between p-4 sm:p-5 text-left cursor-pointer hover:bg-slate-100 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform animate-pulse">
-              <Activity className="w-3.5 h-3.5 stroke-[2.5]" />
-            </div>
-            <span className="text-xs font-black text-black tracking-wide">
-              {isHindi ? "आज की गतिविधि (विस्तृत विवरण)" : "Today's Activity (Detailed Breakdown)"}
-            </span>
-            <ChevronRight className="w-3.5 h-3.5 text-black group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
-
-        {/* ========================================================= */}
-        {/* SECTION 3: PRESCRIBED TRAINING (SMART MODERN LMS CARD)    */}
-        {/* ========================================================= */}
-        <div id="prescribed-modules-section" className="space-y-2.5">
-          {/* Main Collapsible Header Tab matching the requested screenshot */}
-          <button
-            type="button"
-            onClick={() => setIsPrescribedExpanded((prev) => !prev)}
-            className="w-full text-left bg-gradient-to-r from-[#171d2b] to-[#141824] hover:from-[#1d2537] hover:to-[#171d2c] border border-purple-500/25 hover:border-purple-500/45 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-lg shadow-purple-950/20 transition-all active:scale-98 cursor-pointer group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Circular Icon with Violet/Purple Accent */}
-              <div className="w-11 h-11 rounded-full bg-purple-500/15 border border-purple-500/35 flex items-center justify-center text-purple-300 shrink-0 shadow-inner group-hover:scale-105 group-hover:border-purple-400/60 transition-all">
-                <BookOpen className="w-5 h-5" />
-              </div>
-
-              {/* Tag + Duration (without Today's active goals text) */}
-              <div className="min-w-0 flex items-center gap-2.5">
-                <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  {isHindi ? "एलएमएस लर्निंग" : "LMS LEARNING"}
-                </span>
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-purple-400" />
-                  {todaysPrescribedModules.reduce((acc, m) => acc + m.durationMinutes, 0)} mins
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5 block">
+                  {isHindi ? "भविष्य कहनेवाला योजना" : "PREDICTIVE LEARNING PLAN"}
                 </span>
               </div>
+              <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                {isHindi ? "दिन 10 तक आपका रास्ता" : "Your path to Day 10"}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                {isHindi ? "डीन का वर्तमान अपेक्षित मार्ग देखें" : "See Dean's current expected learning path"}
+              </p>
             </div>
-
-            {/* Circular Arrow Badge */}
-            <div className="shrink-0 w-8 h-8 rounded-full bg-[#101420] border border-purple-500/20 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:bg-purple-600/30 transition-all">
-              <ChevronRight
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  isPrescribedExpanded ? "rotate-90 text-purple-300" : ""
-                }`}
-              />
+            <div className={`w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 transition-transform duration-300 ${isPlanExpanded ? "rotate-180" : ""}`}>
+              <ChevronDown className="w-4 h-4" />
             </div>
           </button>
-
-          {/* Expanded Content: Individual Prescribed Modules in White Material Cards */}
-          {isPrescribedExpanded && (
-            <div className="space-y-2 pl-2 sm:pl-3 border-l-2 border-slate-400/40 ml-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {todaysPrescribedModules.map((mod) => (
-                <div
-                  key={mod.id}
-                  onClick={() => setActiveModule(mod)}
-                  className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md flex items-center justify-between gap-3 transition-all cursor-pointer active:scale-98 group text-slate-900"
-                >
-                  {/* Left Squircle Icon Container */}
-                  <div className="w-9.5 h-9.5 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shrink-0 border border-purple-100 group-hover:scale-105 transition-transform">
-                    <BookOpen className="w-4 h-4" />
+          
+          {isPlanExpanded && (
+            <div className="px-4 pb-5 sm:px-5 border-t border-slate-200/60 bg-white">
+              <div className="pt-4 space-y-4 relative">
+                {/* Vertical connecting line */}
+                <div className="absolute left-3.5 top-8 bottom-4 w-0.5 bg-slate-100 rounded-full" />
+                
+                {/* Current Day */}
+                <div className="flex items-start gap-3 relative z-10">
+                  <div className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm ring-1 ring-slate-100">
+                    <span className="text-[10px] font-bold">●</span>
                   </div>
-
-                  {/* Middle Title & Subtitle */}
-                  <div className="min-w-0 flex-1 pr-1">
-                    <h4 className="text-xs sm:text-[13.5px] font-black text-slate-900 truncate leading-tight group-hover:text-purple-700 transition-colors">
-                      {isHindi ? mod.titleHi : mod.title}
+                  <div className="pt-1.5 pb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 block mb-0.5">
+                      DAY {currentDay} • TODAY
+                    </span>
+                    <h4 className="text-[13px] font-bold text-slate-900 leading-snug">
+                      {targetCapability?.name || "Floor Operations"}
                     </h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5 truncate flex items-center gap-1.5">
-                      <Clock className="w-3 h-3 text-purple-500" />
-                      <span>{mod.durationMinutes} min</span>
-                      <span>•</span>
-                      <span>{mod.passingScore}% pass</span>
-                    </p>
-                  </div>
-
-                  {/* Right Action Button */}
-                  <div className="shrink-0 w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-all">
-                    <Play className="w-3.5 h-3.5 fill-current stroke-none ml-0.5" />
+                    <span className="text-[11px] text-slate-500 font-medium">Current focus</span>
                   </div>
                 </div>
-              ))}
+
+                {/* Projected Days */}
+                {predictivePath.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-3 relative z-10">
+                    {step.isCheckpoint ? (
+                      <div className="w-7 h-7 rounded-full bg-slate-900 text-yellow-400 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm ring-1 ring-slate-100">
+                        <span className="text-xs">★</span>
+                      </div>
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-white text-slate-300 flex items-center justify-center shrink-0 border-[3px] border-white shadow-sm ring-1 ring-slate-200">
+                        <span className="text-[10px]">○</span>
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      <span className={`text-[10px] font-black uppercase tracking-wider block mb-0.5 ${step.isCheckpoint ? 'text-slate-900' : 'text-slate-400'}`}>
+                        DAY {step.day}
+                      </span>
+                      {step.isCheckpoint ? (
+                        <>
+                          <h4 className="text-[13px] font-bold text-slate-900 leading-snug">Independent Picking</h4>
+                          <span className="text-[11px] text-slate-500 font-medium">Readiness checkpoint</span>
+                        </>
+                      ) : step.cap ? (
+                        <>
+                          <h4 className="text-[13px] font-bold text-slate-700 leading-snug">{step.cap.name}</h4>
+                          <span className="text-[11px] text-slate-400 font-medium">Expected next</span>
+                        </>
+                      ) : (
+                        <>
+                          <h4 className="text-[13px] font-semibold text-slate-500 italic leading-snug">Evaluating</h4>
+                          <span className="text-[11px] text-slate-400 font-medium">Dean is evaluating your next step</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic text-center">
+                  {isHindi ? "यह मार्ग आपके सीखने और काम करने के साथ अपडेट होता है।" : "This path updates as you learn and work."}
+                </p>
+              </div>
             </div>
           )}
         </div>
 
         {/* ========================================================= */}
-        {/* SECTION 4: FLOOR PRACTICE (SMART MODERN AMBER/CYAN CARD)  */}
+        {/* TODAY'S ADAPTIVE GOAL: WHAT, WHY, DO, CHECK, NEXT         */}
         {/* ========================================================= */}
-        <div className="space-y-2.5">
-          {/* Main Collapsible Header Tab matching the requested screenshot */}
-          <button
-            type="button"
-            onClick={() => setIsFloorActionsExpanded((prev) => !prev)}
-            className="w-full text-left bg-gradient-to-r from-[#171e2b] to-[#141924] hover:from-[#1d2737] hover:to-[#18202e] border border-cyan-500/25 hover:border-cyan-500/45 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-lg shadow-cyan-950/20 transition-all active:scale-98 cursor-pointer group"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Circular Icon with Warm Amber/Gold Center */}
-              <div className="w-11 h-11 rounded-full bg-amber-500/15 border border-amber-500/35 flex items-center justify-center text-amber-400 shrink-0 shadow-inner group-hover:scale-105 group-hover:border-amber-400/60 transition-all">
-                <Target className="w-5 h-5" />
+        <div className="space-y-4 pt-2">
+          {/* WHAT */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                <Target className="w-5 h-5 stroke-[2.5]" />
               </div>
-
-              {/* Tag + Duration (only text is FLOOR PRACTICE) */}
-              <div className="min-w-0 flex items-center gap-2.5">
-                <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  {isHindi ? "फ्लोर प्रैक्टिस" : "FLOOR PRACTICE"}
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1 block">
+                  {isHindi ? "क्या (WHAT)" : "WHAT AM I DOING?"}
                 </span>
-                <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-cyan-400" />
-                  60 mins
-                </span>
+                <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-tight">
+                  {targetCapability?.name || "Floor Operations"}
+                </h3>
+                <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed pr-2">
+                  {targetCapability?.description || "General store fulfillment and safety operations."}
+                </p>
               </div>
             </div>
+          </div>
 
-            {/* Circular Arrow Badge */}
-            <div className="shrink-0 w-8 h-8 rounded-full bg-[#101420] border border-cyan-500/20 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:bg-cyan-600/30 transition-all">
-              <ChevronRight
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  isFloorActionsExpanded ? "rotate-90 text-cyan-300" : ""
-                }`}
-              />
+          {/* WHY */}
+          <div className="bg-gradient-to-br from-slate-900 to-[#111520] rounded-3xl p-4 sm:p-5 border border-slate-700/60 shadow-lg relative overflow-hidden text-white">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+            <div className="flex items-start gap-3.5 relative z-10">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 mb-1 block">
+                  {isHindi ? "क्यों (WHY)" : "WHY THIS GOAL?"}
+                </span>
+                <p className="text-[13px] sm:text-sm text-slate-200 font-medium leading-relaxed">
+                  {doctorDiagnosis}
+                </p>
+                {longitudinalContext && (
+                  <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 shrink-0 text-purple-300">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M12 16v-4"></path>
+                          <path d="M12 8h.01"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wide block mb-0.5">
+                          Dean's Memory
+                        </span>
+                        <p className="text-xs text-purple-100/90 font-medium leading-snug">
+                          {longitudinalContext.evidence}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </button>
+          </div>
 
-          {/* Expanded Content: Floor Action Cards in White Material Cards */}
-          {isFloorActionsExpanded && (
-            <div className="space-y-2 pl-2 sm:pl-3 border-l-2 border-slate-400/40 ml-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {todaysTasks.map((task) => {
-                const isToggled = !!completedTaskIds[task.id];
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => setActiveTask(task)}
-                    className="bg-white rounded-2xl p-3 sm:p-3.5 border border-slate-200/90 hover:border-slate-300 shadow-xs hover:shadow-md flex items-center justify-between gap-3 transition-all cursor-pointer active:scale-98 group text-slate-900"
-                  >
-                    {/* Left Squircle Icon Container */}
-                    <div className="w-9.5 h-9.5 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center shrink-0 border border-cyan-100 group-hover:scale-105 transition-transform">
-                      <Radio className="w-4 h-4" />
+          {/* DO */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500" />
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <Activity className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <div className="w-full">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 mb-1 block">
+                  {isHindi ? "कार्य (DO)" : "WHAT SHOULD I DO NOW?"}
+                </span>
+                <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight">
+                  {recAction ? recAction.title : "Follow standard floor routine"}
+                </h3>
+                <p className="text-xs sm:text-[13px] text-slate-600 font-medium mt-1.5 mb-4 leading-relaxed pr-2">
+                  {recAction ? recAction.description : "Execute assigned tasks safely and maintain pacing standards."}
+                </p>
+                
+                {recAction && (
+                  <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-700">{recAction.smallestPracticalStep || "15 mins"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-slate-400" />
+                        <span className="text-xs font-bold text-slate-700">{recAction.targetActor || "Self"}</span>
+                      </div>
                     </div>
-
-                    {/* Middle Title & Subtitle */}
-                    <div className="min-w-0 flex-1 pr-1">
-                      <h4 className="text-xs sm:text-[13.5px] font-black text-slate-900 truncate leading-tight group-hover:text-cyan-700 transition-colors">
-                        {task.title}
-                      </h4>
-                      <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5 truncate">
-                        {task.category} • {task.duration}
-                      </p>
-                    </div>
-
-                    {/* Right Toggle Switch (Material Switch) */}
                     <button
                       type="button"
-                      onClick={(e) => toggleTaskCompletion(task.id, e)}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer shrink-0 ${
-                        isToggled
-                          ? "bg-emerald-500"
-                          : "bg-slate-300"
-                      }`}
-                      aria-label={`Toggle ${task.title}`}
+                      onClick={() => handleOpenTaskDestination(recAction.id, recAction.targetActor || "work")}
+                      className="px-4 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
                     >
-                      <div
-                        className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform duration-200 ${
-                          isToggled ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
+                      {isHindi ? "गतिविधि प्रारंभ करें" : "Start Activity"}
                     </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 8. DETAIL POPUP OVERLAY: PRESCRIBED MODULE                 */}
-      {/* ========================================================= */}
-      {activeModule && activeModule.id === "lms-mod-03" && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-[#F8F7F2]">
-          <CoordinateNavigationModuleView
-            onClose={() => setActiveModule(null)}
-            isHindi={isHindi}
-          />
-        </div>
-      )}
-
-      {activeModule && activeModule.id !== "lms-mod-03" && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0d1321] border border-[#23334f] rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl relative animate-in slide-in-from-bottom duration-300">
-            {/* Close button */}
-            <button
-              onClick={() => setActiveModule(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-[#1b2536] hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white border border-[#2b3c54] transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Header Details */}
-            <div className="space-y-1.5 pt-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono">
-                  {activeModule.code}
-                </span>
-                <span className="text-xs font-bold text-slate-400 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
-                  <Clock className="w-3.5 h-3.5 text-blue-400" />
-                  {activeModule.durationMinutes} minutes
-                </span>
+                )}
+                
+                {todaysPrescribedModules.length > 0 && (
+                  <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between mt-2">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs font-bold text-purple-900 line-clamp-1">{todaysPrescribedModules[0].title}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleStartModule(todaysPrescribedModules[0].id)}
+                      className="px-4 py-2.5 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm shrink-0"
+                    >
+                      {isHindi ? "लर्निंग शुरू करें" : "Start LMS"}
+                    </button>
+                  </div>
+                )}
               </div>
-              <h2 className="text-lg font-black text-white leading-tight">
-                {isHindi ? activeModule.titleHi : activeModule.title}
-              </h2>
             </div>
+          </div>
 
-            <div className="h-px bg-[#1e293b]" />
-
-            {/* Description & Diagnostic info */}
-            <div className="space-y-3.5 text-slate-300 text-xs">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  {isHindi ? "मॉड्यूल विवरण" : "Module Description"}
-                </span>
-                <p className="leading-relaxed bg-[#111827] border border-[#223049] p-4 rounded-xl text-slate-200 text-xs">
-                  {isHindi ? activeModule.descriptionHi : activeModule.description}
-                </p>
-              </div>
-
-              {/* Stethoscope recommendation tag */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  {isHindi ? "डॉक्टर डायग्नोसिस रीज़न" : "Doctor's Recommendation Basis"}
-                </span>
-                <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/15 flex items-start gap-3 text-purple-300 text-xs">
-                  <Stethoscope className="w-4.5 h-4.5 shrink-0 mt-0.5 text-purple-400" />
-                  <p className="leading-relaxed">
-                    {isHindi ? activeModule.rxReasonHi : activeModule.rxReason}
-                  </p>
+          {/* CHECK & NEXT Container */}
+          <div className="grid grid-cols-2 gap-3.5 pb-2">
+            {/* CHECK */}
+            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+              <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-3 block">
+                {isHindi ? "चेक (CHECK)" : "HOW IT'S CHECKED"}
+              </span>
+              <div className="space-y-3 mt-auto">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Pace</span>
+                  <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minPickRate || 40} items/hr</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Quality</span>
+                  <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minAccuracy || 98}% acc</span>
                 </div>
               </div>
+            </div>
 
-              {/* Requirement standards */}
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 bg-white/5 p-3 rounded-xl border border-white/5">
-                <span className="flex items-center gap-1">
-                  <Target className="w-4 h-4 text-blue-400" />
-                  {isHindi ? "पासिंग स्कोर:" : "Passing Standard:"}
+                        {/* RESULT */}
+            {actionOutcome && (
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-3 block">
+                  {isHindi ? "परिणाम (RESULT)" : "RESULT"}
                 </span>
-                <span className="text-white font-mono">{activeModule.passingScore}% minimum</span>
+                
+                <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight mb-2">
+                  {actionOutcome.improved === "yes" ? "Improved" : actionOutcome.improved === "partial" ? "Partially improved" : actionOutcome.improved === "no" ? "Not improved yet" : "Not enough evidence yet"}
+                </h3>
+                
+                <p className="text-xs sm:text-[13px] text-slate-600 font-medium mb-3 leading-relaxed">
+                  {actionOutcome.improved === "yes" 
+                    ? "Your latest evidence shows improvement." 
+                    : actionOutcome.improved === "partial" 
+                    ? "You're improving, but more evidence/practice is needed." 
+                    : actionOutcome.improved === "no"
+                    ? "Dean is adjusting the next step based on the latest evidence."
+                    : "Dean needs more evidence before confirming improvement."}
+                </p>
+                
+                {/* Evidence Metrics */}
+                {(actionOutcome.subsequentPickRate || actionOutcome.subsequentAccuracy) && (
+                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 grid grid-cols-2 gap-3 mt-1 mb-3">
+                    {actionOutcome.subsequentPickRate && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Pick Rate</span>
+                        <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentPickRate} items/hr</span>
+                      </div>
+                    )}
+                    {actionOutcome.subsequentAccuracy && (
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Accuracy</span>
+                        <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentAccuracy}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Environmental Context / Blocker */}
+                {actionOutcome.treatmentContext?.reason && (
+                  <div className="mt-1 flex items-start gap-2 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/50">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                    <span className="text-[11px] font-semibold text-amber-800 leading-snug">
+                      {actionOutcome.treatmentContext.reason}
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Modal Primary Play Button */}
-            <div className="pt-2">
-              <button
-                onClick={() => handleStartModule(activeModule.id)}
-                className="w-full py-4 px-6 rounded-xl font-black text-sm uppercase tracking-wider bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
-              >
-                <Play className="w-4 h-4 fill-white" />
-                <span>{isHindi ? "ट्रेनिंग मॉड्यूल शुरू करें" : "Start Module Now"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================= */}
-      {/* 9. DETAIL POPUP OVERLAY: FLOOR TASK                        */}
-      {/* ========================================================= */}
-      {activeTask && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0d1321] border border-[#23334f] rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl relative animate-in slide-in-from-bottom duration-300">
-            {/* Close button */}
-            <button
-              onClick={() => setActiveTask(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-[#1b2536] hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white border border-[#2b3c54] transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            {/* Header Details */}
-            <div className="space-y-1.5 pt-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
-                  {activeTask.category}
+            )}
+            
+            {/* REPLAN */}
+            {actionOutcome && (
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-600 mb-2 block">
+                  {isHindi ? "अगला कदम (NEXT STEP)" : "NEXT STEP"}
                 </span>
-                <span className="text-xs font-bold text-slate-400 flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
-                  <Clock className="w-3.5 h-3.5 text-blue-400" />
-                  {activeTask.duration}
-                </span>
-              </div>
-              <h2 className="text-lg font-black text-white leading-tight">
-                {activeTask.title}
-              </h2>
-            </div>
-
-            <div className="h-px bg-[#1e293b]" />
-
-            {/* Rich Task Instructions */}
-            <div className="space-y-3.5 text-slate-300 text-xs">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  {isHindi ? "कार्य का विवरण और गाइड" : "Task Instructions & Guide"}
-                </span>
-                <p className="leading-relaxed bg-[#111827] border border-[#223049] p-4 rounded-xl text-slate-200 text-xs font-medium">
-                  {isHindi ? activeTask.detailsHi : activeTask.detailsEn}
+                <p className="text-xs sm:text-[13px] text-slate-700 font-semibold leading-relaxed">
+                  {recAction ? recAction.title : newHire.recommendedActionSnippet || "Follow standard floor routine"}
                 </p>
               </div>
+            )}
 
-              {/* Safety/Help Support banner */}
-              <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/15 flex items-center gap-3 text-blue-300 text-xs">
-                <UserCheck className="w-4.5 h-4.5 shrink-0 text-blue-400" />
-                <span className="font-semibold">
-                  {isHindi ? "विक्रम (Buddy) आपकी सहायता के लिए फ्लोर पर उपलब्ध हैं।" : "Buddy Vikram is on-duty to support you."}
-                </span>
+            {/* NEXT */}
+            {!actionOutcome && (
+              <div className="bg-slate-50 rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400" />
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2 block">
+                    {isHindi ? "आगे क्या (NEXT)" : "WHAT COMES NEXT"}
+                  </span>
+                  <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                    {isHindi
+                      ? "प्रदर्शन का मूल्यांकन होने के बाद डीन आपका अगला कदम तय करेगा।"
+                      : "Dean will determine your next step after evaluating your performance."}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-start sm:items-center gap-2">
+                  <ArrowRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5 sm:mt-0" />
+                  <span className="text-xs font-black text-slate-900 leading-tight">
+                    {isHindi ? "मूल्यांकन की प्रतीक्षा है" : "Awaiting Evaluation"}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="pt-2 flex gap-3">
-              <button
-                onClick={() => setActiveTask(null)}
-                className="flex-1 py-3.5 px-4 rounded-xl font-bold text-xs bg-white/5 hover:bg-white/10 text-slate-300 transition-colors border border-white/5 cursor-pointer"
-              >
-                {isHindi ? "बंद करें" : "Dismiss"}
-              </button>
-              <button
-                onClick={() => handleOpenTaskDestination(activeTask.id, activeTask.category)}
-                className="flex-[2] py-3.5 px-6 rounded-xl font-black text-xs uppercase tracking-wider bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg flex items-center justify-center gap-2 cursor-pointer active:scale-98 transition-all"
-              >
-                <span>{isHindi ? "कार्य शुरू करें" : "Open Task Workspace"}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* ========================================================= */}
+      </div>
+{/* ========================================================= */}
       {/* 10. CONTROL TOWER VIEW: DEAN PRESCRIBED ACTIVITIES LIST   */}
       {/* ========================================================= */}
       {isTodaysActivityModalOpen && (
@@ -974,7 +962,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                           return (
                             <div
                               key={act.id || actIdx}
-                              className={`px-3 py-2 rounded-lg border flex items-center justify-between gap-2 text-xs ${statusColor}`}
+                              className={`px-3 py-2 rounded-lg border flex items-center justify-between gap-2 text-xs cursor-pointer hover:border-blue-300 transition-colors ${statusColor}`}
+                              onClick={() => handleStartModule(prescribedMod.id)}
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 {isDone ? (
@@ -1032,7 +1021,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                   return (
                     <div
                       key={t.id}
-                      className={`px-3 py-2.5 rounded-lg border flex items-center justify-between gap-2 text-xs ${statusColor}`}
+                      className={`px-3 py-2.5 rounded-lg border flex items-center justify-between gap-2 text-xs cursor-pointer hover:border-blue-300 transition-colors ${statusColor}`}
+                      onClick={() => handleOpenTaskDestination(t.id, t.category)}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {isDone ? (

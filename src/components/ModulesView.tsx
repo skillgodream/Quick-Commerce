@@ -81,49 +81,49 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
   const [quizAnswerSelected, setQuizAnswerSelected] = useState<number | null>(null);
   const [quizSubmitted, setQuizSubmitted] = useState<boolean>(false);
   const [practiceChecked, setPracticeChecked] = useState<boolean>(false);
-  const [selectedSkillCategory, setSelectedSkillCategory] = useState<string>("aisles_1_3");
+  const [selectedSkillCategory, setSelectedSkillCategory] = useState<string>("basics");
 
 
 
   const SKILL_CATEGORIES = [
     {
-      id: "aisles_1_3",
-      icon: Package,
-      titleHindi: "आइसल 1 से 3",
-      titleEnglish: "Aisle 1 to 3",
-      subtitleHindi: "चिप्स, बिस्कुट और मैगी",
-      subtitleEnglish: "Chips, Biscuits & Snacks",
-      skillIds: [1, 2, 3, 5, 14],
+      id: "basics",
+      icon: ShieldCheck,
+      titleHindi: "बुनियादी बातें और सुरक्षा",
+      titleEnglish: "Basics & Safety",
+      subtitleHindi: "नेविगेशन और सुरक्षा",
+      subtitleEnglish: "Store tools & rules",
+      skillIds: [1, 2, 3, 4, 5],
       hasNotification: false,
     },
     {
-      id: "aisles_4_8",
-      icon: Layers,
-      titleHindi: "आइसल 4 से 8",
-      titleEnglish: "Aisle 4 to 8",
-      subtitleHindi: "आटा, दाल और भारी रैक",
-      subtitleEnglish: "Flour, Dal & Heavy Racks",
-      skillIds: [6, 7, 9, 10, 15],
-      hasNotification: true, // red dot matching the attached screenshot
+      id: "accuracy",
+      icon: PackageCheck,
+      titleHindi: "सटीकता और हैंडलिंग",
+      titleEnglish: "Accuracy & Product Handling",
+      subtitleHindi: "सही आइटम और पैकिंग",
+      subtitleEnglish: "Quality & Packing",
+      skillIds: [6, 7, 8, 10],
+      hasNotification: false, 
     },
     {
-      id: "cold_room",
-      icon: Snowflake,
-      titleHindi: "कोल्ड रूम",
-      titleEnglish: "Cold Room",
-      subtitleHindi: "दूध, दही और पनीर (Aisle 8)",
-      subtitleEnglish: "Milk, Curd & Paneer (Aisle 8)",
-      skillIds: [4, 8, 11, 12, 13],
+      id: "exceptions",
+      icon: AlertTriangle,
+      titleHindi: "फ्लोर अपवाद",
+      titleEnglish: "Floor Exceptions",
+      subtitleHindi: "समस्या का समाधान",
+      subtitleEnglish: "Problem solving",
+      skillIds: [11, 12, 13, 18],
       hasNotification: false,
     },
     {
-      id: "dispatch_table",
-      icon: Truck,
-      titleHindi: "डिस्पैच टेबल",
-      titleEnglish: "Dispatch Table",
-      subtitleHindi: "टोट चेकिंग और पॉलीबैग",
-      subtitleEnglish: "Tote Checking & Polybags",
-      skillIds: [16, 17, 18, 19, 20],
+      id: "flow",
+      icon: Zap,
+      titleHindi: "गति और पूर्णता",
+      titleEnglish: "Flow & Completion",
+      subtitleHindi: "तेजी और डिस्पैच",
+      subtitleEnglish: "Speed & Dispatch",
+      skillIds: [9, 14, 15, 16, 17, 19],
       hasNotification: false,
     },
   ];
@@ -449,14 +449,24 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-cyan-400 stroke-[1.6]" />
             <h3 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
-              {isHindi ? "मेरे नौकरी कौशल" : "My Job Skills"}
+              {isHindi ? "सीखने के मेट्रिक्स" : "Learning Metrics"}
             </h3>
           </div>
           <span className="text-[11px] font-normal text-slate-400">
-            {isHindi ? "4 श्रेणियां • 20 कौशल" : "4 Categories • 20 Skills"}
+            {isHindi ? "4 श्रेणियां • 19 कौशल" : "4 Categories • 19 Capabilities"}
           </span>
         </div>
 
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-2 flex gap-3 items-start">
+          <BookOpen className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-slate-300 leading-relaxed font-medium">
+            {isHindi 
+              ? "प्रशिक्षण पूरा करने का अर्थ स्वतः ही क्षमता प्रमाणित होना नहीं है। इस पृष्ठ पर दिखाया गया प्रशिक्षण कौशल निर्माण का समर्थन करता है, लेकिन वास्तविक क्षमता की पुष्टि डीन द्वारा फ्लोर के प्रदर्शन से की जाती है।"
+              : "Training completion does not automatically equal demonstrated capability. The modules here support skill building, but actual capability is verified by Dean on the floor."}
+          </p>
+        </div>
+
+        {/* 4 COMPACT CARDS IN 4-GRID PLACEMENT (NO TEXT, SLEEK ICONS) */}
         {/* 4 COMPACT CARDS IN 4-GRID PLACEMENT (NO TEXT, SLEEK ICONS) */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 my-1">
           {SKILL_CATEGORIES.map((cat) => {
@@ -502,6 +512,16 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
             <>
               {/* Empty space placeholder preserving layout height without text */}
               <div className="h-4 my-1" aria-hidden="true" />
+              
+              {selectedSkillCategory === "exceptions" && (
+                <div className="mb-4 p-3 bg-[#1a1d27] border border-slate-700/50 rounded-xl">
+                  <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                    {isHindi 
+                      ? "अभी तक कोई समर्पित प्रशिक्षण मॉड्यूल नहीं है — ये कौशल फ्लोर पर सीखे और प्रदर्शित किए जाते हैं।"
+                      : "No dedicated training module yet — these skills are learned and demonstrated on the floor."}
+                  </p>
+                </div>
+              )}
 
               {skillsToDisplay.map((cap) => {
                 const statusStr = getCapabilityStatus(cap.id);
@@ -614,44 +634,55 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isHindi ? "आपकी शिक्षा" : "Your learning"}</span>
-                <p className="text-[14px] font-semibold text-slate-200">
-                  {isHindi ? `${compAct} / ${totalAct} गतिविधियाँ पूर्ण` : `${compAct} / ${totalAct} activities complete`}
-                </p>
-              </div>
+{modules.length > 0 ? (
+                <>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isHindi ? "आपकी शिक्षा" : "Your learning"}</span>
+                    <p className="text-[14px] font-semibold text-slate-200">
+                      {isHindi ? `${compAct} / ${totalAct} गतिविधियाँ पूर्ण` : `${compAct} / ${totalAct} activities complete`}
+                    </p>
+                  </div>
 
-              <div className="space-y-2 pt-2">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isHindi ? "आप क्या अभ्यास कर रहे हैं" : "What you're practising"}</span>
-                <ul className="space-y-2">
-                  {modules.map(mod => (
-                    <li key={mod.id} className="flex items-start gap-2 text-[13px] font-medium text-slate-300">
-                      <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-pink-500 shrink-0" />
-                      <span>{isHindi && mod.titleHi ? mod.titleHi : mod.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{isHindi ? "आप क्या अभ्यास कर रहे हैं" : "What you're practising"}</span>
+                    <ul className="space-y-2">
+                      {modules.map(mod => (
+                        <li key={mod.id} className="flex items-start gap-2 text-[13px] font-medium text-slate-300">
+                          <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-pink-500 shrink-0" />
+                          <span>{isHindi && mod.titleHi ? mod.titleHi : mod.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              <div className="pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCapabilityModal(null);
-                    // Find first incomplete module, or just the first one
-                    let nextMod = modules.find(m => !completedIds.includes(m.id));
-                    if (!nextMod && modules.length > 0) nextMod = modules[0];
-                    if (nextMod) {
-                      setSelectedModuleId(nextMod.id);
-                      setActiveDetailModule(nextMod);
-                    }
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-pink-550 to-rose-600 bg-pink-500 text-white rounded-2xl text-[13px] font-black shadow-lg hover:opacity-95 cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-2 border border-white/10"
-                >
-                  <span className="text-white">{isHindi ? "सीखना जारी रखें" : "CONTINUE LEARNING"}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
+                  <div className="pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCapabilityModal(null);
+                        let nextMod = modules.find(m => !completedIds.includes(m.id));
+                        if (!nextMod && modules.length > 0) nextMod = modules[0];
+                        if (nextMod) {
+                          setSelectedModuleId(nextMod.id);
+                          setActiveDetailModule(nextMod);
+                        }
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-pink-550 to-rose-600 bg-pink-500 text-white rounded-2xl text-[13px] font-black shadow-lg hover:opacity-95 cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-2 border border-white/10"
+                    >
+                      <span className="text-white">{isHindi ? "सीखना जारी रखें" : "CONTINUE LEARNING"}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="mb-4 p-4 bg-[#1a1d27] border border-slate-700/50 rounded-xl">
+                  <p className="text-sm text-slate-400 leading-relaxed font-medium">
+                    {isHindi 
+                      ? "अभी तक कोई समर्पित प्रशिक्षण मॉड्यूल नहीं है — ये कौशल फ्लोर पर सीखे और प्रदर्शित किए जाते हैं।"
+                      : "No dedicated training module yet — these skills are learned and demonstrated on the floor."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );

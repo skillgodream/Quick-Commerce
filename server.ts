@@ -44,8 +44,6 @@ app.post("/api/signals/understand-daily", async (req, res) => {
       return res.status(400).json({ error: "Missing 'text' in request body." });
     }
 
-    const ai = getGenAI();
-
     // Deterministic fallback analyzer
     const lower = text.toLowerCase();
     let issue = "General Feedback";
@@ -80,7 +78,7 @@ app.post("/api/signals/understand-daily", async (req, res) => {
       category = "General";
     }
 
-    let result = {
+    let fallbackResult = {
       rawText: text,
       issue,
       confidence,
@@ -90,52 +88,225 @@ app.post("/api/signals/understand-daily", async (req, res) => {
       companionResponse: "Thanks for sharing honestly. It takes a few shifts to memorize dark store rack codes. Your manager and buddy are here to back you up!",
     };
 
+    const ai = getGenAI();
     if (ai) {
       try {
-        const prompt = `You are the intelligence engine for "New Hire Intelligence", an intelligent coordination system for blue-collar dark store pickers during their 14-day ramp-up.
-Analyze what this new hire (${newHireName}, Day ${dayNumber}) just said:
+        const prompt = `You are the AI Evidence Interpreter for "New Hire Intelligence", assisting the Dean orchestration system.
+Your ONLY job is to interpret the unstructured text from a dark store picker (Name: ${newHireName}, Day ${dayNumber}) into a structured observation candidate.
+
+Text to interpret:
 "${text}"
 
-Convert this into structured signals for the coordination system.
-Respond ONLY with valid JSON in this exact structure:
+RULES AND BOUNDARIES (STRICT):
+1. INTERPRET ONLY the supplied text. Do NOT invent facts.
+2. Do NOT infer performance numbers (pick rate, accuracy) unless explicitly stated.
+3. Do NOT invent workplace conditions or environmental blockers.
+4. Do NOT claim mastery, independence, or capability completion.
+5. Do NOT diagnose beyond what the text directly supports.
+6. Prefer uncertainty over invention. If ambiguous or neutral, return neutral defaults.
+7. Return valid JSON ONLY.
+
+EXPECTED JSON SCHEMA:
 {
-  "issue": "A concise issue title (e.g., 'Location navigation', 'Scanner barcode read', 'Batch picking rule confusion', 'Steady settling in')",
-  "confidence": "Low" | "Medium" | "High",
-  "possibleImpact": "Short practical consequence (e.g. 'Slow picking', 'Mis-picks', 'Increased manager callouts', 'Normal ramp')",
-  "category": "Environment" | "Process" | "Tool" | "Confidence" | "Physical" | "General",
-  "summary": "1 concise sentence summarizing what is happening",
-  "companionResponse": "A very friendly, encouraging, 1-2 sentence direct response to the worker in simple spoken language. Reassure them that learning the store takes time, don't use corporate jargon."
+  "issue": "A concise summary of the specific issue, blocker, or progress (e.g., 'Variant differentiation difficulty', 'Location navigation', 'Equipment failure', 'Positive progress'). Use 'General Feedback' if unclear.",
+  "confidence": "Low", "Medium", or "High" based ONLY on how explicitly the text states the issue.
+  "possibleImpact": "Short practical consequence (e.g., 'Scan delays', 'Mis-picks', 'Fatigue', 'Normal ramp'). Use 'Unknown' if not guessable.",
+  "category": Must be exactly one of: "Environment", "Process", "Tool", "Confidence", "Physical", "General".
+  "summary": "1 concise sentence summarizing what the learner actually said.",
+  "companionResponse": "A 1-2 sentence direct, friendly response to the worker in simple spoken English. Reassure them, but do not promise mastery."
 }`;
 
-        const response = await ai.models.generateContent({
+        const fetchPromise = ai.models.generateContent({
           model: "gemini-3.1-flash-lite",
           contents: prompt,
           config: {
             responseMimeType: "application/json",
+            temperature: 0.1,
           },
         });
 
-        if (response.text) {
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
+        );
+
+        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
-          result = {
-            rawText: text,
-            issue: parsed.issue || issue,
-            confidence: parsed.confidence || confidence,
-            possibleImpact: parsed.possibleImpact || impact,
-            category: parsed.category || category,
-            summary: parsed.summary || result.summary,
-            companionResponse: parsed.companionResponse || result.companionResponse,
-          };
+          
+          // STRICT VALIDATION GATE
+          const isValidCategory = ["Environment", "Process", "Tool", "Confidence", "Physical", "General"].includes(parsed.category);
+          const isValidConfidence = ["Low", "Medium", "High"].includes(parsed.confidence);
+          const hasRequiredFields = parsed.issue && parsed.summary && parsed.possibleImpact;
+
+          if (isValidCategory && isValidConfidence && hasRequiredFields) {
+            return res.json({
+              rawText: text,
+              issue: String(parsed.issue),
+              confidence: parsed.confidence,
+              possibleImpact: String(parsed.possibleImpact),
+              category: parsed.category,
+              summary: String(parsed.summary),
+              companionResponse: parsed.companionResponse ? String(parsed.companionResponse) : fallbackResult.companionResponse
+            });
+          } else {
+             console.warn("AI interpretation failed validation gate. Falling back to deterministic rules.");
+          }
         }
       } catch (aiErr) {
-        console.warn("AI generation failed, using deterministic structured signal:", aiErr);
+        console.warn("AI generation/validation failed, using deterministic structured signal:", aiErr);
       }
     }
 
-    res.json(result);
+    // Return fallback if AI wasn't used or failed
+    res.json(fallbackResult);
   } catch (err: any) {
     console.error("Error in understand-daily:", err);
     res.status(500).json({ error: err.message || "Failed to analyze signal" });
+  }
+});
+
+// 2.5 Treatment Memory - Analyze Outcome Notes
+app.post("/api/signals/understand-outcome", async (req, res) => {
+  try {
+    const { notes, actionTitle } = req.body;
+    
+    if (!notes || typeof notes !== "string") {
+      return res.status(400).json({ error: "Missing 'notes' in request body." });
+    }
+
+    let fallbackResult = {
+      reason: "No AI interpretation available.",
+      remainingIssue: "Unknown"
+    };
+
+    const ai = getGenAI();
+    if (ai) {
+      try {
+        const prompt = `You are the AI Evidence Interpreter for a dark store worker coordination system.
+Your job is to interpret the unstructured notes left by a manager after completing an intervention (${actionTitle || "Action"}).
+
+Notes to interpret:
+"${notes}"
+
+RULES AND BOUNDARIES (STRICT):
+1. INTERPRET ONLY the supplied text. Do NOT invent facts.
+2. Return valid JSON ONLY.
+
+EXPECTED JSON SCHEMA:
+{
+  "reason": "1 concise sentence explaining why the intervention worked or didn't work, based ONLY on the notes.",
+  "remainingIssue": "Any specific issue or blocker mentioned that was NOT resolved (e.g., 'Aisle 7 navigation'). Use 'None' if completely resolved."
+}`;
+
+        const fetchPromise = ai.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.1,
+          },
+        });
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
+        );
+
+        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (response && response.text) {
+          const parsed = JSON.parse(response.text.trim());
+          
+          if (parsed.reason && parsed.remainingIssue) {
+            return res.json({
+              reason: String(parsed.reason),
+              remainingIssue: String(parsed.remainingIssue)
+            });
+          }
+        }
+      } catch (aiErr) {
+        console.warn("AI generation/validation failed for outcome:", aiErr);
+      }
+    }
+
+    res.json(fallbackResult);
+  } catch (err) {
+    console.error("Error in understand-outcome:", err);
+    res.status(500).json({ error: err.message || "Failed to analyze outcome" });
+  }
+});
+
+// 2.6 Longitudinal Pattern Discovery
+app.post("/api/signals/understand-longitudinal", async (req, res) => {
+  try {
+    const { historyText } = req.body;
+    
+    if (!historyText || typeof historyText !== "string") {
+      return res.status(400).json({ error: "Missing 'historyText' in request body." });
+    }
+
+    let fallbackResult = {
+      isPattern: false
+    };
+
+    const ai = getGenAI();
+    if (ai) {
+      try {
+        const prompt = `You are the AI Pattern Discovery Engine for a dark store worker training system.
+Your job is to read a chronologically ordered text summary of a learner's historical evidence (manager notes, self-reports, performance data) over multiple days/shifts, and identify if there is a CLEAR LONGITUDINAL PATTERN.
+
+Historical evidence:
+${historyText}
+
+RULES:
+1. ONLY identify a pattern if there is repeated evidence across MULTIPLE pieces of evidence/days. A single isolated issue is NOT a pattern.
+2. If it's a one-off issue, or evidence is insufficient, set "isPattern" to false.
+3. If there is a pattern, choose one of these categories:
+   - "Recurring Capability Issue"
+   - "Persistent Performance Gap"
+   - "Intervention Response"
+   - "Intervention Failure / Partial Response"
+   - "Environmental Pattern"
+   - "Improvement Pattern"
+4. If an issue existed but recent days show it has disappeared (good performance, no notes), set "isPattern" to false (it's stale).
+5. If it's an Environmental issue (e.g. scanner broken repeatedly), it MUST be an "Environmental Pattern", not a Capability Issue.
+6. Return valid JSON ONLY.
+
+EXPECTED JSON SCHEMA:
+{
+  "isPattern": boolean, // true ONLY if a clear multi-evidence pattern exists
+  "category": "String category from the list above" (omit if isPattern is false),
+  "supportingEvidence": "1 concise sentence explaining the pattern and the evidence supporting it." (omit if false)
+}`;
+
+        const fetchPromise = ai.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            temperature: 0.1,
+          },
+        });
+
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
+        );
+
+        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
+        
+        if (response && response.text) {
+          const parsed = JSON.parse(response.text.trim());
+          return res.json(parsed);
+        }
+      } catch (aiErr) {
+        console.warn("AI generation failed for longitudinal pattern:", aiErr);
+      }
+    }
+
+    res.json(fallbackResult);
+  } catch (err) {
+    console.error("Error in understand-longitudinal:", err);
+    res.status(500).json({ error: err.message || "Failed to analyze longitudinal pattern" });
   }
 });
 

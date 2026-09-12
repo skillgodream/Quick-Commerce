@@ -11,6 +11,7 @@ import { ClientDemoModal } from "./components/ClientDemoModal";
 import { ChatBotPullout } from "./components/ChatBotPullout";
 import { SplashScreen } from "./components/SplashScreen";
 import { LearnerSection } from "./components/FloatingGlassMenu";
+import { LearnerSideNav } from "./components/LearnerSideNav";
 import { initialCohort, initialOrgSummary } from "./data/seedData";
 import {
   NewHire,
@@ -19,8 +20,9 @@ import {
   WorkSignal,
   ActionOutcome,
   DayRecord,
+  CandidatePattern,
 } from "./types";
-import { executeCoordinationLoop, askCompanion } from "./services/intelligence";
+import { executeCoordinationLoop, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory } from "./services/intelligence";
 import {
   GoogleFormFeedPayload,
   adaptGoogleFormFeedRow,
@@ -126,7 +128,8 @@ export default function App() {
   const updateHireAndRecalculate = (
     hireId: string,
     dayNum: number,
-    updater: (currentRecord: DayRecord, hire: NewHire) => Partial<DayRecord>
+    updater: (currentRecord: DayRecord, hire: NewHire) => Partial<DayRecord>,
+    candidatePattern?: CandidatePattern
   ) => {
     setNewHires((prevHires) =>
       prevHires.map((hire) => {
@@ -170,6 +173,7 @@ export default function App() {
           actionOutcome: mergedRecord.actionOutcome,
           previousRecord,
           existingAction: mergedRecord.recommendedAction,
+          candidatePattern,
         });
 
         mergedRecord.identifiedPattern = execution.pattern;
@@ -202,29 +206,85 @@ export default function App() {
     );
   };
 
+  // Helper for longitudinal pattern discovery
+  const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpdate: any): Promise<CandidatePattern | undefined> => {
+    const hire = newHires.find(h => h.id === hireId);
+    if (!hire) return undefined;
+    
+    let historyText = "";
+    const maxDay = Math.max(hire.daysHistory.length, dayNum);
+    for (let i = 1; i <= maxDay; i++) {
+       const rec = hire.daysHistory.find(d => d.dayNumber === i) || { dayNumber: i };
+       let daily = rec.dailySignal;
+       let mgr = rec.managerSignal;
+       let wrk = rec.workSignal;
+       let out = rec.actionOutcome;
+       if (i === dayNum) {
+          if (extraUpdate.dailySignal) daily = extraUpdate.dailySignal;
+          if (extraUpdate.managerSignal) mgr = extraUpdate.managerSignal;
+          if (extraUpdate.workSignal) wrk = extraUpdate.workSignal;
+          if (extraUpdate.actionOutcome) out = extraUpdate.actionOutcome;
+       }
+       
+       const lines = [];
+       if (daily) lines.push(`- Self-report: ${daily.rawText} (${daily.issue || 'No issue'})`);
+       if (mgr) lines.push(`- Manager: ${mgr.state} - ${mgr.notes}`);
+       if (wrk) lines.push(`- Perf: Rate ${wrk.actualPickRate}/${wrk.targetPickRate}, Acc ${wrk.accuracyRate}%`);
+       if (out) lines.push(`- Outcome: ${out.notes || ''} (Improved: ${out.improved})`);
+       
+       if (lines.length > 0) {
+         historyText += `Day ${i}:
+` + lines.join("\n") + "\n";
+       }
+    }
+    
+    if (historyText.trim().length > 0) {
+      return await analyzeLongitudinalHistory(historyText);
+    }
+    return undefined;
+  };
+
   // 1. Daily Signal submitted by Frontline New Hire
-  const handleDailySignalSubmitted = (signal: DailySignal) => {
+  const handleDailySignalSubmitted = async (signal: DailySignal) => {
+    const pattern = await fetchLongitudinalPattern(activeHire.id, currentDay, { dailySignal: signal });
     updateHireAndRecalculate(activeHire.id, currentDay, () => ({
       dailySignal: signal,
-    }));
+    }), pattern);
   };
 
   // 2. Manager Fast 5-sec signal submitted
-  const handleManagerSignalSubmitted = (hireId: string, signal: ManagerSignal) => {
+  const handleManagerSignalSubmitted = async (hireId: string, signal: ManagerSignal) => {
+    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { managerSignal: signal });
     updateHireAndRecalculate(hireId, currentDay, () => ({
       managerSignal: signal,
-    }));
+    }), pattern);
   };
 
   // 3. Work Signal manual or automated update
-  const handleWorkSignalUpdated = (hireId: string, workSignal: WorkSignal) => {
+  const handleWorkSignalUpdated = async (hireId: string, workSignal: WorkSignal) => {
+    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { workSignal });
     updateHireAndRecalculate(hireId, currentDay, () => ({
       workSignal,
-    }));
+    }), pattern);
   };
 
   // 4. Action Outcome recorded (Closing the loop)
-  const handleActionOutcomeRecorded = (hireId: string, outcome: ActionOutcome) => {
+  const handleActionOutcomeRecorded = async (hireId: string, outcome: ActionOutcome) => {
+    
+    // Add AI Outcome Interpretation
+    let treatmentContext = undefined;
+    if (outcome.notes) {
+       // Get the action title if available
+       const hire = newHires.find(h => h.id === hireId);
+       const currentRecord = hire?.daysHistory.find(d => d.dayNumber === currentDay);
+       const actionTitle = currentRecord?.recommendedAction?.title;
+       treatmentContext = await analyzeOutcomeNotes(outcome.notes, actionTitle);
+    }
+    
+    const augmentedOutcome = { ...outcome, treatmentContext };
+
+    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { actionOutcome: augmentedOutcome });
+
     updateHireAndRecalculate(hireId, currentDay, (currentRecord) => {
       const updatedAction = currentRecord.recommendedAction
         ? { ...currentRecord.recommendedAction, status: "completed" as const }
@@ -237,11 +297,11 @@ export default function App() {
       };
 
       return {
-        actionOutcome: outcome,
+        actionOutcome: augmentedOutcome,
         recommendedAction: updatedAction,
         workSignal: updatedWorkSignal,
       };
-    });
+    }, pattern);
   };
 
   // 5. Client Demo Work-Signal Feed Ingested (Google Form / Sheet adapter)
@@ -264,8 +324,13 @@ export default function App() {
     setCurrentDay(result.dayNumber);
 
     // Pass signals through authoritative updateHireAndRecalculate pipeline
-    updateHireAndRecalculate(result.newHireId, result.dayNumber, () => {
-      const partial: Partial<DayRecord> = {
+    fetchLongitudinalPattern(result.newHireId, result.dayNumber, { 
+      workSignal: result.workSignal, 
+      dailySignal: result.dailySignal, 
+      managerSignal: result.managerSignal 
+    }).then(pattern => {
+      updateHireAndRecalculate(result.newHireId, result.dayNumber, () => {
+        const partial: Partial<DayRecord> = {
         workSignal: result.workSignal,
         dailySignal: result.dailySignal,
         managerSignal: result.managerSignal,
@@ -274,6 +339,7 @@ export default function App() {
         partial.actionOutcome = result.actionOutcome;
       }
       return partial;
+      }, pattern);
     });
   };
 
@@ -354,8 +420,7 @@ export default function App() {
               ? "bg-[#eaedf2] border-slate-300"
               : activeTab === "new_hire" && learnerSection === "modules"
               ? "bg-[#0a0b0e] border-white/5"
-              : activeTab === "new_hire" && learnerSection === "dashboard"
-              ? "bg-[#081b4e] border-transparent"
+              : activeTab === "new_hire" && (learnerSection === "dashboard" || learnerSection === "learner_dashboard") ? "bg-[#081b4e] border-transparent"
               : "bg-slate-950 border-white/5"
           }`}>
             <div className={`w-16 h-1 rounded-full ${
@@ -377,7 +442,7 @@ export default function App() {
         ) : (
           <>
             {/* Global Mobile Header (Only during active shift views) */}
-            {!(activeTab === "new_hire" && (learnerSection === "modules" || learnerSection === "home" || learnerSection === "journey" || learnerSection === "dashboard" || learnerSection === "dial")) && (
+            {!(activeTab === "new_hire" && (learnerSection === "modules" || learnerSection === "home" || learnerSection === "journey" || learnerSection === "dashboard" || learnerSection === "dial" || learnerSection === "learner_dashboard")) && (
               <Header
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -429,6 +494,13 @@ export default function App() {
 
             {/* Main Experience View */}
             <main className="flex-1 overflow-y-auto">
+              {activeTab === "new_hire" && (
+                <LearnerSideNav
+                  activeSection={learnerSection}
+                  onSelectSection={setLearnerSection}
+                  isHindi={isHindi}
+                />
+              )}
               {activeTab === "new_hire" && (
                 <NewHireView
                   newHire={activeHire}
