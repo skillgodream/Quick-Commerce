@@ -311,14 +311,14 @@ export default function App() {
     );
   };
 
-  const syncedKeysRef = useRef<Set<string>>(new Set());
+  const lastSyncedKeyRef = useRef<string | null>(null);
 
   // Automatic startup & active learner/day synchronization with Simulator API
   useEffect(() => {
     if (!activeHireId || !currentDay) return;
     const syncKey = `${activeHireId}-day${currentDay}`;
-    if (!syncedKeysRef.current.has(syncKey)) {
-      syncedKeysRef.current.add(syncKey);
+    if (lastSyncedKeyRef.current !== syncKey) {
+      lastSyncedKeyRef.current = syncKey;
       updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
     }
   }, [activeHireId, currentDay]);
@@ -462,12 +462,13 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
 
   // Select day in scenario
   const handleSelectDay = (day: number) => {
+    lastSyncedKeyRef.current = null;
     setCurrentDay(day);
   };
 
   // Reset demo to initial state
   const handleResetDemo = () => {
-    syncedKeysRef.current.clear();
+    lastSyncedKeyRef.current = null;
     try {
       localStorage.removeItem(STORAGE_KEY_HIRES);
       localStorage.removeItem(STORAGE_KEY_DAY);

@@ -370,10 +370,13 @@ export async function fetchSimulatorEvidence(
     }
 
     const validEvidence: SimulatorEvidenceItem[] = [];
+    const batchKeys = new Set<string>();
     for (const raw of rawList) {
       const sanitized = validateAndSanitizeEvidenceRecord(raw);
       if (sanitized) {
-        if (!isDuplicateEvidence(sanitized)) {
+        const key = getEvidenceKey(sanitized);
+        if (!batchKeys.has(key)) {
+          batchKeys.add(key);
           markEvidenceProcessed(sanitized);
           validEvidence.push(sanitized);
         }
