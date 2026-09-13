@@ -1494,34 +1494,376 @@ export function linkEvidenceToCapabilities(
 ): Record<number, SnapshotEvidenceItem[]> {
   const mapping: Record<number, SnapshotEvidenceItem[]> = {};
 
-  for (const ev of evidenceItems) {
-    let targetCaps: number[] = [];
+  if (!evidenceItems || !Array.isArray(evidenceItems)) {
+    return mapping;
+  }
 
-    if (ev.evidenceType === "uph") {
-      targetCaps = [3, 4, 7]; // Zone Navigation, Aisle Coordinates, Pick Rate
-    } else if (ev.evidenceType === "accuracy") {
-      targetCaps = [6]; // Variant Check & Quality
-    } else if (ev.evidenceType === "help_request") {
-      targetCaps = [5]; // Floor Independence
-    } else if (ev.evidenceType === "assessment") {
-      if (ev.category === "tool_problem") targetCaps = [2];
-      else if (ev.category === "safety_issue") targetCaps = [1];
-      else targetCaps = [3, 4];
-    } else if (ev.evidenceType === "manager_observation") {
-      targetCaps = [3, 4, 5, 6];
-    } else {
-      targetCaps = [3];
+  const addLink = (capId: number, ev: SnapshotEvidenceItem) => {
+    // Ground strictly in canonical DARK_STORE_CAPABILITIES
+    if (!DARK_STORE_CAPABILITIES.some((c) => c.id === capId)) return;
+    if (!mapping[capId]) {
+      mapping[capId] = [];
+    }
+    if (!mapping[capId].some((existing) => existing.id === ev.id)) {
+      mapping[capId].push(ev);
+    }
+  };
+
+  for (const ev of evidenceItems) {
+    // If evidence is explicitly insufficient/uncertain, do NOT manufacture links
+    if (ev.category === "insufficient_evidence") {
+      continue;
     }
 
-    for (const capId of targetCaps) {
-      if (!mapping[capId]) {
-        mapping[capId] = [];
+    const matchedCapIds = new Set<number>();
+
+    // 1. Explicit capabilityId tag on the evidence item
+    if (typeof ev.capabilityId === "number" && DARK_STORE_CAPABILITIES.some((c) => c.id === ev.capabilityId)) {
+      matchedCapIds.add(ev.capabilityId);
+    }
+
+    // Build unified searchable text for semantic matching
+    const textBlob = `${ev.titleEn || ""} ${ev.contextTextEn || ""} ${ev.badgeEn || ""} ${ev.metricValue || ""} ${ev.source || ""}`.toLowerCase();
+
+    // 2. Semantic matching against specific capability domains in DARK_STORE_CAPABILITIES
+    // Cap 1: Store Safety & PPE
+    if (
+      /\bppe\b/i.test(textBlob) ||
+      textBlob.includes("safety shoe") ||
+      textBlob.includes("safety boot") ||
+      textBlob.includes("slip hazard") ||
+      textBlob.includes("emergency exit") ||
+      textBlob.includes("traffic thoroughfare") ||
+      textBlob.includes("floor safety") ||
+      textBlob.includes("safety protocol") ||
+      textBlob.includes("store safety")
+    ) {
+      matchedCapIds.add(1);
+    }
+
+    // Cap 2: Scanner Basics & Hardware
+    if (
+      textBlob.includes("ring-scanner") ||
+      textBlob.includes("ring scanner") ||
+      textBlob.includes("scanner login") ||
+      textBlob.includes("bluetooth") ||
+      textBlob.includes("battery dock") ||
+      textBlob.includes("barcode aiming") ||
+      textBlob.includes("scanner hardware") ||
+      textBlob.includes("terminal login") ||
+      (textBlob.includes("scanner") && !textBlob.includes("lens condensation"))
+    ) {
+      matchedCapIds.add(2);
+    }
+
+    // Cap 3: Coordinate Navigation & Location Reading
+    if (
+      textBlob.includes("coordinate") ||
+      textBlob.includes("rack-bay-shelf-bin") ||
+      textBlob.includes("rack numbering") ||
+      textBlob.includes("bay numbering") ||
+      textBlob.includes("shelf numbering") ||
+      textBlob.includes("aisle navigation") ||
+      textBlob.includes("spatial") ||
+      textBlob.includes("finding rack") ||
+      textBlob.includes("aisles 1-8") ||
+      textBlob.includes("aisles 4-8") ||
+      textBlob.includes("location navigation") ||
+      textBlob.includes("location nav") ||
+      (textBlob.includes("aisle") && (textBlob.includes("confusion") || textBlob.includes("search time") || textBlob.includes("coordinate")))
+    ) {
+      matchedCapIds.add(3);
+    }
+
+    // Cap 4: Cold Room Protocols
+    if (
+      textBlob.includes("cold room") ||
+      textBlob.includes("cold chain") ||
+      textBlob.includes("chilled dairy") ||
+      textBlob.includes("thermal gear") ||
+      textBlob.includes("thermal jacket") ||
+      textBlob.includes("door-close") ||
+      textBlob.includes("door close") ||
+      textBlob.includes("lens condensation") ||
+      textBlob.includes("refrigerat")
+    ) {
+      matchedCapIds.add(4);
+    }
+
+    // Cap 5: Single-Order Pick & Core Tote Flow
+    if (
+      textBlob.includes("single-order") ||
+      textBlob.includes("single order") ||
+      textBlob.includes("customer tote order") ||
+      textBlob.includes("tote pick") ||
+      textBlob.includes("directed pick path") ||
+      textBlob.includes("bin barcode scan") ||
+      textBlob.includes("solo pick")
+    ) {
+      matchedCapIds.add(5);
+    }
+
+    // Cap 6: Variant Differentiation & Quality Check
+    if (
+      textBlob.includes("variant") ||
+      textBlob.includes("look-alike") ||
+      textBlob.includes("200g vs 500g") ||
+      textBlob.includes("200g") ||
+      textBlob.includes("500g") ||
+      textBlob.includes("diet vs regular") ||
+      textBlob.includes("flavor") ||
+      textBlob.includes("packaging mix-up") ||
+      textBlob.includes("packaging variant")
+    ) {
+      matchedCapIds.add(6);
+    }
+
+    // Cap 7: Produce Weighment & PLU
+    if (
+      textBlob.includes("produce") ||
+      textBlob.includes("weighment") ||
+      textBlob.includes("digital scale") ||
+      textBlob.includes("taring") ||
+      textBlob.includes("plu barcode") ||
+      textBlob.includes("price look-up") ||
+      textBlob.includes("fresh produce")
+    ) {
+      matchedCapIds.add(7);
+    }
+
+    // Cap 8: Fragile Handling
+    if (
+      textBlob.includes("fragile") ||
+      textBlob.includes("eggs") ||
+      textBlob.includes("glass jar") ||
+      textBlob.includes("bakery") ||
+      textBlob.includes("crush") ||
+      textBlob.includes("delicate")
+    ) {
+      matchedCapIds.add(8);
+    }
+
+    // Cap 9: Multi-Item Batching
+    if (
+      textBlob.includes("multi-item") ||
+      textBlob.includes("multi-quantity") ||
+      textBlob.includes("multi-qty") ||
+      textBlob.includes("batching") ||
+      textBlob.includes("batch pick") ||
+      textBlob.includes("identical items") ||
+      textBlob.includes("unit count")
+    ) {
+      matchedCapIds.add(9);
+    }
+
+    // Cap 10: Tote Balancing & Space Utilization
+    if (
+      textBlob.includes("tote balancing") ||
+      textBlob.includes("tote packing") ||
+      textBlob.includes("heavy items at bottom") ||
+      textBlob.includes("chemical isolation") ||
+      textBlob.includes("tote space")
+    ) {
+      matchedCapIds.add(10);
+    }
+
+    // Cap 11: Stock Exceptions & Substitutions
+    if (
+      textBlob.includes("stock exception") ||
+      textBlob.includes("out of stock") ||
+      textBlob.includes("secondary shelf check") ||
+      textBlob.includes("backstock") ||
+      textBlob.includes("substitution") ||
+      textBlob.includes("missing item")
+    ) {
+      matchedCapIds.add(11);
+    }
+
+    // Cap 12: Damaged Goods & QC
+    if (
+      textBlob.includes("damaged goods") ||
+      textBlob.includes("expiration date") ||
+      textBlob.includes("expiry") ||
+      textBlob.includes("seal integrity") ||
+      textBlob.includes("dented packaging") ||
+      textBlob.includes("quarantine bin") ||
+      textBlob.includes("damaged item")
+    ) {
+      matchedCapIds.add(12);
+    }
+
+    // Cap 13: Manual Barcode Entry
+    if (
+      textBlob.includes("manual barcode") ||
+      textBlob.includes("13-digit") ||
+      textBlob.includes("smudged barcode") ||
+      textBlob.includes("torn barcode") ||
+      textBlob.includes("unreadable barcode") ||
+      textBlob.includes("manual ean")
+    ) {
+      matchedCapIds.add(13);
+    }
+
+    // Cap 14: Route Optimization & Backtracking
+    if (
+      textBlob.includes("route optimization") ||
+      textBlob.includes("route optimize") ||
+      textBlob.includes("serpentine") ||
+      textBlob.includes("backtracking") ||
+      textBlob.includes("walking path") ||
+      textBlob.includes("travel time")
+    ) {
+      matchedCapIds.add(14);
+    }
+
+    // Cap 15: SLA Timer Pacing
+    if (
+      textBlob.includes("sla timer") ||
+      textBlob.includes("10-minute delivery") ||
+      textBlob.includes("countdown timer") ||
+      textBlob.includes("sla breach") ||
+      textBlob.includes("delivery countdown")
+    ) {
+      matchedCapIds.add(15);
+    }
+
+    // Cap 16: Dispatch Staging
+    if (
+      textBlob.includes("dispatch staging") ||
+      textBlob.includes("dispatch buffer") ||
+      textBlob.includes("tote handoff") ||
+      textBlob.includes("handoff to qc") ||
+      textBlob.includes("dispatch handoff")
+    ) {
+      matchedCapIds.add(16);
+    }
+
+    // Cap 17: Rider Bag Sealing
+    if (
+      textBlob.includes("rider bag") ||
+      textBlob.includes("zip seal") ||
+      textBlob.includes("tamper-evident") ||
+      textBlob.includes("insulation bag") ||
+      textBlob.includes("rider dispatch")
+    ) {
+      matchedCapIds.add(17);
+    }
+
+    // Cap 18: Floor Escalation & Communication
+    if (
+      textBlob.includes("floor escalation") ||
+      textBlob.includes("aisle congestion") ||
+      textBlob.includes("floor radio") ||
+      textBlob.includes("communication hesitation") ||
+      textBlob.includes("asking supervisor") ||
+      textBlob.includes("hesitation asking") ||
+      textBlob.includes("peer communication")
+    ) {
+      matchedCapIds.add(18);
+    }
+
+    // Cap 19: Shift Closeout
+    if (
+      textBlob.includes("shift closeout") ||
+      textBlob.includes("terminal return") ||
+      textBlob.includes("sanitizing pick tote") ||
+      textBlob.includes("shift log") ||
+      textBlob.includes("end of shift")
+    ) {
+      matchedCapIds.add(19);
+    }
+
+    // Cap 20: Autonomous Picking
+    if (
+      textBlob.includes("autonomous picking") ||
+      textBlob.includes("autonomous mastery") ||
+      textBlob.includes("all 8 dark-store aisles") ||
+      textBlob.includes("high-velocity picking")
+    ) {
+      matchedCapIds.add(20);
+    }
+
+    // 3. Fallback to Category / EvidenceType-level mappings only if no specific capability domain was matched
+    if (matchedCapIds.size === 0) {
+      if (ev.category === "safety_issue") {
+        matchedCapIds.add(1);
+      } else if (ev.category === "tool_problem") {
+        matchedCapIds.add(2);
+      } else if (ev.evidenceType === "accuracy" || ev.category === "accuracy") {
+        // Core fulfillment accuracy capabilities
+        matchedCapIds.add(5);
+        matchedCapIds.add(6);
+      } else if (ev.evidenceType === "uph" || ev.category === "work_performance") {
+        // Capabilities with designated pick rate target metrics
+        matchedCapIds.add(3);
+        matchedCapIds.add(5);
+        matchedCapIds.add(14);
+        matchedCapIds.add(15);
+      } else if (ev.evidenceType === "help_request" || ev.category === "repeated_help_dependency") {
+        matchedCapIds.add(5);
+        matchedCapIds.add(18);
+      } else if (ev.category === "environment_problem") {
+        matchedCapIds.add(3);
       }
-      mapping[capId].push(ev);
+      // Note: If none of the above match (e.g. unknown category or insufficient_evidence),
+      // we do NOT force an arbitrary link to Cap 3. matchedCapIds remains empty.
+    }
+
+    for (const capId of matchedCapIds) {
+      addLink(capId, ev);
     }
   }
 
   return mapping;
+}
+
+// -------------------------------------------------------------
+// HELPER: Dynamic Prerequisite DAG Resolution
+// -------------------------------------------------------------
+export function isPrerequisiteSatisfied(state?: CapabilityState): boolean {
+  if (!state) return false;
+  if (state.mastery === "mastered" || state.mastery === "proficient") return true;
+  if (state.evidence === "demonstrated" && state.performance !== "below_target") return true;
+  return false;
+}
+
+/**
+ * Dynamically resolves the earliest actionable unmet prerequisite for a given target capability
+ * by traversing the canonical DAG of prerequisites defined in DARK_STORE_CAPABILITIES.
+ * 
+ * If a prerequisite is unmet, and that prerequisite itself has unmet prerequisites,
+ * it recursively resolves the dependency chain until the earliest actionable root prerequisite is found.
+ * If multiple prerequisites are unmet, it prioritizes by the canonical order (defaultOrder / ID).
+ */
+export function resolveUnmetPrerequisite(
+  targetCapId: number,
+  capabilities: Record<number, CapabilityState>,
+  visited: Set<number> = new Set()
+): CapabilityDefinition | null {
+  if (visited.has(targetCapId)) return null;
+  visited.add(targetCapId);
+
+  const capDef = DARK_STORE_CAPABILITIES.find((c) => c.id === targetCapId);
+  if (!capDef || !capDef.prerequisites || capDef.prerequisites.length === 0) {
+    return null;
+  }
+
+  // Canonical ordering by defaultOrder / ID
+  const prereqDefs = capDef.prerequisites
+    .map((id) => DARK_STORE_CAPABILITIES.find((c) => c.id === id))
+    .filter((c): c is CapabilityDefinition => Boolean(c))
+    .sort((a, b) => (a.defaultOrder ?? a.id) - (b.defaultOrder ?? b.id));
+
+  for (const prereq of prereqDefs) {
+    const prereqState = capabilities[prereq.id];
+    if (!isPrerequisiteSatisfied(prereqState)) {
+      // Recursively check if this unmet prerequisite has an even deeper unmet root prerequisite
+      const deeperPrereq = resolveUnmetPrerequisite(prereq.id, capabilities, visited);
+      return deeperPrereq || prereq;
+    }
+  }
+
+  return null;
 }
 
 // -------------------------------------------------------------
@@ -1686,24 +2028,23 @@ function understandInternal(
       (existingAction?.targetCapabilityId === 3 && observed.speedGap >= 8)) &&
     isPerformanceImpacted
   ) {
-    const cap2State = capabilities[2];
-    const isCap2Weak =
-      cap2State &&
-      cap2State.exposure !== "not_exposed" &&
-      cap2State.evidence === "inconsistent";
+    const currentTargetCapId = existingAction?.targetCapabilityId || hire.currentCapabilityId || 3;
+    const unmetPrereq = resolveUnmetPrerequisite(currentTargetCapId, capabilities);
 
-    if (isCap2Weak) {
+    if (unmetPrereq) {
+      const currentTargetDef = DARK_STORE_CAPABILITIES.find((c) => c.id === currentTargetCapId);
+      const targetName = currentTargetDef ? currentTargetDef.name : `Capability ${currentTargetCapId}`;
       return {
         rootCause: "prerequisite_gap",
-        targetCapId: 2,
+        targetCapId: unmetPrereq.id,
         patternCategory: "Process",
-        patternName: "Prerequisite Gap in Scanner Device Proficiency",
+        patternName: `Prerequisite Gap in ${unmetPrereq.name}`,
         diagnosisText:
-          `${firstName} is struggling with aisle location navigation because basic scanner coordinate reading and terminal operation was never solidly grounded. Returning to prerequisite capability 2 is necessary before continuing location navigation.`,
+          `${firstName} is struggling with ${targetName} because foundational prerequisite ${unmetPrereq.name} (Capability ${unmetPrereq.id}) is not yet solidly grounded on the floor. Returning to prerequisite Capability ${unmetPrereq.id} (${unmetPrereq.name}) is necessary before continuing ${targetName}.`,
       };
     }
 
-    const cap3State = capabilities[3];
+    const cap3State = capabilities[currentTargetCapId] || capabilities[3];
     const exposureNote =
       (hire.completedModuleIds?.length ?? 0) === 10 || cap3State?.exposure === "exposed"
         ? "Worker completed mandatory training modules (10/10), but real-world floor navigation is lagging. Module exposure does NOT equal floor mastery."
@@ -1711,7 +2052,7 @@ function understandInternal(
 
     return {
       rootCause: "environment_spatial",
-      targetCapId: 3,
+      targetCapId: currentTargetCapId === 3 ? 3 : currentTargetCapId,
       patternCategory: "Environment",
       patternName: "Dark Store Spatial & Rack Coordinate Friction",
       diagnosisText:
@@ -1980,19 +2321,25 @@ function chooseNextActionInternal(
   }
 
   if (understood.rootCause === "prerequisite_gap") {
+    const prereqCapId = understood.targetCapId;
+    const prereqCapDef = DARK_STORE_CAPABILITIES.find((c) => c.id === prereqCapId) || targetCapDef;
+    const originalTargetCapId = hire.currentCapabilityId || 3;
+    const originalTargetDef = DARK_STORE_CAPABILITIES.find((c) => c.id === originalTargetCapId);
+    const originalTargetName = originalTargetDef ? originalTargetDef.name : `Capability ${originalTargetCapId}`;
+
     return {
       decisionType: "return_prerequisite",
-      targetCapId: 2,
+      targetCapId: prereqCapDef.id,
       targetActor: `Supervisor (${supervisorName}) & Buddy (${buddyName})`,
       urgency: "Immediate",
-      actionTitle: `Return to Prerequisite: ${DARK_STORE_CAPABILITIES[1].name}`,
+      actionTitle: `Return to Prerequisite: ${prereqCapDef.name}`,
       actionDesc:
-        "Pause higher-level picking until handheld scanner basics and coordinate interpretation (Capability 2) are solidly mastered.",
-      practicalStep: "10-minute terminal coordinate walkthrough before attempting solo grocery orders.",
+        `Pause higher-level progression on ${originalTargetName} until foundational ${prereqCapDef.name} (Capability ${prereqCapDef.id}) is solidly mastered.`,
+      practicalStep: `10-minute targeted walkthrough on ${prereqCapDef.name} with buddy ${buddyName} before continuing solo floor picks.`,
       decisionRationale:
-        "Capability 3 failing because prerequisite Capability 2 was weak. Stepping back is required.",
+        `${originalTargetName} blocked because prerequisite ${prereqCapDef.name} (Capability ${prereqCapDef.id}) was weak or unmet. Stepping back is required.`,
       interimStatus: "Needs attention",
-      interimStatusReason: `Prerequisite gap identified in scanner basics; returning to Capability 2 with ${buddyName}.`,
+      interimStatusReason: `Prerequisite gap identified in ${prereqCapDef.name}; returning to Capability ${prereqCapDef.id} with ${buddyName}.`,
     };
   }
 
@@ -2233,7 +2580,7 @@ export function check(stageInput: CheckStageInput): {
   let finalStatus: NewHireStatus = interimStatus;
   let finalStatusReason = interimStatusReason;
 
-  const outcomeCapId = existingAction?.targetCapabilityId || hire.currentCapabilityId || targetCapId;
+  const outcomeCapId = existingAction?.targetCapabilityId || targetCapId || hire.currentCapabilityId || 1;
   if (!currentCapabilities[outcomeCapId]) {
     currentCapabilities[outcomeCapId] = {
       capabilityId: outcomeCapId,
@@ -2769,7 +3116,10 @@ export function evaluateDay10Outcome(
     (c) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")
   ).length;
 
-  const modulesCompleted = hire.completedModuleIds?.length ?? 0;
+  const modulesCompleted =
+    hire.completedModuleIds && hire.completedModuleIds.length > 0
+      ? hire.completedModuleIds.length
+      : hire.modulesCompleted ?? 0;
   const pickRate = currentWork.actualPickRate;
   const targetPickRate = currentWork.targetPickRate || 50;
   const accuracy = currentWork.accuracyRate;

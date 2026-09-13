@@ -807,7 +807,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           
           {/* Not ready / Ready for certification Card in Hero Banner (as per attached design) */}
           <div 
-            onClick={() => setActiveModal("yesterday_detail")}
+            onClick={() => setShowTodaysGoalView(true)}
             className="relative z-20 mt-6 mx-3 sm:mx-4 p-3.5 sm:p-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 active:scale-[0.99] transition-all"
           >
             <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
@@ -856,8 +856,31 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
         </div>
 
-                        {/* 4-Grid Visual Capability Dashboard */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+                        {/* Current Focus Card - Coordinate Navigation (Placed above the four metric cards) */}
+        <div
+          id="home-current-focus-card"
+          onClick={() => setShowTodaysGoalView(true)}
+          className="bg-[#000000] text-white rounded-3xl p-4 border border-black shadow-md mb-4 flex items-center justify-between cursor-pointer hover:bg-neutral-900 transition-all active:scale-[0.99] group relative"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0 group-hover:bg-white/15 transition-colors shadow-2xs">
+              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 animate-icon-blink" />
+            </div>
+            <div>
+              <span className="text-sm sm:text-base font-black tracking-widest text-white block uppercase">
+                {isHindi ? "वर्तमान फोकस" : "CURRENT FOCUS"}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center pr-1 shrink-0">
+            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400">
+              <ArrowRight className="w-5 h-5 text-yellow-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* 4-Grid Visual Capability Dashboard */}
+        <div className="grid grid-cols-2 gap-2 mb-6">
           {HOME_LEARNING_METRICS.map(metric => {
             // Check if any capability in this metric needs attention
             let hasAttention = false;
@@ -900,29 +923,6 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               </div>
             );
           })}
-        </div>
-
-        {/* Current Focus Card - Coordinate Navigation */}
-        <div
-          id="home-current-focus-card"
-          onClick={() => setShowTodaysGoalView(true)}
-          className="bg-[#000000] text-white rounded-3xl p-4 border border-black shadow-md mb-20 sm:mb-24 flex items-center justify-between cursor-pointer hover:bg-neutral-900 transition-all active:scale-[0.99] group relative"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0 group-hover:bg-white/15 transition-colors shadow-2xs">
-              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 animate-icon-blink" />
-            </div>
-            <div>
-              <span className="text-sm sm:text-base font-black tracking-widest text-white block uppercase">
-                {isHindi ? "वर्तमान फोकस" : "CURRENT FOCUS"}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center pr-1 shrink-0">
-            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400">
-              <ArrowRight className="w-5 h-5 text-yellow-400" />
-            </div>
-          </div>
         </div>
 
         {/* Course Completion Card */}
