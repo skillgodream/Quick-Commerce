@@ -1,3 +1,13 @@
+import { recordOutcomeLearningEvent } from "./ai/outcomeLearningEngine";
+import { casebook } from "./ai/casebook";
+import { LearningEvent, CasebookCase } from "./ai/casebookTypes";
+import { governDecision } from "./ai/governanceEngine";
+import { GovernanceEvaluationResult } from "./ai/governanceTypes";
+import { telemetry } from "./ai/telemetry";
+import { executionGuard } from "./ai/executionGuard";
+import { reconstructDecisionAuditTrail, DecisionAuditTrail } from "./ai/auditTrail";
+import { getApiEndpoint } from "./ai/versioning";
+import { sanitizeInputText } from "./ai/securityGuard";
 import {
   DailySignal,
   ManagerSignal,
@@ -22,6 +32,9 @@ import {
   CandidatePattern,
 } from "../types";
 import { createDefaultCapabilitiesLedger } from "../data/seedData";
+import { generateInterventionCandidate } from './ai/interventionEngine';
+import { arbitrateIntervention } from './ai/arbitrationEngine';
+
 
 export interface Day10EvaluationResult {
   isReady: boolean;
@@ -35,6 +48,8 @@ export interface Day10EvaluationResult {
 export interface PatternSynthesisResult {
   pattern: IdentifiedPattern;
   action: RecommendedAction;
+  learningEvent?: LearningEvent;
+  governanceResult?: GovernanceEvaluationResult;
   updatedStatus: NewHireStatus;
   statusReason: string;
   updatedCapabilities: Record<number, CapabilityState>;
@@ -42,9 +57,57 @@ export interface PatternSynthesisResult {
   currentCapabilityId: number;
   adaptiveDecision: AdaptiveGearDecision;
   day10Evaluation?: Day10EvaluationResult;
+  auditTrail?: DecisionAuditTrail;
+  executionId?: string;
+}
+
+
+export interface CanonicalEvidence {
+  performance?: {
+    productivity?: number;
+    targetProductivity?: number;
+    accuracy?: number;
+    completedWork?: number;
+    timeTaken?: number;
+  };
+  attendance?: {
+    shiftStatus?: string;
+    attendanceStatus?: string;
+    shiftCompletion?: number;
+  };
+  capability?: {
+    taskProficiency?: string;
+    trainingStatus?: string;
+    newTaskExposure?: boolean;
+  };
+  support?: {
+    helpRequests?: number;
+    supervisorAssistance?: boolean;
+  };
+  toolSystem?: {
+    toolStatus?: "Failed" | "Working" | "Unknown";
+    toolProblem?: string;
+    systemDowntime?: number; // minutes
+  };
+  environment?: {
+    workloadCondition?: string;
+    environmentalIssue?: string;
+    externalBottleneck?: string;
+  };
+  observation?: {
+    supervisorNote?: string;
+    behaviorNote?: string;
+    communicationNote?: string;
+  };
+  outcome?: {
+    interventionResult?: "yes" | "no" | "partial" | "unknown";
+    improved?: "yes" | "no" | "partial";
+    treatmentContext?: string;
+  };
 }
 
 export interface LoopExecutionInput {
+
   hire: NewHire;
   dayNumber: number;
   dailySignal?: DailySignal;
@@ -54,23 +117,28 @@ export interface LoopExecutionInput {
   previousRecord?: DayRecord;
   existingAction?: RecommendedAction;
   candidatePattern?: CandidatePattern;
+  canonicalEvidence?: CanonicalEvidence;
 }
 
 export async function analyzeLongitudinalHistory(
   historyText: string
 ): Promise<CandidatePattern | undefined> {
   try {
-    const res = await fetch("/api/signals/understand-longitudinal", {
+    const sanitized = sanitizeInputText(historyText).sanitizedText;
+    const endpoint = getApiEndpoint("/api/signals/understand-longitudinal");
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ historyText }),
+      body: JSON.stringify({ historyText: sanitized }),
     });
     if (res.ok) {
       const data = await res.json();
       return data as CandidatePattern;
     }
-  } catch (err) {
-    console.warn("Client fallback for longitudinal analysis:", err);
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("Client fallback for longitudinal analysis:", err?.message || err);
+    }
   }
   return undefined;
 }
@@ -80,10 +148,12 @@ export async function analyzeOutcomeNotes(
   actionTitle?: string
 ): Promise<{ reason?: string; remainingIssue?: string }> {
   try {
-    const res = await fetch("/api/signals/understand-outcome", {
+    const sanitized = sanitizeInputText(notes).sanitizedText;
+    const endpoint = getApiEndpoint("/api/signals/understand-outcome");
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes, actionTitle }),
+      body: JSON.stringify({ notes: sanitized, actionTitle }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -92,8 +162,10 @@ export async function analyzeOutcomeNotes(
         remainingIssue: data.remainingIssue,
       };
     }
-  } catch (err) {
-    console.warn("Client fallback for outcome analysis:", err);
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("Client fallback for outcome analysis:", err?.message || err);
+    }
   }
   return {
     reason: "No AI interpretation available.",
@@ -107,10 +179,12 @@ export async function analyzeDailyReport(
   dayNumber: number = 3
 ): Promise<Partial<DailySignal>> {
   try {
-    const res = await fetch("/api/signals/understand-daily", {
+    const sanitized = sanitizeInputText(text).sanitizedText;
+    const endpoint = getApiEndpoint("/api/signals/understand-daily");
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, newHireName, dayNumber }),
+      body: JSON.stringify({ text: sanitized, newHireName, dayNumber }),
     });
     if (res.ok) {
       const data = await res.json();
@@ -123,8 +197,10 @@ export async function analyzeDailyReport(
         companionResponse: data.companionResponse,
       };
     }
-  } catch (err) {
-    console.warn("Client fallback for daily report analysis:", err);
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("Client fallback for daily report analysis:", err?.message || err);
+    }
   }
 
   // Robust deterministic fallback
@@ -1050,7 +1126,7 @@ export function extractAndSelectPreviousDaySnapshot(
 }
 
 // Internal data structures for the single authoritative pipeline
-interface ObservedSignals {
+export interface ObservedSignals {
   currentPickRate: number;
   targetPickRate: number;
   accuracy: number;
@@ -1076,6 +1152,8 @@ interface ObservedSignals {
   dailySignal?: DailySignal;
   managerSignal?: ManagerSignal;
   structuredEvidence: SnapshotEvidenceItem[];
+  canonicalEvidence?: CanonicalEvidence;
+  isSafetyRiskReported?: boolean;
 }
 
 type RootCauseType =
@@ -1091,7 +1169,7 @@ type RootCauseType =
   | "no_evidence"
   | "chronic_dependency";
 
-interface UnderstoodDiagnosis {
+export interface UnderstoodDiagnosis {
   rootCause: RootCauseType;
   targetCapId: number;
   diagnosisText: string;
@@ -1108,7 +1186,7 @@ interface ConnectedContext {
   roleTitle: string;
 }
 
-interface DecidedAction {
+export interface DecidedAction {
   decisionType: AdaptiveGearDecision;
   targetCapId: number;
   targetActor: string;
@@ -1124,13 +1202,14 @@ interface DecidedAction {
 // -------------------------------------------------------------
 // INTERNAL HELPER 1: observe() - Normalize multi-signal evidence
 // -------------------------------------------------------------
-function observe(input: LoopExecutionInput): ObservedSignals {
-  const { hire, dailySignal, managerSignal, workSignal, previousRecord, existingAction, actionOutcome } = input;
+export function observe(input: LoopExecutionInput): ObservedSignals {
+  const { hire, dailySignal, managerSignal, workSignal, previousRecord, existingAction, actionOutcome, canonicalEvidence } = input;
 
-  const currentPickRate = workSignal?.actualPickRate ?? 35;
-  const targetPickRate = workSignal?.targetPickRate ?? 50;
-  const accuracy = workSignal?.accuracyRate ?? 98;
+  const currentPickRate = canonicalEvidence?.performance?.productivity ?? workSignal?.actualPickRate ?? 35;
+  const targetPickRate = canonicalEvidence?.performance?.targetProductivity ?? workSignal?.targetPickRate ?? 50;
+  const accuracy = canonicalEvidence?.performance?.accuracy ?? workSignal?.accuracyRate ?? 98;
   const speedGap = targetPickRate - currentPickRate;
+
   const previousPickRate = previousRecord?.workSignal?.actualPickRate;
 
   const currentCapabilities: Record<number, CapabilityState> = {
@@ -1138,10 +1217,13 @@ function observe(input: LoopExecutionInput): ObservedSignals {
   };
 
   const textContent = `${dailySignal?.issue || ""} ${dailySignal?.rawText || ""} ${dailySignal?.category || ""}`.toLowerCase();
-  const managerNotes = (managerSignal?.notes || "").toLowerCase();
-
+  const managerNotes = `${managerSignal?.notes || ""} ${canonicalEvidence?.observation?.supervisorNote || ""} ${canonicalEvidence?.observation?.behaviorNote || ""} ${canonicalEvidence?.observation?.communicationNote || ""}`.toLowerCase();
   const externalBottleneckText = `${workSignal?.externalBottleneck || ""} ${dailySignal?.rawText || ""} ${managerNotes}`.toLowerCase();
+
   const workerReportsExternalBottleneck =
+    Boolean(canonicalEvidence?.environment?.externalBottleneck) ||
+    Boolean(canonicalEvidence?.environment?.environmentalIssue) ||
+    Boolean(canonicalEvidence?.toolSystem?.systemDowntime) ||
     Boolean(workSignal?.externalBottleneck) ||
     externalBottleneckText.includes("conveyor") ||
     externalBottleneckText.includes("liquid spill") ||
@@ -1152,6 +1234,9 @@ function observe(input: LoopExecutionInput): ObservedSignals {
     externalBottleneckText.includes("facility bottleneck");
 
   const externalBottleneckDescription =
+    canonicalEvidence?.environment?.externalBottleneck ||
+    canonicalEvidence?.environment?.environmentalIssue ||
+    (canonicalEvidence?.toolSystem?.systemDowntime ? `System downtime: ${canonicalEvidence.toolSystem.systemDowntime} mins` : undefined) ||
     workSignal?.externalBottleneck ||
     (workerReportsExternalBottleneck ? "facility/conveyor disruption" : undefined);
 
@@ -1159,7 +1244,8 @@ function observe(input: LoopExecutionInput): ObservedSignals {
     workSignal?.hasWorkEvidence !== false &&
     !(workSignal?.ordersCompleted === 0 && (workSignal?.gapIdentified === "No shift orders logged" || (workSignal?.actualPickRate === 0 && workSignal?.accuracyRate === 0)));
 
-  const helpRequestsCount = workSignal?.helpRequestsCount ?? dailySignal?.helpRequestsCount ?? 0;
+  const helpRequestsCount = canonicalEvidence?.support?.helpRequests ?? workSignal?.helpRequestsCount ?? dailySignal?.helpRequestsCount ?? 0;
+
   const isExplicitDependency =
     textContent.includes("called buddy 6 times") ||
     textContent.includes("couldn't pick without buddy") ||
@@ -1189,6 +1275,7 @@ function observe(input: LoopExecutionInput): ObservedSignals {
       textContent.includes("rack"));
 
   const isToolResolved =
+    canonicalEvidence?.toolSystem?.toolStatus === "Working" ||
     textContent.includes("working perfectly") ||
     textContent.includes("hardware resolved") ||
     managerNotes.includes("hardware resolved") ||
@@ -1196,7 +1283,9 @@ function observe(input: LoopExecutionInput): ObservedSignals {
 
   const workerReportsTool =
     !isToolResolved &&
-    (dailySignal?.category === "Tool" ||
+    (canonicalEvidence?.toolSystem?.toolStatus === "Failed" ||
+      Boolean(canonicalEvidence?.toolSystem?.toolProblem) ||
+      dailySignal?.category === "Tool" ||
       textContent.includes("bluetooth") ||
       textContent.includes("battery") ||
       textContent.includes("hardware") ||
@@ -1224,24 +1313,27 @@ function observe(input: LoopExecutionInput): ObservedSignals {
     textContent.includes("scared to ask") ||
     managerSignal?.issueCategory === "Confidence";
 
-  const managerObservesSupport = managerSignal?.state === "Needs support";
+  const managerObservesSupport = managerSignal?.state === "Needs support" || canonicalEvidence?.support?.supervisorAssistance === true;
   const managerObservesStruggle = managerSignal?.state === "Struggling";
   const managerObservesAccuracy = managerSignal?.issueCategory === "Accuracy";
   const managerObservesSpeed = managerSignal?.issueCategory === "Speed";
 
   const prevOutcome = actionOutcome || previousRecord?.actionOutcome;
-  const previousInterventionPartial = Boolean(prevOutcome?.improved === "partial");
+  const prevImproved = canonicalEvidence?.outcome?.improved ?? prevOutcome?.improved;
+  const previousInterventionPartial = Boolean(prevImproved === "partial");
+
   let previousTreatmentContext = undefined;
-  if (prevOutcome?.treatmentContext?.reason) {
-     previousTreatmentContext = `Previous treatment (${prevOutcome.improved}): ${prevOutcome.treatmentContext.reason}`;
+  const contextText = canonicalEvidence?.outcome?.treatmentContext ?? prevOutcome?.treatmentContext?.reason;
+  if (contextText) {
+     previousTreatmentContext = `Previous treatment (${prevImproved || 'unknown'}): ${contextText}`;
   }
-  
+
   const previousInterventionFailed =
     Boolean(
-      (actionOutcome && actionOutcome.improved === "no") ||
-      ((existingAction?.status === "completed" || previousRecord?.actionOutcome?.improved === "no") &&
+      (prevImproved === "no") ||
+      (!canonicalEvidence?.outcome?.improved && ((existingAction?.status === "completed" || previousRecord?.actionOutcome?.improved === "no") &&
         previousRecord?.actionOutcome &&
-        previousRecord.actionOutcome.improved === "no")
+        previousRecord.actionOutcome.improved === "no"))
     );
 
   const structuredEvidence: SnapshotEvidenceItem[] = [];
@@ -1389,13 +1481,14 @@ function observe(input: LoopExecutionInput): ObservedSignals {
     dailySignal,
     managerSignal,
     structuredEvidence,
+    canonicalEvidence: input.canonicalEvidence,
   };
 }
 
 // -------------------------------------------------------------
 // INTERNAL HELPER 1.5: linkEvidenceToCapabilities() - Doctor 2 Capability Linkage
 // -------------------------------------------------------------
-function linkEvidenceToCapabilities(
+export function linkEvidenceToCapabilities(
   evidenceItems: SnapshotEvidenceItem[]
 ): Record<number, SnapshotEvidenceItem[]> {
   const mapping: Record<number, SnapshotEvidenceItem[]> = {};
@@ -1433,7 +1526,7 @@ function linkEvidenceToCapabilities(
 // -------------------------------------------------------------
 // INTERNAL HELPER 2: understand() - Root cause & Exposure vs Mastery
 // -------------------------------------------------------------
-function understand(
+export function understand(
   observed: ObservedSignals,
   linkedEvidence: Record<number, SnapshotEvidenceItem[]>,
   hire: NewHire,
@@ -1461,6 +1554,7 @@ function understandInternal(
 ): UnderstoodDiagnosis {
   const firstName = (hire.name || "Worker").split(" ")[0];
   const roleTitle = hire.roleTitle || "Dark Store Picker";
+
   let targetCapId = existingAction?.targetCapabilityId || hire.currentCapabilityId || 3;
 
   // 1. Check for lack of floor work evidence
@@ -1475,8 +1569,16 @@ function understandInternal(
     };
   }
 
-  // 2. Check for external facility bottleneck (context overrides raw metric)
-  if (observed.workerReportsExternalBottleneck) {
+  const { canonicalEvidence } = observed;
+  const isPerformanceImpacted = observed.speedGap > 5 || observed.managerObservesSupport || observed.managerObservesStruggle || observed.managerObservesSpeed || observed.previousInterventionFailed || canonicalEvidence?.support?.supervisorAssistance === true;
+
+  // 2. Check for external facility bottleneck (Environment context overrides raw metric)
+  const isEnvBottleneckSupported = observed.workerReportsExternalBottleneck || 
+    (canonicalEvidence?.environment?.externalBottleneck && isPerformanceImpacted) ||
+    (canonicalEvidence?.toolSystem?.systemDowntime && isPerformanceImpacted) ||
+    (canonicalEvidence?.environment?.environmentalIssue && isPerformanceImpacted);
+
+  if (isEnvBottleneckSupported) {
     return {
       rootCause: "environment_bottleneck",
       targetCapId: hire.currentCapabilityId || 3,
@@ -1507,8 +1609,12 @@ function understandInternal(
     };
   }
 
-  // 4. Critical accuracy failure takes precedence (quality floor is paramount)
-  if (observed.accuracy < 95 || observed.managerObservesAccuracy || observed.workerReportsVariant) {
+  // 4. Critical accuracy failure (Quality floor is paramount)
+  const hasStructuredQualityIssue = canonicalEvidence?.capability?.taskProficiency === "low" || canonicalEvidence?.capability?.newTaskExposure === true;
+  const isQualityDiagnosisSupported = (observed.accuracy < 95 || observed.managerObservesAccuracy || observed.workerReportsVariant) &&
+    (observed.managerObservesAccuracy || observed.workerReportsVariant || hasStructuredQualityIssue || observed.managerObservesStruggle);
+
+  if (isQualityDiagnosisSupported) {
     return {
       rootCause: "variant_quality",
       targetCapId: 6, // DSP-06-VARIANT-CHECK
@@ -1519,14 +1625,12 @@ function understandInternal(
     };
   }
 
-  // 5. Hardware / Tool issue (Symptom != Root Cause)
-  if (
-    observed.workerReportsTool &&
-    (observed.speedGap > 5 ||
-      observed.managerObservesSupport ||
-      observed.managerObservesStruggle ||
-      observed.managerSignal?.issueCategory === "Tool")
-  ) {
+  // 5. Hardware / Tool issue
+  const hasStructuredToolIssue = canonicalEvidence?.toolSystem?.toolStatus === "Failed" || !!canonicalEvidence?.toolSystem?.toolProblem;
+  const isToolDiagnosisSupported = (observed.workerReportsTool || hasStructuredToolIssue) && 
+    (isPerformanceImpacted || observed.managerSignal?.issueCategory === "Tool");
+
+  if (isToolDiagnosisSupported) {
     return {
       rootCause: "tool_hardware",
       targetCapId: 2, // DSP-02-SCANNER-BASICS
@@ -1537,8 +1641,11 @@ function understandInternal(
     };
   }
 
-  // 6. Chronic help dependency (distinguished from healthy occasional question)
-  if (observed.workerChronicHelpDependency && (observed.speedGap > 5 || observed.managerObservesSupport || observed.managerObservesStruggle)) {
+  // 6. Chronic help dependency
+  const hasStructuredDependency = canonicalEvidence?.support?.supervisorAssistance === true || (canonicalEvidence?.support?.helpRequests || 0) >= 5;
+  const isDependencySupported = (observed.workerChronicHelpDependency || hasStructuredDependency) && isPerformanceImpacted;
+
+  if (isDependencySupported) {
     return {
       rootCause: "chronic_dependency",
       targetCapId: hire.currentCapabilityId || 5,
@@ -1550,7 +1657,7 @@ function understandInternal(
   }
 
   // 7. Communication / confidence barrier
-  if (observed.workerReportsCommunication) {
+  if (observed.workerReportsCommunication || canonicalEvidence?.observation?.communicationNote?.includes("hesitant")) {
     return {
       rootCause: "communication_confidence",
       targetCapId: 18, // DSP-18-TEAM-ESCALATION
@@ -1576,7 +1683,7 @@ function understandInternal(
       (observed.managerSignal?.notes || "").toLowerCase().includes("location") ||
       observed.previousInterventionFailed ||
       (existingAction?.targetCapabilityId === 3 && observed.speedGap >= 8)) &&
-    (observed.speedGap >= 8 || observed.managerObservesSupport || observed.managerObservesStruggle || observed.previousInterventionFailed)
+    isPerformanceImpacted
   ) {
     const cap2State = capabilities[2];
     const isCap2Weak =
@@ -1611,10 +1718,10 @@ function understandInternal(
     };
   }
 
-  // 8. General pacing / floor route practice
+  // 9. General pacing / floor route practice
   if (
     isPacingIssue ||
-    (observed.speedGap >= 5 && (observed.managerObservesSupport || observed.managerObservesSpeed || hire.modulesCompleted === 10))
+    (observed.speedGap >= 5 && (observed.managerObservesSupport || observed.managerObservesSpeed || hire.modulesCompleted === 10 || canonicalEvidence?.capability?.taskProficiency === "improving"))
   ) {
     const modulePrefix = hire.modulesCompleted === 10
       ? "Training modules (10/10) are 100% complete, but real-world floor readiness is not yet demonstrated. "
@@ -1643,7 +1750,7 @@ function understandInternal(
 // -------------------------------------------------------------
 // INTERNAL HELPER 3: connect() - Connect to capability graph & actors
 // -------------------------------------------------------------
-function connect(
+export function connect(
   understood: UnderstoodDiagnosis,
   hire: NewHire
 ): ConnectedContext {
@@ -1672,7 +1779,7 @@ function connect(
 // -------------------------------------------------------------
 // INTERNAL HELPER 4: chooseNextAction() - The Adaptive Core
 // -------------------------------------------------------------
-function chooseNextAction(
+export function chooseNextAction(
   understood: UnderstoodDiagnosis,
   connected: ConnectedContext,
   hire: NewHire,
@@ -1714,53 +1821,93 @@ function chooseNextActionInternal(
   }
 
   if (understood.rootCause === "environment_bottleneck") {
+    let actionDesc = "Performance drop was caused by facility/conveyor downtime. Resume standard picking monitoring under normal conditions.";
+    let interimReason = "Temporary drop caused by external facility bottleneck; worker capability on track.";
+
+    if (observed.canonicalEvidence?.environment?.externalBottleneck || observed.canonicalEvidence?.environment?.environmentalIssue) {
+      const issue = observed.canonicalEvidence.environment.externalBottleneck || observed.canonicalEvidence.environment.environmentalIssue;
+      actionDesc = `Performance drop was caused by an external environmental disruption: ${issue}. Resume standard picking monitoring under normal conditions once resolved.`;
+      interimReason = `Temporary drop caused by external disruption (${issue}); worker capability on track.`;
+    } else if (observed.canonicalEvidence?.toolSystem?.systemDowntime) {
+      actionDesc = `Performance drop was caused by a system downtime of ${observed.canonicalEvidence.toolSystem.systemDowntime} minutes. Resume standard picking monitoring under normal conditions.`;
+      interimReason = `Temporary drop caused by system downtime; worker capability on track.`;
+    }
+
     return {
       decisionType: "no_action_monitor",
       targetCapId: targetCapDef.id,
       targetActor: "Store Operations & Maintenance",
       urgency: "Monitor",
       actionTitle: "Standard Shift Operations (Post-Facility Resolution)",
-      actionDesc:
-        "Performance drop was caused by facility/conveyor downtime. Resume standard picking monitoring under normal conditions.",
+      actionDesc,
       practicalStep: "Standard shift monitoring on next wave.",
-      decisionRationale:
-        "Context overrides raw metric. External environmental disruption does not require capability retraining.",
+      decisionRationale: "Context overrides raw metric. External environmental disruption does not require capability retraining.",
       interimStatus: "Doing well",
-      interimStatusReason: "Temporary drop caused by external facility bottleneck; worker capability on track.",
+      interimStatusReason: interimReason,
     };
   }
 
   if (understood.rootCause === "chronic_dependency") {
+    let actionDesc = `Allow ${firstName} 30 minutes of independent picking with buddy ${buddyName} on standby observation from 5 meters away to transition from help dependency to solo autonomy.`;
+    let actionTitle = `Structured Solo-Picking Practice with Fading Buddy Support`;
+
+    if (observed.canonicalEvidence?.support?.supervisorAssistance === true) {
+       actionDesc = `${firstName} requires structured independent practice to transition away from supervisor assistance. Supervisor ${supervisorName} to observe from a distance without intervening.`;
+       actionTitle = `Structured Solo-Picking Practice with Supervisor Observation`;
+    }
+
     return {
       decisionType: "reinforce_current",
       targetCapId: hire.currentCapabilityId || 5,
       targetActor: `Buddy (${buddyName}) & Supervisor (${supervisorName})`,
       urgency: "Next Shift",
-      actionTitle: `Structured Solo-Picking Practice with Fading Buddy Support`,
-      actionDesc:
-        `Allow ${firstName} 30 minutes of independent picking with buddy ${buddyName} on standby observation from 5 meters away to transition from help dependency to solo autonomy.`,
+      actionTitle,
+      actionDesc,
       practicalStep: "30-minute solo pick run with buddy observation.",
-      decisionRationale:
-        "Worker is overly reliant on peer prompts. Guided fading of support will build floor independence.",
+      decisionRationale: "Worker is overly reliant on peer prompts. Guided fading of support will build floor independence.",
       interimStatus: "Needs attention",
       interimStatusReason: "High help dependency detected; structured solo practice assigned.",
     };
   }
 
   if (understood.rootCause === "tool_hardware") {
+    const evidenceText = `${observed.canonicalEvidence?.toolSystem?.toolProblem || ""} ${observed.dailySignal?.rawText || ""} ${observed.managerSignal?.notes || ""}`.toLowerCase();
+    
+    let actionTitle = "Scanner Hardware Check & Lens Cleaning Protocol";
+    let actionDesc = "Inspect handheld terminal Bluetooth connection, replace aging battery pack, and review fallback 4-digit short SKU manual entry.";
+    let practicalStep = "5-minute hardware check and terminal re-pairing before shift.";
+    let interimReason = `Tool friction detected on scanner; hardware check scheduled with ${buddyName}.`;
+
+    if (evidenceText.includes("forklift") || evidenceText.includes("pallet jack") || evidenceText.includes("reach truck") || evidenceText.includes("cart")) {
+      actionTitle = "Equipment Inspection & Maintenance Escalation";
+      actionDesc = `Inspect affected equipment (${observed.canonicalEvidence?.toolSystem?.toolProblem || "lift/cart"}) for mechanical issues or low charge. Route ${firstName} to a working unit.`;
+      practicalStep = "Equipment tag-out and reassignment.";
+      interimReason = `Equipment friction detected; maintenance escalation scheduled with ${buddyName}.`;
+    } else if (evidenceText.includes("scanner") || evidenceText.includes("battery") || evidenceText.includes("bluetooth") || evidenceText.includes("terminal")) {
+      // Legacy scanner behavior
+    } else if (observed.canonicalEvidence?.toolSystem?.toolProblem) {
+      actionTitle = "General System & Tool Hardware Inspection";
+      actionDesc = `Inspect the reported tool issue: ${observed.canonicalEvidence.toolSystem.toolProblem}. Verify functionality before resuming independent tasks.`;
+      practicalStep = "5-minute equipment verification with supervisor or maintenance.";
+      interimReason = `Tool friction detected (${observed.canonicalEvidence.toolSystem.toolProblem}); inspection scheduled.`;
+    } else {
+      actionTitle = "General System & Tool Hardware Inspection";
+      actionDesc = "Inspect the reported tool issue. Verify functionality before resuming independent tasks.";
+      practicalStep = "5-minute equipment verification with supervisor or maintenance.";
+      interimReason = "Tool friction detected; inspection scheduled.";
+    }
+
     return {
       decisionType: "tool_remedy",
       targetCapId: 2,
       targetActor: `Buddy (${buddyName}) & Maintenance`,
       urgency: "Immediate",
-      actionTitle: "Scanner Hardware Check & Lens Cleaning Protocol",
-      actionDesc:
-        "Inspect handheld terminal Bluetooth connection, replace aging battery pack, and review fallback 4-digit short SKU manual entry.",
-      practicalStep: "5-minute hardware check and terminal re-pairing before shift.",
-      decisionRationale:
-        "Problem is hardware tool connectivity, not worker competence. Tool remedy avoids useless training.",
+      actionTitle,
+      actionDesc,
+      practicalStep,
+      decisionRationale: "Problem is hardware tool connectivity, not worker competence. Tool remedy avoids useless training.",
       interimStatus: "Needs attention",
-      interimStatusReason: `Tool friction detected on scanner; hardware check scheduled with ${buddyName}.`,
+      interimStatusReason: interimReason,
     };
   }
 
@@ -1782,19 +1929,35 @@ function chooseNextActionInternal(
   }
 
   if (understood.rootCause === "variant_quality") {
+    const evidenceText = `${observed.canonicalEvidence?.observation?.behaviorNote || ""} ${observed.canonicalEvidence?.observation?.supervisorNote || ""} ${observed.dailySignal?.rawText || ""} ${observed.dailySignal?.issue || ""}`.toLowerCase();
+    
+    let actionTitle = "Demonstrate 3-Point Variant Check (Brand, Weight, Barcode)";
+    let actionDesc = `Supervisor ${supervisorName} conducts a 10-minute floor demonstration on tricky SKU packaging variants (200g vs 500g pouches). Clarify that quality takes strict priority over speed during ramp.`;
+    let practicalStep = "10-minute demonstration with 5 tricky product variant sets.";
+    let interimReason = `Critical accuracy alert (${accuracy}%); supervisor 3-point variant check demo required.`;
+
+    if (observed.canonicalEvidence?.observation?.behaviorNote || observed.canonicalEvidence?.observation?.supervisorNote) {
+      const specificIssue = observed.canonicalEvidence.observation.behaviorNote || observed.canonicalEvidence.observation.supervisorNote || "";
+      actionTitle = "Targeted Quality & Accuracy Floor Demonstration";
+      actionDesc = `Supervisor ${supervisorName} conducts a floor demonstration addressing the specific quality issue: ${specificIssue}. Clarify that quality takes strict priority over speed.`;
+      practicalStep = "10-minute targeted quality demonstration on the floor.";
+    } else if (!evidenceText.includes("variant") && !evidenceText.includes("packaging") && !evidenceText.includes("200g")) {
+      actionTitle = "General Quality Standard & Accuracy Reinforcement";
+      actionDesc = `Supervisor ${supervisorName} conducts a 10-minute floor demonstration on general accuracy standards. Clarify that quality takes strict priority over speed during ramp.`;
+      practicalStep = "10-minute general quality reinforcement on the floor.";
+    }
+
     return {
       decisionType: "supervisor_demo",
       targetCapId: 6,
       targetActor: `Supervisor (${supervisorName} - Shift In-charge)`,
       urgency: "Immediate",
-      actionTitle: "Demonstrate 3-Point Variant Check (Brand, Weight, Barcode)",
-      actionDesc:
-        `Supervisor ${supervisorName} conducts a 10-minute floor demonstration on tricky SKU packaging variants (200g vs 500g pouches). Clarify that quality takes strict priority over speed during ramp.`,
-      practicalStep: "10-minute demonstration with 5 tricky product variant sets.",
-      decisionRationale:
-        "Accuracy below 98% quality floor. Requires supervisor authority to re-establish quality standard.",
+      actionTitle,
+      actionDesc,
+      practicalStep,
+      decisionRationale: "Accuracy below 98% quality floor. Requires supervisor authority to re-establish quality standard.",
       interimStatus: "At risk",
-      interimStatusReason: `Critical accuracy alert (${accuracy}%); supervisor 3-point variant check demo required.`,
+      interimStatusReason: interimReason,
     };
   }
 
@@ -1971,7 +2134,7 @@ function chooseNextActionInternal(
 // -------------------------------------------------------------
 // INTERNAL HELPER 5: act() - Dispatch smallest practical action
 // -------------------------------------------------------------
-function act(
+export function act(
   decided: DecidedAction,
   connected: ConnectedContext,
   hire: NewHire,
@@ -2030,7 +2193,7 @@ function act(
 // -------------------------------------------------------------
 // INTERNAL HELPER 6: check() - Outcome check & ledger update
 // -------------------------------------------------------------
-interface CheckStageInput {
+export interface CheckStageInput {
   actionOutcome?: ActionOutcome;
   action: RecommendedAction;
   interimStatus: NewHireStatus;
@@ -2045,7 +2208,7 @@ interface CheckStageInput {
   understoodRootCause?: RootCauseType;
 }
 
-function check(stageInput: CheckStageInput): {
+export function check(stageInput: CheckStageInput): {
   finalStatus: NewHireStatus;
   finalStatusReason: string;
   updatedCapabilities: Record<number, CapabilityState>;
@@ -2193,7 +2356,222 @@ function check(stageInput: CheckStageInput): {
  * 5. ACT       - Dispatches smallest practical floor intervention
  * 6. CHECK     - Evaluates before/after outcome; updates Capability Ledger
  */
+
+export async function executeCoordinationLoopAsync(input: LoopExecutionInput, historyText: string = ""): Promise<PatternSynthesisResult> {
+  const executionId = executionGuard.registerExecution(input.hire.id, input.dayNumber);
+  const startTime = Date.now();
+  const sanitizedHistory = sanitizeInputText(historyText).sanitizedText;
+
+  const observed = observe(input);
+  const linkedEvidence = linkEvidenceToCapabilities(observed.structuredEvidence);
+  const understood = understand(observed, linkedEvidence, input.hire, observed.currentCapabilities, input.existingAction, input.candidatePattern);
+  const connected = connect(understood, input.hire);
+  
+  const decided = chooseNextAction(
+    understood,
+    connected,
+    input.hire,
+    observed,
+    observed.currentCapabilities
+  );
+  
+  let candidateAction = decided;
+  let capturedAiCandidate: any = undefined;
+  let capturedArbitration: any = {
+    arbitration_status: "DETERMINISTIC_CONFIRMED",
+    selected_source: "DETERMINISTIC",
+    arbitration_reason: "Baseline deterministic execution",
+    supporting_evidence_ids: [],
+    conflicting_evidence_ids: [],
+    confidence: 1.0
+  };
+  let isAiTimeout = false;
+  
+  try {
+    const aiPipeline = (async () => {
+      const aiCandidate = await generateInterventionCandidate({
+        diagnosis: understood,
+        deterministicAction: decided,
+        observed,
+        hire: input.hire,
+        historyText: sanitizedHistory
+      });
+      capturedAiCandidate = aiCandidate;
+
+      const arbitrationResult = await arbitrateIntervention({
+        diagnosis: understood,
+        deterministicAction: decided,
+        aiCandidate,
+        observed,
+        hire: input.hire,
+        historyText: sanitizedHistory
+      });
+      capturedArbitration = {
+        arbitration_status: arbitrationResult.actionTitle?.includes("[AI") ? "AI_SUPPORTED" : "DETERMINISTIC_CONFIRMED",
+        selected_source: arbitrationResult.actionTitle?.includes("[AI") ? "AI" : "DETERMINISTIC",
+        arbitration_reason: arbitrationResult.decisionRationale,
+        supporting_evidence_ids: aiCandidate.required_evidence || [],
+        conflicting_evidence_ids: aiCandidate.conflicting_evidence_ids || [],
+        confidence: aiCandidate.confidence || 0.8
+      };
+
+      return arbitrationResult;
+    })();
+
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("AI Timeout")), 4500));
+    candidateAction = await Promise.race([aiPipeline, timeoutPromise]) as DecidedAction;
+  } catch (err: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("AI Arbitration unavailable or timed out, activating deterministic fallback:", err?.message || err);
+    }
+    candidateAction = decided;
+    isAiTimeout = true;
+  }
+
+  // INVARIANT 11: Late AI responses cannot overwrite newer authoritative decisions.
+  if (!executionGuard.isExecutionCurrent(input.hire.id, input.dayNumber, executionId)) {
+    candidateAction = decided;
+  }
+
+  // AI-8: DEANCORE GOVERNANCE AUTHORITY
+  const governanceResult = governDecision({
+    hire: input.hire,
+    dayNumber: input.dayNumber,
+    observed,
+    canonicalEvidence: input.canonicalEvidence,
+    availableEvidenceItems: observed.structuredEvidence,
+    diagnosis: understood,
+    deterministicAction: decided,
+    aiCandidate: capturedAiCandidate,
+    arbitrationResult: capturedArbitration,
+    proposedFinalAction: candidateAction,
+    isAiTimeoutOrUnavailable: isAiTimeout,
+  });
+
+  const finalDecidedAction = governanceResult.governedAction;
+
+  const actionPackage = act(
+    finalDecidedAction,
+    connected,
+    input.hire,
+    input.dayNumber,
+    input.existingAction,
+    observed,
+    understood
+  );
+
+  const checkResult = check({
+    actionOutcome: input.actionOutcome,
+    action: actionPackage.action,
+    interimStatus: finalDecidedAction.interimStatus,
+    interimStatusReason: finalDecidedAction.interimStatusReason,
+    currentCapabilities: observed.currentCapabilities,
+    targetCapId: finalDecidedAction.targetCapId,
+    observed,
+    dayNumber: input.dayNumber,
+    decisionType: finalDecidedAction.decisionType,
+    existingAction: input.existingAction,
+    hire: input.hire,
+    understoodRootCause: understood.rootCause,
+  });
+
+  const overallReadinessScore = assessReadiness(checkResult.updatedCapabilities, input.hire);
+  const day10Evaluation = input.dayNumber >= 10 ? evaluateDay10Outcome({ ...input.hire, status: checkResult.finalStatus, capabilities: checkResult.updatedCapabilities }, input.workSignal, input.dailySignal, input.managerSignal) : undefined;
+
+  // AI-6: OUTCOME LEARNING LOOP
+  let learningEvent: LearningEvent | undefined = undefined;
+  const caseId = `case-${input.hire.id}-d${input.dayNumber}`;
+
+  try {
+    // INVARIANT 10: Repeated execution does not duplicate authoritative outcomes
+    if (input.actionOutcome) {
+      if (!executionGuard.isOutcomeAlreadyProcessed(input.hire.id, input.dayNumber, input.actionOutcome.actionId, input.actionOutcome.id)) {
+        executionGuard.markOutcomeProcessed(input.hire.id, input.dayNumber, input.actionOutcome.actionId, input.actionOutcome.id);
+        learningEvent = recordOutcomeLearningEvent({
+          caseId,
+          hire: input.hire,
+          dayNumber: input.dayNumber,
+          outcome: input.actionOutcome,
+          previousRecord: input.previousRecord,
+          observed,
+          diagnosis: understood,
+          deterministicAction: decided,
+          finalAction: actionPackage.action,
+          canonicalEvidence: input.canonicalEvidence,
+          availableEvidenceItems: observed.structuredEvidence,
+          historyText: sanitizedHistory,
+        });
+      }
+    }
+  } catch (learningErr: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("AI-6 Outcome learning loop failed safely (isolated):", learningErr?.message || learningErr);
+    }
+  }
+
+  const recordedCase = casebook.recordCase({
+    caseId,
+    employeeId: input.hire.id,
+    employeeName: input.hire.name,
+    journeyDay: input.dayNumber,
+    timestamp: new Date().toISOString(),
+    initialState: {
+      status: input.hire.status,
+      statusReason: input.hire.statusReason,
+      readinessScore: overallReadinessScore,
+      capabilities: checkResult.updatedCapabilities,
+    },
+    canonicalEvidence: input.canonicalEvidence,
+    evidenceItems: observed.structuredEvidence,
+    deterministicDiagnosis: understood,
+    deterministicAction: decided,
+    aiInterventionCandidate: capturedAiCandidate,
+    aiArbitration: capturedArbitration,
+    finalIntervention: actionPackage.action,
+    outcome: input.actionOutcome,
+    learningEvent,
+    governanceResult,
+  });
+
+  const auditTrail = reconstructDecisionAuditTrail(recordedCase);
+
+  telemetry.record({
+    executionId,
+    employeeId: input.hire.id,
+    journeyDay: input.dayNumber,
+    pipelineStage: "COMPLETED",
+    durationMs: Date.now() - startTime,
+    timestamp: new Date().toISOString(),
+    success: true,
+    fallbackInvoked: isAiTimeout || finalDecidedAction.decisionType !== candidateAction.decisionType,
+    aiProviderFailure: isAiTimeout,
+    governanceVerdict: governanceResult.governanceVerdict,
+    finalActionSource: isAiTimeout ? "FALLBACK" : (governanceResult.governedAction.actionTitle !== candidateAction.actionTitle ? "GOVERNANCE_OVERRIDE" : (capturedArbitration?.selected_source === "AI" ? "AI" : "DETERMINISTIC")),
+    outcomeStatus: learningEvent?.outcomeStatus,
+    systemMode: isAiTimeout ? "AI_UNAVAILABLE" : "NORMAL",
+  });
+
+  return {
+    pattern: actionPackage.pattern,
+    action: actionPackage.action,
+    updatedStatus: checkResult.finalStatus,
+    statusReason: checkResult.finalStatusReason,
+    updatedCapabilities: checkResult.updatedCapabilities,
+    overallReadinessScore,
+    currentCapabilityId: checkResult.action.id === "no_action" ? 0 : finalDecidedAction.targetCapId,
+    adaptiveDecision: finalDecidedAction.decisionType,
+    day10Evaluation,
+    learningEvent,
+    governanceResult,
+    auditTrail,
+    executionId,
+  };
+}
+
 export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynthesisResult {
+  const executionId = executionGuard.registerExecution(input.hire.id, input.dayNumber);
+  const startTime = Date.now();
+
   // 1. OBSERVE (D1: Evidence / Path Lab)
   const observed = observe(input);
 
@@ -2215,9 +2593,31 @@ export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynth
     observed.currentCapabilities
   );
 
+  // AI-8: DEANCORE GOVERNANCE AUTHORITY
+  const governanceResult = governDecision({
+    hire: input.hire,
+    dayNumber: input.dayNumber,
+    observed,
+    canonicalEvidence: input.canonicalEvidence,
+    availableEvidenceItems: observed.structuredEvidence,
+    diagnosis: understood,
+    deterministicAction: decided,
+    arbitrationResult: {
+      arbitration_status: "DETERMINISTIC_CONFIRMED",
+      selected_source: "DETERMINISTIC",
+      arbitration_reason: "Synchronous deterministic baseline execution",
+      supporting_evidence_ids: [],
+      conflicting_evidence_ids: [],
+      confidence: 1.0,
+    },
+    proposedFinalAction: decided,
+  });
+
+  const finalDecidedAction = governanceResult.governedAction;
+
   // 5. ACT
   const actionPackage = act(
-    decided,
+    finalDecidedAction,
     connected,
     input.hire,
     input.dayNumber,
@@ -2230,13 +2630,13 @@ export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynth
   const checkResult = check({
     actionOutcome: input.actionOutcome,
     action: actionPackage.action,
-    interimStatus: decided.interimStatus,
-    interimStatusReason: decided.interimStatusReason,
+    interimStatus: finalDecidedAction.interimStatus,
+    interimStatusReason: finalDecidedAction.interimStatusReason,
     currentCapabilities: observed.currentCapabilities,
-    targetCapId: decided.targetCapId,
+    targetCapId: finalDecidedAction.targetCapId,
     observed,
     dayNumber: input.dayNumber,
-    decisionType: decided.decisionType,
+    decisionType: finalDecidedAction.decisionType,
     existingAction: input.existingAction,
     hire: input.hire,
     understoodRootCause: understood.rootCause,
@@ -2255,6 +2655,76 @@ export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynth
     input.managerSignal
   );
 
+  // AI-6: OUTCOME LEARNING LOOP
+  let learningEvent: LearningEvent | undefined = undefined;
+  const caseId = `case-${input.hire.id}-d${input.dayNumber}`;
+
+  try {
+    // INVARIANT 10: Repeated execution does not duplicate authoritative outcomes
+    if (input.actionOutcome) {
+      if (!executionGuard.isOutcomeAlreadyProcessed(input.hire.id, input.dayNumber, input.actionOutcome.actionId, input.actionOutcome.id)) {
+        executionGuard.markOutcomeProcessed(input.hire.id, input.dayNumber, input.actionOutcome.actionId, input.actionOutcome.id);
+        learningEvent = recordOutcomeLearningEvent({
+          caseId,
+          hire: input.hire,
+          dayNumber: input.dayNumber,
+          outcome: input.actionOutcome,
+          previousRecord: input.previousRecord,
+          observed,
+          diagnosis: understood,
+          deterministicAction: decided,
+          finalAction: actionPackage.action,
+          canonicalEvidence: input.canonicalEvidence,
+          availableEvidenceItems: observed.structuredEvidence,
+        });
+      }
+    }
+  } catch (learningErr: any) {
+    if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {
+      console.debug("AI-6 Outcome learning loop failed safely (isolated):", learningErr?.message || learningErr);
+    }
+  }
+
+  const recordedCase = casebook.recordCase({
+    caseId,
+    employeeId: input.hire.id,
+    employeeName: input.hire.name,
+    journeyDay: input.dayNumber,
+    timestamp: new Date().toISOString(),
+    initialState: {
+      status: input.hire.status,
+      statusReason: input.hire.statusReason,
+      readinessScore: overallReadinessScore,
+      capabilities: checkResult.updatedCapabilities,
+    },
+    canonicalEvidence: input.canonicalEvidence,
+    evidenceItems: observed.structuredEvidence,
+    deterministicDiagnosis: understood,
+    deterministicAction: decided,
+    finalIntervention: actionPackage.action,
+    outcome: input.actionOutcome,
+    learningEvent,
+    governanceResult,
+  });
+
+  const auditTrail = reconstructDecisionAuditTrail(recordedCase);
+
+  telemetry.record({
+    executionId,
+    employeeId: input.hire.id,
+    journeyDay: input.dayNumber,
+    pipelineStage: "COMPLETED",
+    durationMs: Date.now() - startTime,
+    timestamp: new Date().toISOString(),
+    success: true,
+    fallbackInvoked: false,
+    aiProviderFailure: false,
+    governanceVerdict: governanceResult.governanceVerdict,
+    finalActionSource: governanceResult.governedAction.actionTitle !== decided.actionTitle ? "GOVERNANCE_OVERRIDE" : "DETERMINISTIC",
+    outcomeStatus: learningEvent?.outcomeStatus,
+    systemMode: "NORMAL",
+  });
+
   return {
     pattern: actionPackage.pattern,
     action: checkResult.action,
@@ -2262,9 +2732,13 @@ export function executeCoordinationLoop(input: LoopExecutionInput): PatternSynth
     statusReason: checkResult.finalStatusReason,
     updatedCapabilities: checkResult.updatedCapabilities,
     overallReadinessScore,
-    currentCapabilityId: decided.targetCapId,
-    adaptiveDecision: decided.decisionType,
+    currentCapabilityId: checkResult.action.id === "no_action" ? 0 : finalDecidedAction.targetCapId,
+    adaptiveDecision: finalDecidedAction.decisionType,
     day10Evaluation,
+    learningEvent,
+    governanceResult,
+    auditTrail,
+    executionId,
   };
 }
 

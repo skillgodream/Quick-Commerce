@@ -10,12 +10,20 @@ import {
   ArrowRight,
   Database,
   ExternalLink,
+  Activity,
+  Cpu,
 } from "lucide-react";
 import {
   GoogleFormFeedPayload,
   DEMO_FEED_PRESETS,
   adaptGoogleFormFeedRow,
 } from "../services/googleFormFeedAdapter";
+import {
+  fetchSimulatorEvidence,
+  getSimulatorEndpoint,
+  SimulatorEvidenceItem,
+  mapToCanonicalEmployeeId,
+} from "../services/simulatorEvidenceService";
 import { NewHire } from "../types";
 
 interface GoogleFormFeedModalProps {
@@ -36,10 +44,26 @@ export const GoogleFormFeedModal: React.FC<GoogleFormFeedModalProps> = ({
   const [selectedPresetId, setSelectedPresetId] = useState<string>("scenario-a-friction");
   const [formData, setFormData] = useState<GoogleFormFeedPayload>(() => DEMO_FEED_PRESETS[0].payload);
   const [showSuccessToast, setShowSuccessToast] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"preset" | "form" | "sheet_csv">("preset");
+  const [activeTab, setActiveTab] = useState<"preset" | "form" | "sheet_csv" | "simulator">("preset");
   const [csvText, setCsvText] = useState<string>("");
+  const [simLoading, setSimLoading] = useState<boolean>(false);
+  const [simEmployeeId, setSimEmployeeId] = useState<string>("nh-rahul-01");
+  const [simJourneyDay, setSimJourneyDay] = useState<number>(3);
+  const [simResult, setSimResult] = useState<{ success: boolean; count: number; error?: string; evidence: SimulatorEvidenceItem[] } | null>(null);
 
   if (!isOpen) return null;
+
+  const handleFetchSimulator = async () => {
+    setSimLoading(true);
+    setSimResult(null);
+    const result = await fetchSimulatorEvidence({
+      employeeId: simEmployeeId,
+      journeyDay: simJourneyDay,
+      limit: 10,
+    });
+    setSimLoading(false);
+    setSimResult(result);
+  };
 
   const handleSelectPreset = (presetId: string) => {
     setSelectedPresetId(presetId);
@@ -166,6 +190,17 @@ export const GoogleFormFeedModal: React.FC<GoogleFormFeedModalProps> = ({
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
             <span>Sheet CSV Paste</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("simulator")}
+            className={`px-3.5 py-2 text-xs font-bold rounded-t-xl transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${
+              activeTab === "simulator"
+                ? "border-cyan-500 text-cyan-450 bg-white/5"
+                : "border-transparent text-slate-450 hover:text-white"
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Simulator API</span>
           </button>
         </div>
 
@@ -444,6 +479,82 @@ export const GoogleFormFeedModal: React.FC<GoogleFormFeedModalProps> = ({
                 <FileSpreadsheet className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Parse & Ingest Row</span>
               </button>
+            </div>
+          )}
+
+          {/* TAB 4: DEPLOYED SIMULATOR API INGESTOR */}
+          {activeTab === "simulator" && (
+            <div className="space-y-4 text-xs">
+              <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl text-xs text-cyan-300 flex items-start gap-2.5">
+                <Activity className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Deployed Simulator Evidence Access Layer: </span>
+                  Endpoint: <code className="font-mono text-[11px] bg-white/5 px-1 py-0.5 rounded text-cyan-200">{getSimulatorEndpoint()}</code>
+                  <br />
+                  Simulator provides raw operational evidence. DEANCORE Six Doctors process evidence authoritatively.
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-400 mb-1">Target Employee</label>
+                  <select
+                    value={simEmployeeId}
+                    onChange={(e) => setSimEmployeeId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-white/10 bg-[#13151b] text-white font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  >
+                    <option value="nh-rahul-01">Rahul Sharma (nh-rahul-01 / emp-1)</option>
+                    <option value="nh-priya-02">Priya Sundaram (nh-priya-02 / emp-2)</option>
+                    <option value="nh-amit-03">Amit Verma (nh-amit-03 / emp-3)</option>
+                    <option value="nh-sneha-04">Sneha Patel (nh-sneha-04 / emp-4)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-400 mb-1">Journey Day</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={14}
+                    value={simJourneyDay}
+                    onChange={(e) => setSimJourneyDay(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-white/10 bg-[#13151b] text-white font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleFetchSimulator}
+                  disabled={simLoading}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 cursor-pointer flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${simLoading ? "animate-spin" : ""}`} />
+                  <span>{simLoading ? "Fetching..." : "Fetch Simulator Evidence API"}</span>
+                </button>
+              </div>
+
+              {simResult && (
+                <div className={`p-4 rounded-2xl border text-xs space-y-2 ${
+                  simResult.success ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-rose-500/10 border-rose-500/20 text-rose-300"
+                }`}>
+                  <div className="font-bold flex items-center justify-between">
+                    <span>{simResult.success ? `Received ${simResult.count} Evidence Records` : "Simulator API Fetch Failed"}</span>
+                    <span className="font-mono text-[11px] opacity-80">{simEmployeeId} • Day {simJourneyDay}</span>
+                  </div>
+                  {simResult.error && <p className="text-rose-400 font-mono text-[11px]">{simResult.error}</p>}
+                  {simResult.evidence.length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-white/10">
+                      {simResult.evidence.map((item, idx) => (
+                        <div key={idx} className="bg-black/20 p-2 rounded-xl text-[11px] font-mono flex items-center justify-between">
+                          <span>{item.id || item.evidence_id || `ev-${idx}`} ({item.category || "telemetry"})</span>
+                          <span className="text-cyan-400">Canonical Employee: {item.employeeId}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

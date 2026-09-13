@@ -22,7 +22,7 @@ import {
   DayRecord,
   CandidatePattern,
 } from "./types";
-import { executeCoordinationLoop, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory } from "./services/intelligence";
+import { executeCoordinationLoop, executeCoordinationLoopAsync, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory } from "./services/intelligence";
 import {
   GoogleFormFeedPayload,
   adaptGoogleFormFeedRow,
@@ -124,6 +124,91 @@ export default function App() {
 
   const activeHire = newHires.find((h) => h.id === activeHireId) || newHires[0];
 
+
+  const updateHireAndRecalculateAsync = async (
+    hireId: string,
+    dayNum: number,
+    updater: (currentRecord: DayRecord, hire: NewHire) => Partial<DayRecord>,
+    candidatePattern?: CandidatePattern,
+    historyText?: string
+  ) => {
+    const currentHire = newHires.find(h => h.id === hireId);
+    if (!currentHire) return;
+
+    const existingRecordIndex = currentHire.daysHistory.findIndex((d) => d.dayNumber === dayNum);
+    const existingRecord: DayRecord =
+      existingRecordIndex >= 0
+        ? currentHire.daysHistory[existingRecordIndex]
+        : {
+            dayNumber: dayNum,
+            date: `Day ${dayNum}`,
+            workSignal: {
+              dayNumber: dayNum,
+              targetPickRate: 50,
+              actualPickRate: 35,
+              accuracyRate: 98,
+              ordersCompleted: 44,
+              targetOrders: 65,
+            },
+            statusAtEnd: currentHire.status,
+            statusReason: currentHire.statusReason,
+          };
+
+    const partialUpdate = updater(existingRecord, currentHire);
+    const mergedRecord: DayRecord = {
+      ...existingRecord,
+      ...partialUpdate,
+    };
+
+    const previousRecord = currentHire.daysHistory.find((d) => d.dayNumber === dayNum - 1);
+
+    const execution = await executeCoordinationLoopAsync({
+      hire: currentHire,
+      dayNumber: dayNum,
+      dailySignal: mergedRecord.dailySignal,
+      managerSignal: mergedRecord.managerSignal,
+      workSignal: mergedRecord.workSignal,
+      actionOutcome: mergedRecord.actionOutcome,
+      previousRecord,
+      existingAction: mergedRecord.recommendedAction,
+      candidatePattern,
+    }, historyText || "");
+
+    setNewHires((prevHires) =>
+      prevHires.map((hire) => {
+        if (hire.id !== hireId) return hire;
+
+        const updatedMergedRecord = { ...mergedRecord };
+        updatedMergedRecord.identifiedPattern = execution.pattern;
+        updatedMergedRecord.recommendedAction = execution.action;
+        updatedMergedRecord.statusAtEnd = execution.updatedStatus;
+        updatedMergedRecord.statusReason = execution.statusReason;
+
+        const newHistory = [...hire.daysHistory];
+        const updatedExistingRecordIndex = hire.daysHistory.findIndex((d) => d.dayNumber === dayNum);
+        
+        if (updatedExistingRecordIndex >= 0) {
+          newHistory[updatedExistingRecordIndex] = updatedMergedRecord;
+        } else {
+          newHistory.push(updatedMergedRecord);
+        }
+
+        return {
+          ...hire,
+          currentDay: Math.max(hire.currentDay, dayNum),
+          status: updatedMergedRecord.statusAtEnd,
+          statusReason: updatedMergedRecord.statusReason,
+          recommendedActionSnippet: updatedMergedRecord.recommendedAction?.title,
+          currentCapabilityId: execution.currentCapabilityId,
+          overallReadinessScore: execution.overallReadinessScore,
+          capabilities: execution.updatedCapabilities,
+          day10Evaluation: execution.day10Evaluation,
+          daysHistory: newHistory,
+        };
+      })
+    );
+  };
+
   // Helper to update a hire's day record and recalculate coordination pattern through single execution authority
   const updateHireAndRecalculate = (
     hireId: string,
@@ -207,9 +292,9 @@ export default function App() {
   };
 
   // Helper for longitudinal pattern discovery
-  const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpdate: any): Promise<CandidatePattern | undefined> => {
+const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpdate: any): Promise<{ pattern?: CandidatePattern, historyText: string }> => {
     const hire = newHires.find(h => h.id === hireId);
-    if (!hire) return undefined;
+    if (!hire) return { historyText: "" };
     
     let historyText = "";
     const maxDay = Math.max(hire.daysHistory.length, dayNum);
@@ -233,39 +318,39 @@ export default function App() {
        if (out) lines.push(`- Outcome: ${out.notes || ''} (Improved: ${out.improved})`);
        
        if (lines.length > 0) {
-         historyText += `Day ${i}:
-` + lines.join("\n") + "\n";
+         historyText += `Day ${i}:` + lines.join("\n") + "\n";
        }
     }
     
     if (historyText.trim().length > 0) {
-      return await analyzeLongitudinalHistory(historyText);
+      const pattern = await analyzeLongitudinalHistory(historyText);
+      return { pattern, historyText };
     }
-    return undefined;
+    return { historyText };
   };
 
   // 1. Daily Signal submitted by Frontline New Hire
   const handleDailySignalSubmitted = async (signal: DailySignal) => {
-    const pattern = await fetchLongitudinalPattern(activeHire.id, currentDay, { dailySignal: signal });
-    updateHireAndRecalculate(activeHire.id, currentDay, () => ({
+    const { pattern, historyText } = await fetchLongitudinalPattern(activeHire.id, currentDay, { dailySignal: signal });
+    await updateHireAndRecalculateAsync(activeHire.id, currentDay, () => ({
       dailySignal: signal,
-    }), pattern);
+    }), pattern, historyText);
   };
 
   // 2. Manager Fast 5-sec signal submitted
   const handleManagerSignalSubmitted = async (hireId: string, signal: ManagerSignal) => {
-    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { managerSignal: signal });
-    updateHireAndRecalculate(hireId, currentDay, () => ({
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { managerSignal: signal });
+    await updateHireAndRecalculateAsync(hireId, currentDay, () => ({
       managerSignal: signal,
-    }), pattern);
+    }), pattern, historyText);
   };
 
   // 3. Work Signal manual or automated update
   const handleWorkSignalUpdated = async (hireId: string, workSignal: WorkSignal) => {
-    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { workSignal });
-    updateHireAndRecalculate(hireId, currentDay, () => ({
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { workSignal });
+    await updateHireAndRecalculateAsync(hireId, currentDay, () => ({
       workSignal,
-    }), pattern);
+    }), pattern, historyText);
   };
 
   // 4. Action Outcome recorded (Closing the loop)
@@ -283,9 +368,9 @@ export default function App() {
     
     const augmentedOutcome = { ...outcome, treatmentContext };
 
-    const pattern = await fetchLongitudinalPattern(hireId, currentDay, { actionOutcome: augmentedOutcome });
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { actionOutcome: augmentedOutcome });
 
-    updateHireAndRecalculate(hireId, currentDay, (currentRecord) => {
+    await updateHireAndRecalculateAsync(hireId, currentDay, (currentRecord) => {
       const updatedAction = currentRecord.recommendedAction
         ? { ...currentRecord.recommendedAction, status: "completed" as const }
         : undefined;
@@ -301,7 +386,7 @@ export default function App() {
         recommendedAction: updatedAction,
         workSignal: updatedWorkSignal,
       };
-    }, pattern);
+    }, pattern, historyText);
   };
 
   // 5. Client Demo Work-Signal Feed Ingested (Google Form / Sheet adapter)
@@ -328,8 +413,8 @@ export default function App() {
       workSignal: result.workSignal, 
       dailySignal: result.dailySignal, 
       managerSignal: result.managerSignal 
-    }).then(pattern => {
-      updateHireAndRecalculate(result.newHireId, result.dayNumber, () => {
+    }).then(({ pattern, historyText }) => {
+      updateHireAndRecalculateAsync(result.newHireId, result.dayNumber, () => {
         const partial: Partial<DayRecord> = {
         workSignal: result.workSignal,
         dailySignal: result.dailySignal,
@@ -339,7 +424,7 @@ export default function App() {
         partial.actionOutcome = result.actionOutcome;
       }
       return partial;
-      }, pattern);
+      }, pattern, historyText);
     });
   };
 

@@ -591,6 +591,8 @@ export const initialCohort: NewHire[] = [
   },
 ];
 
+export const mockNewHire: NewHire = initialRahul;
+
 export const initialOrgSummary: OrganizationSummary = {
   id: "org-qc-bengaluru",
   name: "FastCart Dark Store Operations",
