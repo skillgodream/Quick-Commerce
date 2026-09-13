@@ -19,8 +19,8 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
 
   it("A. Simulator API Endpoint: Resolves authoritative endpoint URL correctly", () => {
     const endpoint = getSimulatorEndpoint();
-    expect(endpoint).toBe("https://dummy-organization.vercel.app/api/v1/evidence");
-    expect(DEFAULT_SIMULATOR_API_URL).toBe("https://dummy-organization.vercel.app/api/v1/evidence");
+    expect(endpoint).toBe("https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence");
+    expect(DEFAULT_SIMULATOR_API_URL).toBe("https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence");
   });
 
   it("B. CanonicalEvidence parsing: Validates and sanitizes incoming evidence records", () => {

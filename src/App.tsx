@@ -8,6 +8,7 @@ import { LoopInspectorModal } from "./components/LoopInspectorModal";
 import { TelemetryDialModal } from "./components/TelemetryDialModal";
 import { GoogleFormFeedModal } from "./components/GoogleFormFeedModal";
 import { ClientDemoModal } from "./components/ClientDemoModal";
+import { SyncSimulatorModal } from "./components/SyncSimulatorModal";
 import { ChatBotPullout } from "./components/ChatBotPullout";
 import { SplashScreen } from "./components/SplashScreen";
 import { LearnerSection } from "./types";
@@ -79,6 +80,9 @@ export default function App() {
   const [isTelemetryModalOpen, setIsTelemetryModalOpen] = useState<boolean>(false);
   const [isFeedModalOpen, setIsFeedModalOpen] = useState<boolean>(false);
   const [isClientDemoModalOpen, setIsClientDemoModalOpen] = useState<boolean>(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
+  const [isSyncingCohort, setIsSyncingCohort] = useState<boolean>(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [isFramed, setIsFramed] = useState<boolean>(true);
   const [isHindi, setIsHindi] = useState<boolean>(false);
@@ -241,6 +245,28 @@ export default function App() {
         };
       })
     );
+  };
+
+  // Force sync all cohort members from the simulator API for the active journey day
+  const handleSyncAllCohort = async () => {
+    setIsSyncingCohort(true);
+    lastSyncedKeyRef.current = null;
+    try {
+      for (const hire of newHires) {
+        await updateHireAndRecalculateAsync(
+          hire.id,
+          currentDay,
+          (rec) => ({
+            dailySignal: rec.dailySignal,
+          })
+        );
+      }
+      setLastSyncedTime(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.warn("Error during cohort simulator sync:", e);
+    } finally {
+      setIsSyncingCohort(false);
+    }
   };
 
   // Helper to update a hire's day record and recalculate coordination pattern through single execution authority
@@ -598,6 +624,8 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                 onOpenOnboarding={() => setIsOnboarding(true)}
                 onOpenFeedModal={() => setIsFeedModalOpen(true)}
                 onOpenClientDemo={() => setIsClientDemoModalOpen(true)}
+                onOpenSyncModal={() => setIsSyncModalOpen(true)}
+                isSyncing={isSyncingCohort}
                 hasApiKey={hasApiKey}
                 doingWellCount={doingWellCount}
                 needsAttentionCount={needsAttentionCount}
@@ -709,6 +737,17 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         newHires={newHires}
         onIngestFeed={handleGoogleFormFeedIngested}
         isHindi={isHindi}
+      />
+
+      {/* Live Simulator Sync & Push Hub Modal */}
+      <SyncSimulatorModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        newHires={newHires}
+        currentDay={currentDay}
+        onSyncAllCohort={handleSyncAllCohort}
+        lastSyncedTimestamp={lastSyncedTime}
+        isSyncing={isSyncingCohort}
       />
 
       {/* Interactive Client Demo Experience Hub */}

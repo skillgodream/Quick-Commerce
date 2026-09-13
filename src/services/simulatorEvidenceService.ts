@@ -4,7 +4,7 @@ import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard"
 
 /**
  * Simulator Canonical Evidence API Access Layer
- * Connects the deployed Simulator API (https://dummy-organization.vercel.app/api/v1/evidence)
+ * Connects the deployed Simulator API (https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence)
  * to the Check-in Evidence Access Layer and DEANCORE pipeline.
  *
  * ARCHITECTURAL BOUNDARY:
@@ -12,17 +12,51 @@ import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard"
  * Path: Simulator -> Canonical Evidence API -> Check-in Evidence Access Layer -> Six Doctors -> AI-3/4/5 -> AI-8 -> Doctor 6 -> Learner State -> Outcome -> Casebook / AI-6
  */
 
-export const DEFAULT_SIMULATOR_API_URL = "https://dummy-organization.vercel.app/api/v1/evidence";
+export const DEFAULT_SIMULATOR_API_URL = "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence";
+
+const STORAGE_KEY_CUSTOM_ENDPOINT = "custom_simulator_api_url";
 
 /**
  * Single authoritative Simulator API base URL resolver.
+ * Checks localStorage first, then environment variables, then falls back to default.
  */
 export function getSimulatorEndpoint(): string {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const customUrl = localStorage.getItem(STORAGE_KEY_CUSTOM_ENDPOINT);
+      if (customUrl && customUrl.trim().length > 0) {
+        return customUrl.trim();
+      }
+    } catch (e) {
+      // localStorage may fail in some environments
+    }
+  }
   if (typeof process !== "undefined" && process.env) {
     if (process.env.VITE_SIMULATOR_API_URL) return process.env.VITE_SIMULATOR_API_URL;
     if (process.env.SIMULATOR_API_URL) return process.env.SIMULATOR_API_URL;
   }
   return DEFAULT_SIMULATOR_API_URL;
+}
+
+export function setCustomSimulatorEndpoint(url: string | null): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      if (url && url.trim().length > 0) {
+        localStorage.setItem(STORAGE_KEY_CUSTOM_ENDPOINT, url.trim());
+      } else {
+        localStorage.removeItem(STORAGE_KEY_CUSTOM_ENDPOINT);
+      }
+    } catch (e) {}
+  }
+}
+
+export function getCustomSimulatorEndpoint(): string | null {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      return localStorage.getItem(STORAGE_KEY_CUSTOM_ENDPOINT) || null;
+    } catch (e) {}
+  }
+  return null;
 }
 
 export interface SimulatorQueryParams {
@@ -78,7 +112,7 @@ export const CANONICAL_CHECKIN_EMPLOYEES = [
   { id: "nh-rahul-01", name: "Rahul Sharma", aliases: ["emp-1", "emp-01", "emp-001", "rahul", "1"] },
   { id: "nh-priya-02", name: "Priya Sundaram", aliases: ["emp-2", "emp-02", "emp-002", "priya", "2"] },
   { id: "nh-amit-03", name: "Amit Verma", aliases: ["emp-3", "emp-03", "emp-003", "amit", "3"] },
-  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "emp-004", "sneha", "4"] },
+  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "emp-004", "sneha", "diana", "4"] },
 ];
 
 /**
@@ -94,7 +128,7 @@ export function mapToSimulatorEmployeeId(canonicalId?: string): string {
 
   if (cleaned.includes("priya") || cleaned.includes("nh-priya-02") || cleaned === "emp-002" || cleaned === "emp-02" || cleaned === "emp-2") return "EMP-002";
   if (cleaned.includes("amit") || cleaned.includes("nh-amit-03") || cleaned === "emp-003" || cleaned === "emp-03" || cleaned === "emp-3") return "EMP-003";
-  if (cleaned.includes("sneha") || cleaned.includes("nh-sneha-04") || cleaned === "emp-004" || cleaned === "emp-04" || cleaned === "emp-4") return "EMP-004";
+  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("nh-sneha-04") || cleaned === "emp-004" || cleaned === "emp-04" || cleaned === "emp-4") return "EMP-004";
   if (cleaned.includes("rahul") || cleaned.includes("nh-rahul-01") || cleaned === "emp-001" || cleaned === "emp-01" || cleaned === "emp-1") return "EMP-001";
 
   return canonicalId;
@@ -115,7 +149,7 @@ export function mapToCanonicalEmployeeId(rawId?: string): string {
   if (cleaned.includes("rahul") || cleaned.includes("emp-1") || cleaned.includes("emp-01") || cleaned.includes("emp-001")) return "nh-rahul-01";
   if (cleaned.includes("priya") || cleaned.includes("emp-2") || cleaned.includes("emp-02") || cleaned.includes("emp-002")) return "nh-priya-02";
   if (cleaned.includes("amit") || cleaned.includes("emp-3") || cleaned.includes("emp-03") || cleaned.includes("emp-003")) return "nh-amit-03";
-  if (cleaned.includes("sneha") || cleaned.includes("emp-4") || cleaned.includes("emp-04") || cleaned.includes("emp-004")) return "nh-sneha-04";
+  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("emp-4") || cleaned.includes("emp-04") || cleaned.includes("emp-004")) return "nh-sneha-04";
 
   if (/^nh-[a-z0-9-]+$/i.test(cleaned)) {
     return cleaned;
@@ -203,7 +237,14 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
   if (typeof perf.productivity === "number" && Number.isFinite(perf.productivity)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.productivity = Math.max(0, Math.min(300, perf.productivity));
-  } else if (rawItem.category === "work_performance" || rawItem.type === "productivity") {
+  } else if (
+    rawItem.category === "work_performance" ||
+    rawItem.category === "productivity" ||
+    rawItem.type === "productivity" ||
+    rawItem.type === "pick_velocity" ||
+    rawItem.type === "pick_volume" ||
+    rawItem.type === "uph"
+  ) {
     const val = Number(rawItem.value);
     if (Number.isFinite(val)) {
       canonical.performance = canonical.performance || {};
@@ -214,12 +255,18 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
   if (typeof perf.targetProductivity === "number" && Number.isFinite(perf.targetProductivity)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.targetProductivity = Math.max(1, Math.min(300, perf.targetProductivity));
+  } else if (rawItem.type === "expected_volume" || rawItem.type === "target_productivity") {
+    const val = Number(rawItem.value);
+    if (Number.isFinite(val)) {
+      canonical.performance = canonical.performance || {};
+      canonical.performance.targetProductivity = Math.max(1, Math.min(300, val));
+    }
   }
 
   if (typeof perf.accuracy === "number" && Number.isFinite(perf.accuracy)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.accuracy = Math.max(0, Math.min(100, perf.accuracy));
-  } else if (rawItem.type === "accuracy") {
+  } else if (rawItem.type === "accuracy" || rawItem.type === "accuracy_score" || rawItem.category === "quality" || rawItem.category === "accuracy") {
     const val = Number(rawItem.value);
     if (Number.isFinite(val)) {
       canonical.performance = canonical.performance || {};
@@ -230,11 +277,23 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
   if (typeof perf.completedWork === "number" && Number.isFinite(perf.completedWork)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.completedWork = Math.max(0, perf.completedWork);
+  } else if (rawItem.type === "pick_volume" || rawItem.type === "completed_work" || rawItem.type === "orders_completed") {
+    const val = Number(rawItem.value);
+    if (Number.isFinite(val)) {
+      canonical.performance = canonical.performance || {};
+      canonical.performance.completedWork = Math.max(0, val);
+    }
   }
 
   if (typeof perf.timeTaken === "number" && Number.isFinite(perf.timeTaken)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.timeTaken = Math.max(0, perf.timeTaken);
+  } else if (rawItem.type === "time_taken" || rawItem.type === "duration_minutes") {
+    const val = Number(rawItem.value);
+    if (Number.isFinite(val)) {
+      canonical.performance = canonical.performance || {};
+      canonical.performance.timeTaken = Math.max(0, val);
+    }
   }
 
   // 2. Attendance & Shift Status
@@ -247,6 +306,11 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
         ? Math.max(0, Math.min(100, att.shiftCompletion))
         : undefined,
     };
+  } else if (rawItem.category === "attendance" || rawItem.type === "shift_status" || rawItem.type === "attendance_status") {
+    canonical.attendance = {
+      shiftStatus: rawItem.type === "shift_status" ? sanitizeInputText(String(rawItem.value)).sanitizedText : undefined,
+      attendanceStatus: rawItem.type === "attendance_status" ? sanitizeInputText(String(rawItem.value)).sanitizedText : undefined,
+    };
   }
 
   // 3. Capability Progress
@@ -256,6 +320,12 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
       taskProficiency: cap.taskProficiency ? sanitizeInputText(String(cap.taskProficiency)).sanitizedText : undefined,
       trainingStatus: cap.trainingStatus ? sanitizeInputText(String(cap.trainingStatus)).sanitizedText : undefined,
       newTaskExposure: Boolean(cap.newTaskExposure),
+    };
+  } else if (rawItem.category === "learning" || rawItem.type === "task_proficiency" || rawItem.type === "training_status") {
+    canonical.capability = {
+      taskProficiency: rawItem.type === "task_proficiency" ? sanitizeInputText(String(rawItem.value)).sanitizedText : undefined,
+      trainingStatus: rawItem.type === "training_status" ? sanitizeInputText(String(rawItem.value)).sanitizedText : undefined,
+      newTaskExposure: rawItem.type === "new_task_exposure" ? String(rawItem.value).toLowerCase() === "yes" : undefined,
     };
   }
 
@@ -267,6 +337,12 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
         ? Math.max(0, supp.helpRequests)
         : undefined,
       supervisorAssistance: Boolean(supp.supervisorAssistance),
+    };
+  } else if (rawItem.category === "support" || rawItem.type === "help_requests") {
+    const reqVal = Number(rawItem.value);
+    canonical.support = {
+      helpRequests: Number.isFinite(reqVal) ? Math.max(0, reqVal) : undefined,
+      supervisorAssistance: rawItem.type === "supervisor_assistance" ? String(rawItem.value).toLowerCase() === "yes" : undefined,
     };
   }
 
