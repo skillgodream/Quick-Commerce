@@ -32,9 +32,9 @@ import {
   adaptSimulatorToLoopInput,
 } from "./services/simulatorEvidenceService";
 
-const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v3";
-const STORAGE_KEY_DAY = "checkin_checkout_day_v2";
-const STORAGE_KEY_ACTIVE_HIRE = "checkin_checkout_active_hire_v2";
+const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v4";
+const STORAGE_KEY_DAY = "checkin_checkout_day_v4";
+const STORAGE_KEY_ACTIVE_HIRE = "checkin_checkout_active_hire_v4";
 
 export default function App() {
   const [newHires, setNewHires] = useState<NewHire[]>(() => {
@@ -62,7 +62,7 @@ export default function App() {
         }
       }
     } catch (e) {}
-    return 3; // Starts at Day 3 where the MVP scenario pivots
+    return 1; // Starts at Day 1 fresh orientation
   });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("new_hire");
@@ -494,7 +494,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
       localStorage.removeItem("checkin_checkout_onboarding_state");
     } catch (e) {}
     setNewHires(initialCohort);
-    setCurrentDay(3);
+    setCurrentDay(1);
     setActiveHireId("nh-rahul-01");
     setIsOnboarding(true);
     setLearnerSection("home");
