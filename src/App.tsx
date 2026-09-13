@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Header, ActiveTab } from "./components/Header";
 import { NewHireView } from "./components/NewHireView";
 import { ManagerView } from "./components/ManagerView";
@@ -311,6 +311,18 @@ export default function App() {
     );
   };
 
+  const syncedKeysRef = useRef<Set<string>>(new Set());
+
+  // Automatic startup & active learner/day synchronization with Simulator API
+  useEffect(() => {
+    if (!activeHireId || !currentDay) return;
+    const syncKey = `${activeHireId}-day${currentDay}`;
+    if (!syncedKeysRef.current.has(syncKey)) {
+      syncedKeysRef.current.add(syncKey);
+      updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
+    }
+  }, [activeHireId, currentDay]);
+
   // Helper for longitudinal pattern discovery
 const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpdate: any): Promise<{ pattern?: CandidatePattern, historyText: string }> => {
     const hire = newHires.find(h => h.id === hireId);
@@ -455,6 +467,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
 
   // Reset demo to initial state
   const handleResetDemo = () => {
+    syncedKeysRef.current.clear();
     try {
       localStorage.removeItem(STORAGE_KEY_HIRES);
       localStorage.removeItem(STORAGE_KEY_DAY);
