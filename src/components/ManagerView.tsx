@@ -77,9 +77,9 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
   const [isSavingManagerSignal, setIsSavingManagerSignal] = useState(false);
 
   // Work Signal manual inputs
-  const [targetRate, setTargetRate] = useState(currentRecord.workSignal.targetPickRate || 50);
-  const [actualRate, setActualRate] = useState(currentRecord.workSignal.actualPickRate || 35);
-  const [accuracyRate, setAccuracyRate] = useState(currentRecord.workSignal.accuracyRate || 98);
+  const [targetRate, setTargetRate] = useState(currentRecord.workSignal?.targetPickRate ?? 50);
+  const [actualRate, setActualRate] = useState(currentRecord.workSignal?.actualPickRate ?? 0);
+  const [accuracyRate, setAccuracyRate] = useState(currentRecord.workSignal?.accuracyRate ?? 100);
   const [isUpdatingWorkSignal, setIsUpdatingWorkSignal] = useState(false);
 
   // Action Check / Outcome state
@@ -105,9 +105,9 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
           ? "Repeated location searches on multi-aisle grocery orders."
           : "")
     );
-    setTargetRate(currentRecord.workSignal.targetPickRate || 50);
-    setActualRate(currentRecord.workSignal.actualPickRate || 35);
-    setAccuracyRate(currentRecord.workSignal.accuracyRate || 98);
+    setTargetRate(currentRecord.workSignal?.targetPickRate ?? 50);
+    setActualRate(currentRecord.workSignal?.actualPickRate ?? 0);
+    setAccuracyRate(currentRecord.workSignal?.accuracyRate ?? 100);
     setOutcomeStatus(currentRecord.actionOutcome?.improved || "yes");
     setOutcomeNotes(
       currentRecord.actionOutcome?.notes ||
@@ -254,7 +254,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
 
           <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-bold text-slate-300">
             <span>
-              Picks: <strong className="text-cyan-400">{currentRecord.workSignal.actualPickRate}/hr</strong> (Target: {currentRecord.workSignal.targetPickRate})
+              Picks: <strong className="text-cyan-400">{currentRecord.workSignal?.actualPickRate ?? "--"}/hr</strong> {currentRecord.workSignal?.targetPickRate ? `(Target: ${currentRecord.workSignal.targetPickRate})` : ""}
             </span>
             <span className="text-[11px] font-medium text-slate-400">
               Buddy: {activeHire.buddy.split(" ")[0]}
@@ -324,10 +324,10 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
 
                 <div className="mt-2.5 flex items-center justify-between text-[10px] pt-2 border-t border-white/5">
                   <span className={isSelected ? "text-slate-300" : "text-slate-400"}>
-                    {hireRecord?.workSignal?.actualPickRate || 35} picks/hr
+                    {hireRecord?.workSignal?.actualPickRate != null ? `${hireRecord.workSignal.actualPickRate} picks/hr` : "No telemetry"}
                   </span>
                   <span className="text-emerald-400 font-bold">
-                    {hireRecord?.workSignal?.accuracyRate || 98}% Acc
+                    {hireRecord?.workSignal?.accuracyRate != null ? `${hireRecord.workSignal.accuracyRate}% Acc` : "--"}
                   </span>
                 </div>
               </button>
@@ -415,7 +415,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
                 Floor Pace
               </span>
               <span className="text-[11px] text-amber-300 font-bold mt-0.5 block">
-                {currentRecord.workSignal.actualPickRate}/hr (98% Acc)
+                {currentRecord.workSignal?.actualPickRate ? `${currentRecord.workSignal.actualPickRate}/hr (${currentRecord.workSignal.accuracyRate ?? 98}% Acc)` : "No Simulator telemetry"}
               </span>
             </div>
           </button>

@@ -377,11 +377,9 @@ describe("Step 11A — Overall Readiness Consistency Regression Tests", () => {
     // Assert that the different metrics for baseHire (Rahul) are independent
     expect(baseHire.quizAverageScore).toBe(94); // Quiz Average
     expect(baseHire.overallReadinessScore).toBe(35); // Overall Readiness is 35
-    expect(baseHire.daysHistory[0].workSignal?.accuracyRate).toBe(99); // Scan Accuracy is 99%
-    expect(baseHire.daysHistory[0].workSignal?.actualPickRate).toBe(22); // Scan Rate (Pick speed) is 22
+    expect(baseHire.daysHistory[0].workSignal).toBeUndefined(); // Performance telemetry is strictly fetched from Simulator
 
     // Prove that they are distinct values
-    expect(baseHire.overallReadinessScore).not.toBe(baseHire.daysHistory[0].workSignal?.accuracyRate);
     expect(baseHire.overallReadinessScore).not.toBe(baseHire.quizAverageScore);
   });
 

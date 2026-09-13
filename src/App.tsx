@@ -32,7 +32,7 @@ import {
   adaptSimulatorToLoopInput,
 } from "./services/simulatorEvidenceService";
 
-const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v2";
+const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v3";
 const STORAGE_KEY_DAY = "checkin_checkout_day_v2";
 const STORAGE_KEY_ACTIVE_HIRE = "checkin_checkout_active_hire_v2";
 
@@ -146,14 +146,6 @@ export default function App() {
         : {
             dayNumber: dayNum,
             date: `Day ${dayNum}`,
-            workSignal: {
-              dayNumber: dayNum,
-              targetPickRate: 50,
-              actualPickRate: 35,
-              accuracyRate: 98,
-              ordersCompleted: 44,
-              targetOrders: 65,
-            },
             statusAtEnd: currentHire.status,
             statusReason: currentHire.statusReason,
           };
@@ -196,9 +188,18 @@ export default function App() {
           return;
         }
         lastSyncedKeyRef.current = currentSyncFingerprint;
+      } else {
+        // Simulator has NO saved evidence for this employee/day
+        finalLoopInput = adaptSimulatorToLoopInput(baseInput, []);
+        const currentSyncFingerprint = `${hireId}-day${dayNum}-evs:EMPTY`;
+        const isUserSubmission = Boolean(partialUpdate.dailySignal || partialUpdate.managerSignal || partialUpdate.actionOutcome);
+        if (!isUserSubmission && lastSyncedKeyRef.current === currentSyncFingerprint) {
+          return;
+        }
+        lastSyncedKeyRef.current = currentSyncFingerprint;
       }
     } catch (err) {
-      // Fallback to baseInput unchanged if Simulator API fetch fails, times out, or errors
+      finalLoopInput = adaptSimulatorToLoopInput(baseInput, []);
     }
 
     const execution = await executeCoordinationLoopAsync(finalLoopInput, historyText || "");
@@ -261,14 +262,6 @@ export default function App() {
             : {
                 dayNumber: dayNum,
                 date: `Day ${dayNum}`,
-                workSignal: {
-                  dayNumber: dayNum,
-                  targetPickRate: 50,
-                  actualPickRate: 35,
-                  accuracyRate: 98,
-                  ordersCompleted: 44,
-                  targetOrders: 65,
-                },
                 statusAtEnd: hire.status,
                 statusReason: hire.statusReason,
               };

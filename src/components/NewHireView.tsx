@@ -134,14 +134,6 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const currentRecord = newHire.daysHistory.find((d) => d.dayNumber === currentDay) || {
     dayNumber: currentDay,
     date: `Day ${currentDay}`,
-    workSignal: {
-      dayNumber: currentDay,
-      targetPickRate: 50,
-      actualPickRate: 35,
-      accuracyRate: 98,
-      ordersCompleted: 44,
-      targetOrders: 65,
-    },
     statusAtEnd: newHire.status,
     statusReason: newHire.statusReason,
   };

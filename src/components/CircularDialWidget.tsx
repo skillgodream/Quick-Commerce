@@ -26,9 +26,9 @@ interface CircularDialWidgetProps {
 export type DialMode = "speed" | "accuracy" | "readiness";
 
 export const CircularDialWidget: React.FC<CircularDialWidgetProps> = ({
-  pickRate = 35,
+  pickRate,
   targetPickRate = 50,
-  accuracyRate = 98,
+  accuracyRate,
   readinessScore,
   onCallBuddy,
   onScannerFix,
@@ -40,19 +40,26 @@ export const CircularDialWidget: React.FC<CircularDialWidgetProps> = ({
   const [terminalConnected, setTerminalConnected] = useState<boolean>(true);
   const [activeCircleAction, setActiveCircleAction] = useState<string>("gauge");
 
+  const hasSpeedData = pickRate != null;
+  const hasAccuracyData = accuracyRate != null;
+
   // Determine value and max for the dial based on mode
-  let currentValue = pickRate;
+  let currentValue = pickRate ?? 0;
   let targetValue = targetPickRate;
   let unit = isHindi ? "सामान/घंटा" : "picks/hr";
   let modeLabel = isHindi ? "पिक स्पीड" : "Pick Speed";
-  let statusBadge = pickRate >= targetPickRate ? "Target Met" : "Ramping Steady";
+  let statusBadge = hasSpeedData
+    ? ((pickRate ?? 0) >= targetPickRate ? "Target Met" : "Ramping Steady")
+    : (isHindi ? "सिम्युलेटर डाटा की प्रतीक्षा..." : "Awaiting Simulator Evidence");
 
   if (mode === "accuracy") {
-    currentValue = accuracyRate;
+    currentValue = accuracyRate ?? 0;
     targetValue = 100;
     unit = "%";
     modeLabel = isHindi ? "स्कैन एक्यूरेसी" : "Scan Accuracy";
-    statusBadge = accuracyRate >= 95 ? "Excellent (98%)" : "Needs Care";
+    statusBadge = hasAccuracyData
+      ? ((accuracyRate ?? 0) >= 95 ? "Excellent" : "Needs Care")
+      : (isHindi ? "सिम्युलेटर डाटा की प्रतीक्षा..." : "Awaiting Simulator Evidence");
   } else if (mode === "readiness") {
     currentValue = readinessScore ?? 0;
     targetValue = 100;
@@ -276,8 +283,14 @@ export const CircularDialWidget: React.FC<CircularDialWidgetProps> = ({
             className="font-black text-3xl tracking-tight"
             style={{ fontWeight: 900 }}
           >
-            {mode === "readiness" && readinessScore === undefined ? "N/A" : currentValue}
-            {(mode === "accuracy" || (mode === "readiness" && readinessScore !== undefined)) ? "%" : ""}
+            {mode === "speed" && !hasSpeedData
+              ? "--"
+              : mode === "accuracy" && !hasAccuracyData
+              ? "--"
+              : mode === "readiness" && readinessScore === undefined
+              ? "N/A"
+              : currentValue}
+            {(mode === "accuracy" && hasAccuracyData) || (mode === "readiness" && readinessScore !== undefined) ? "%" : ""}
           </text>
           <text
             x="100"

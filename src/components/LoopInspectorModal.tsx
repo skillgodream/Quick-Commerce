@@ -117,15 +117,21 @@ export const LoopInspectorModal: React.FC<LoopInspectorModalProps> = ({
                 <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
                   3. Live Floor Pick Telemetry
                 </span>
-                <div className="text-slate-200 font-medium">
-                  Actual Pace: <strong className="text-cyan-400">{dayRecord?.workSignal?.actualPickRate || 35} /hr</strong> (Target: {dayRecord?.workSignal?.targetPickRate || 50})
-                </div>
-                <div className="text-emerald-400 font-bold text-[11px] mt-0.5">
-                  Scanning Accuracy: {dayRecord?.workSignal?.accuracyRate || 98}%
-                </div>
-                <div className="text-slate-450 text-[10px] mt-0.5">
-                  Help Requests: {dayRecord?.workSignal?.helpRequestsCount ?? 0}
-                </div>
+                {dayRecord?.workSignal ? (
+                  <>
+                    <div className="text-slate-200 font-medium">
+                      Actual Pace: <strong className="text-cyan-400">{dayRecord.workSignal.actualPickRate ?? "--"} /hr</strong> {dayRecord.workSignal.targetPickRate ? `(Target: ${dayRecord.workSignal.targetPickRate})` : ""}
+                    </div>
+                    <div className="text-emerald-400 font-bold text-[11px] mt-0.5">
+                      Scanning Accuracy: {dayRecord.workSignal.accuracyRate ?? "--"}%
+                    </div>
+                    <div className="text-slate-450 text-[10px] mt-0.5">
+                      Help Requests: {dayRecord.workSignal.helpRequestsCount ?? 0}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-slate-400 text-xs italic">No Simulator telemetry for this day</div>
+                )}
               </div>
             </div>
           </div>

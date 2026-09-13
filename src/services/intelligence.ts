@@ -409,8 +409,8 @@ export function deriveLearnerRoadmap(
 ): LearnerRoadmapResult {
   const capabilities = hire.capabilities || {};
   const currentRecord = hire.daysHistory.find((d) => d.dayNumber === currentDay);
-  const currentPickRate = currentRecord?.workSignal?.actualPickRate ?? 35;
-  const accuracy = currentRecord?.workSignal?.accuracyRate ?? 98;
+  const currentPickRate = currentRecord?.workSignal?.actualPickRate ?? 0;
+  const accuracy = currentRecord?.workSignal?.accuracyRate ?? 0;
   const modulesCompleted = hire.modulesCompleted ?? Math.min(10, currentDay);
   const readinessScore = (typeof hire.overallReadinessScore === "number" ? (hire.overallReadinessScore <= 1 ? Math.round(hire.overallReadinessScore * 100) : Math.round(hire.overallReadinessScore)) : 0);
 
@@ -1205,10 +1205,10 @@ export interface DecidedAction {
 export function observe(input: LoopExecutionInput): ObservedSignals {
   const { hire, dailySignal, managerSignal, workSignal, previousRecord, existingAction, actionOutcome, canonicalEvidence } = input;
 
-  const currentPickRate = canonicalEvidence?.performance?.productivity ?? workSignal?.actualPickRate ?? 35;
-  const targetPickRate = canonicalEvidence?.performance?.targetProductivity ?? workSignal?.targetPickRate ?? 50;
-  const accuracy = canonicalEvidence?.performance?.accuracy ?? workSignal?.accuracyRate ?? 98;
-  const speedGap = targetPickRate - currentPickRate;
+  const currentPickRate = canonicalEvidence?.performance?.productivity ?? workSignal?.actualPickRate;
+  const targetPickRate = canonicalEvidence?.performance?.targetProductivity ?? workSignal?.targetPickRate;
+  const accuracy = canonicalEvidence?.performance?.accuracy ?? workSignal?.accuracyRate;
+  const speedGap = (targetPickRate != null && currentPickRate != null) ? targetPickRate - currentPickRate : 0;
 
   const previousPickRate = previousRecord?.workSignal?.actualPickRate;
 
@@ -1241,6 +1241,7 @@ export function observe(input: LoopExecutionInput): ObservedSignals {
     (workerReportsExternalBottleneck ? "facility/conveyor disruption" : undefined);
 
   const hasWorkEvidence =
+    Boolean(canonicalEvidence || workSignal) &&
     workSignal?.hasWorkEvidence !== false &&
     !(workSignal?.ordersCompleted === 0 && (workSignal?.gapIdentified === "No shift orders logged" || (workSignal?.actualPickRate === 0 && workSignal?.accuracyRate === 0)));
 

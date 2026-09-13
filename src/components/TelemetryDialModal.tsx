@@ -23,16 +23,11 @@ export const TelemetryDialModal: React.FC<TelemetryDialModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentRecord = newHire.daysHistory.find((d) => d.dayNumber === currentDay) || {
-    workSignal: { actualPickRate: 35, targetPickRate: 50, accuracyRate: 98 },
-    pickRate: 35,
-    targetPickRate: 50,
-    errorRate: 2,
-  };
+  const currentRecord = newHire.daysHistory.find((d) => d.dayNumber === currentDay) || {};
 
-  const actualPickRate = currentRecord.workSignal?.actualPickRate || currentRecord.pickRate || 35;
-  const targetPickRate = currentRecord.workSignal?.targetPickRate || currentRecord.targetPickRate || 50;
-  const accuracyRate = currentRecord.workSignal?.accuracyRate || 98;
+  const actualPickRate = currentRecord.workSignal?.actualPickRate ?? (currentRecord as any).pickRate;
+  const targetPickRate = currentRecord.workSignal?.targetPickRate ?? (currentRecord as any).targetPickRate;
+  const accuracyRate = currentRecord.workSignal?.accuracyRate;
   const readinessScore = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   return (

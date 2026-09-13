@@ -391,10 +391,38 @@ describe("DEANCORE App Runtime Simulator Automatic Ingestion Integration", () =>
     expect(resSneha.evidence[0].journeyDay).toBe(3);
 
     const inputSneha = adaptSimulatorToLoopInput(snehaBaseInput, resSneha.evidence);
-    expect(inputSneha.workSignal.actualPickRate).toBe(68);
-    expect(inputSneha.workSignal.targetPickRate).toBe(60);
-    expect(inputSneha.workSignal.accuracyRate).toBe(97);
+    expect(inputSneha.workSignal?.actualPickRate).toBe(68);
+    expect(inputSneha.workSignal?.targetPickRate).toBe(60);
+    expect(inputSneha.workSignal?.accuracyRate).toBe(97);
     expect(inputSneha.canonicalEvidence?.support?.helpRequests).toBe(1);
     expect(inputSneha.canonicalEvidence?.support?.supervisorAssistance).toBe(true);
+  });
+
+  it("8. CORE DATA-SOURCE RULE INVARIANT TEST: Delete/Reset returns empty evidence array -> Check-in has NO evidence for that employee/day", async () => {
+    const priyaHire = initialCohort.find((h) => h.id === "nh-priya-02") || initialCohort[1];
+    const priyaBaseInput: LoopExecutionInput = {
+      hire: priyaHire,
+      dayNumber: 4,
+      workSignal: undefined,
+    };
+
+    // Case B & D: Empty evidence returned from Simulator API
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const resReset = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(resReset.success).toBe(true);
+    expect(resReset.evidence.length).toBe(0);
+
+    const inputReset = adaptSimulatorToLoopInput(priyaBaseInput, resReset.evidence);
+    expect(inputReset.workSignal).toBeUndefined();
+    expect(inputReset.canonicalEvidence).toBeUndefined();
+
+    // Verify DEANCORE handles undefined evidence safely without errors
+    const loopResult = await executeCoordinationLoopAsync(inputReset);
+    expect(loopResult).toBeDefined();
+    expect(loopResult.updatedStatus).toBeDefined();
   });
 });

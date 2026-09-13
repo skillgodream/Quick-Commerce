@@ -236,7 +236,8 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
       },
     };
     const adapted = adaptSimulatorToLoopInput(baseInput, undefined);
-    expect(adapted).toEqual(baseInput);
+    expect(adapted.workSignal).toBeUndefined();
+    expect(adapted.canonicalEvidence).toBeUndefined();
   });
 
   it("F. Malformed evidence & Prompt Injection handling: Rejects malformed types and neutralizes prompt injections", () => {

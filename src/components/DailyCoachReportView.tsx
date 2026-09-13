@@ -33,10 +33,10 @@ export const DailyCoachReportView: React.FC<DailyCoachReportViewProps> = ({
     newHire.daysHistory[0];
 
   const workSignal = yesterdayRecord?.workSignal;
-  const yOrders = workSignal?.ordersCompleted ?? 38;
-  const yActualPace = workSignal?.actualPickRate ?? 42;
-  const yTargetPace = workSignal?.targetPickRate ?? 50;
-  const yAccuracy = workSignal?.accuracyRate ?? 98;
+  const yOrders = workSignal?.ordersCompleted;
+  const yActualPace = workSignal?.actualPickRate;
+  const yTargetPace = workSignal?.targetPickRate;
+  const yAccuracy = workSignal?.accuracyRate;
   const yScanAccuracy = yAccuracy;
 
   const readiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);

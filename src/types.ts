@@ -371,7 +371,7 @@ export interface DayRecord {
   date: string;
   dailySignal?: DailySignal;
   managerSignal?: ManagerSignal;
-  workSignal: WorkSignal;
+  workSignal?: WorkSignal;
   identifiedPattern?: IdentifiedPattern;
   recommendedAction?: RecommendedAction;
   actionOutcome?: ActionOutcome;

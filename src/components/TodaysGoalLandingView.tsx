@@ -100,18 +100,11 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   // Live floor performance data
   const currentRecord = (newHire?.daysHistory || []).find((d) => d.dayNumber === currentDay) || {
     dayNumber: currentDay,
-    workSignal: {
-      targetPickRate: 50,
-      actualPickRate: 35,
-      accuracyRate: 98,
-      ordersCompleted: 44,
-      targetOrders: 65,
-    },
   };
 
-  const actualPickRate = currentRecord.workSignal?.actualPickRate ?? 38;
-  const targetPickRate = currentRecord.workSignal?.targetPickRate ?? 50;
-  const accuracyRate = currentRecord.workSignal?.accuracyRate ?? 98;
+  const actualPickRate = currentRecord.workSignal?.actualPickRate;
+  const targetPickRate = currentRecord.workSignal?.targetPickRate;
+  const accuracyRate = currentRecord.workSignal?.accuracyRate;
 
   // Authoritative live career readiness score calculation
   const baseReadiness =
@@ -124,12 +117,12 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   const completedCount = newHire.modulesCompleted ?? 3;
   const totalActivities = 20;
   const quizAvg = newHire.quizAverageScore ?? 94;
-  const ordersCompleted = currentRecord.workSignal?.ordersCompleted ?? 38;
-  const targetOrders = currentRecord.workSignal?.targetOrders ?? 42;
+  const ordersCompleted = currentRecord.workSignal?.ordersCompleted ?? 0;
+  const targetOrders = currentRecord.workSignal?.targetOrders ?? 0;
   const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));
-  const speedScore = Math.min(100, Math.round((actualPickRate / targetPickRate) * 100));
-  const accuracyScore = Math.min(100, Math.round(accuracyRate));
-  const ordersScore = Math.min(100, Math.round((ordersCompleted / targetOrders) * 100));
+  const speedScore = actualPickRate && targetPickRate ? Math.min(100, Math.round((actualPickRate / targetPickRate) * 100)) : 100;
+  const accuracyScore = accuracyRate != null ? Math.min(100, Math.round(accuracyRate)) : 100;
+  const ordersScore = targetOrders > 0 ? Math.min(100, Math.round((ordersCompleted / targetOrders) * 100)) : 100;
   const dailyShiftProgress = Math.round(
     trainingScore * 0.25 + speedScore * 0.30 + accuracyScore * 0.30 + ordersScore * 0.15
   );

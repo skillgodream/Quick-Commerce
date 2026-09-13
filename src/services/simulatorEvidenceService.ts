@@ -1,4 +1,5 @@
 import { CanonicalEvidence, LoopExecutionInput } from "./intelligence";
+import { WorkSignal } from "../types";
 import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard";
 
 /**
@@ -431,27 +432,31 @@ export function adaptSimulatorToLoopInput(
     : [];
 
   if (records.length === 0) {
-    return baseInput;
+    return {
+      ...baseInput,
+      workSignal: undefined,
+      canonicalEvidence: undefined,
+    };
   }
 
-  let mergedCanonical: CanonicalEvidence = {
-    performance: { ...baseInput.canonicalEvidence?.performance },
-    attendance: { ...baseInput.canonicalEvidence?.attendance },
-    capability: { ...baseInput.canonicalEvidence?.capability },
-    support: { ...baseInput.canonicalEvidence?.support },
-    toolSystem: { ...baseInput.canonicalEvidence?.toolSystem },
-    environment: { ...baseInput.canonicalEvidence?.environment },
-    observation: { ...baseInput.canonicalEvidence?.observation },
-    outcome: { ...baseInput.canonicalEvidence?.outcome },
-  };
+  let mergedCanonical: CanonicalEvidence = {};
+  let hasPerformance = false;
 
-  const updatedWorkSignal = { ...baseInput.workSignal };
+  const updatedWorkSignal: WorkSignal = {
+    dayNumber: baseInput.dayNumber,
+    targetPickRate: 50,
+    actualPickRate: 0,
+    accuracyRate: 100,
+    ordersCompleted: 0,
+    targetOrders: 50,
+  };
 
   for (const item of records) {
     if (!item || !item.canonicalEvidence) continue;
     const simCanonical = item.canonicalEvidence;
 
     if (simCanonical.performance) {
+      hasPerformance = true;
       mergedCanonical.performance = {
         ...mergedCanonical.performance,
         ...simCanonical.performance,
@@ -517,9 +522,12 @@ export function adaptSimulatorToLoopInput(
     }
   }
 
+  const finalCanonical = Object.keys(mergedCanonical).length > 0 ? mergedCanonical : undefined;
+  const finalWorkSignal = hasPerformance ? updatedWorkSignal : undefined;
+
   return {
     ...baseInput,
-    workSignal: updatedWorkSignal,
-    canonicalEvidence: mergedCanonical,
+    workSignal: finalWorkSignal,
+    canonicalEvidence: finalCanonical,
   };
 }
