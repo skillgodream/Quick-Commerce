@@ -254,7 +254,7 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     // Authority check: Doctor pipeline output diagnosis and recommendation
     expect(loopResult.pattern).toBeDefined();
     expect(loopResult.action).toBeDefined();
-    expect(loopResult.action.title || loopResult.action.actionTitle || loopResult.action.description).toBeDefined();
+    expect(loopResult.action.title || loopResult.action.description).toBeDefined();
     expect(loopResult.updatedStatus).toBeDefined();
   });
 

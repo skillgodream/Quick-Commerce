@@ -22,11 +22,15 @@ import {
   DayRecord,
   CandidatePattern,
 } from "./types";
-import { executeCoordinationLoop, executeCoordinationLoopAsync, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory } from "./services/intelligence";
+import { executeCoordinationLoop, executeCoordinationLoopAsync, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory, LoopExecutionInput } from "./services/intelligence";
 import {
   GoogleFormFeedPayload,
   adaptGoogleFormFeedRow,
 } from "./services/googleFormFeedAdapter";
+import {
+  fetchSimulatorEvidence,
+  adaptSimulatorToLoopInput,
+} from "./services/simulatorEvidenceService";
 
 const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v2";
 const STORAGE_KEY_DAY = "checkin_checkout_day_v2";
@@ -162,7 +166,7 @@ export default function App() {
 
     const previousRecord = currentHire.daysHistory.find((d) => d.dayNumber === dayNum - 1);
 
-    const execution = await executeCoordinationLoopAsync({
+    const baseInput: LoopExecutionInput = {
       hire: currentHire,
       dayNumber: dayNum,
       dailySignal: mergedRecord.dailySignal,
@@ -172,7 +176,23 @@ export default function App() {
       previousRecord,
       existingAction: mergedRecord.recommendedAction,
       candidatePattern,
-    }, historyText || "");
+    };
+
+    let finalLoopInput = baseInput;
+
+    try {
+      const simRes = await fetchSimulatorEvidence({
+        employeeId: hireId,
+        journeyDay: dayNum,
+      });
+      if (simRes.success && simRes.evidence.length > 0) {
+        finalLoopInput = adaptSimulatorToLoopInput(baseInput, simRes.evidence[0]);
+      }
+    } catch (err) {
+      // Fallback to baseInput unchanged if Simulator API fetch fails, times out, or errors
+    }
+
+    const execution = await executeCoordinationLoopAsync(finalLoopInput, historyText || "");
 
     setNewHires((prevHires) =>
       prevHires.map((hire) => {
