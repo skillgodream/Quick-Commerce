@@ -348,7 +348,10 @@ export async function fetchSimulatorEvidence(
       method: "GET",
       headers: {
         "Accept": "application/json",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
       },
+      cache: "no-store",
       signal: controller.signal,
     });
 

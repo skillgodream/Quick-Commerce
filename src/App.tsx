@@ -176,6 +176,7 @@ export default function App() {
       previousRecord,
       existingAction: mergedRecord.recommendedAction,
       candidatePattern,
+      canonicalEvidence: mergedRecord.canonicalEvidence,
     };
 
     let finalLoopInput = baseInput;
@@ -188,9 +189,9 @@ export default function App() {
       if (simRes.success && simRes.evidence.length > 0) {
         finalLoopInput = adaptSimulatorToLoopInput(baseInput, simRes.evidence[0]);
         const ev = simRes.evidence[0];
-        const evVal = ev.canonicalEvidence?.performance?.productivity ?? ev.value ?? "";
+        const evFingerprint = JSON.stringify(ev.canonicalEvidence || ev);
         const evId = ev.id || ev.evidence_id || ev.evidenceId || "";
-        const currentSyncFingerprint = `${hireId}-day${dayNum}-ev:${evId}:${evVal}`;
+        const currentSyncFingerprint = `${hireId}-day${dayNum}-ev:${evId}:${evFingerprint}`;
         const isUserSubmission = Boolean(partialUpdate.dailySignal || partialUpdate.managerSignal || partialUpdate.actionOutcome);
         if (!isUserSubmission && lastSyncedKeyRef.current === currentSyncFingerprint) {
           return;
@@ -210,6 +211,7 @@ export default function App() {
         const updatedMergedRecord = {
           ...mergedRecord,
           workSignal: finalLoopInput.workSignal,
+          canonicalEvidence: finalLoopInput.canonicalEvidence,
         };
         updatedMergedRecord.identifiedPattern = execution.pattern;
         updatedMergedRecord.recommendedAction = execution.action;
@@ -329,6 +331,22 @@ export default function App() {
   useEffect(() => {
     if (!activeHireId || !currentDay) return;
     updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
+  }, [activeHireId, currentDay]);
+
+  // Refetch when window regains focus or becomes visible (e.g. user returns from Simulator tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeHireId && currentDay) {
+        lastSyncedKeyRef.current = null;
+        updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("visibilitychange", handleFocus);
+    };
   }, [activeHireId, currentDay]);
 
   // Helper for longitudinal pattern discovery

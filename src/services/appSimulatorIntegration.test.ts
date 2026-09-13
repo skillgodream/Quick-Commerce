@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { fetchSimulatorEvidence, adaptSimulatorToLoopInput } from "./simulatorEvidenceService";
 import { executeCoordinationLoop, executeCoordinationLoopAsync, LoopExecutionInput } from "./intelligence";
-import { initialRahul } from "../data/seedData";
+import { initialRahul, initialCohort } from "../data/seedData";
 
 describe("DEANCORE App Runtime Simulator Automatic Ingestion Integration", () => {
   beforeEach(() => {
@@ -221,5 +221,122 @@ describe("DEANCORE App Runtime Simulator Automatic Ingestion Integration", () =>
     const inputC = adaptSimulatorToLoopInput(baseInput, resC.evidence[0]);
     const execC = executeCoordinationLoop(inputC);
     expect(execC.pattern).toBeDefined();
+  });
+
+  it("6. END-TO-END VERIFICATION TEST: Priya Day 4 sequential edits (50 -> 70 -> 99% accuracy) and second employee (Amit Day 2)", async () => {
+    const priyaHire = initialCohort.find((h) => h.id === "nh-priya-02") || initialCohort[1];
+    const priyaBaseInput: LoopExecutionInput = {
+      hire: priyaHire,
+      dayNumber: 4,
+      workSignal: { dayNumber: 4, targetPickRate: 60, actualPickRate: 40, accuracyRate: 95, ordersCompleted: 50, targetOrders: 70 },
+    };
+
+    // A. Save Simulator Day 4 with Productivity = 50
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          employeeId: "EMP-002",
+          journeyDay: 4,
+          performance: { productivity: 50, accuracy: 96 },
+        },
+      ],
+    } as Response);
+
+    const resA = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(resA.success).toBe(true);
+    expect(resA.evidence[0].canonicalEvidence?.performance?.productivity).toBe(50);
+    const inputA = adaptSimulatorToLoopInput(priyaBaseInput, resA.evidence[0]);
+    expect(inputA.workSignal.actualPickRate).toBe(50);
+    const execA = executeCoordinationLoop(inputA);
+    expect(execA.updatedStatus).toBeDefined();
+
+    // B. Change Simulator Day 4: Productivity = 70
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          employeeId: "EMP-002",
+          journeyDay: 4,
+          performance: { productivity: 70, accuracy: 96 },
+        },
+      ],
+    } as Response);
+
+    const resB = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(resB.success).toBe(true);
+    expect(resB.evidence[0].canonicalEvidence?.performance?.productivity).toBe(70);
+    const inputB = adaptSimulatorToLoopInput(priyaBaseInput, resB.evidence[0]);
+    expect(inputB.workSignal.actualPickRate).toBe(70);
+    const execB = executeCoordinationLoop(inputB);
+    expect(execB.updatedStatus).toBeDefined();
+
+    // C. Change Simulator Day 4: Accuracy = 96% to 99%
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          employeeId: "EMP-002",
+          journeyDay: 4,
+          performance: { productivity: 70, accuracy: 99 },
+        },
+      ],
+    } as Response);
+
+    const resC = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(resC.success).toBe(true);
+    expect(resC.evidence[0].canonicalEvidence?.performance?.accuracy).toBe(99);
+    const inputC = adaptSimulatorToLoopInput(priyaBaseInput, resC.evidence[0]);
+    expect(inputC.workSignal.accuracyRate).toBe(99);
+    expect(inputC.workSignal.actualPickRate).toBe(70);
+
+    // D. Refresh both applications - simulate fresh fetch returning latest values
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          employeeId: "EMP-002",
+          journeyDay: 4,
+          performance: { productivity: 70, accuracy: 99 },
+        },
+      ],
+    } as Response);
+
+    const resRefresh = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(resRefresh.evidence[0].canonicalEvidence?.performance?.productivity).toBe(70);
+    expect(resRefresh.evidence[0].canonicalEvidence?.performance?.accuracy).toBe(99);
+
+    // E. Second employee: Amit / EMP-003, Day 2
+    const amitHire = initialCohort.find((h) => h.id === "nh-amit-03") || initialCohort[2];
+    const amitBaseInput: LoopExecutionInput = {
+      hire: amitHire,
+      dayNumber: 2,
+      workSignal: { dayNumber: 2, targetPickRate: 50, actualPickRate: 30, accuracyRate: 90, ordersCompleted: 30, targetOrders: 50 },
+    };
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-amit-d2-prod",
+          employeeId: "EMP-003",
+          journeyDay: 2,
+          performance: { productivity: 65, accuracy: 98 },
+        },
+      ],
+    } as Response);
+
+    const resAmit = await fetchSimulatorEvidence({ employeeId: "nh-amit-03", journeyDay: 2 });
+    expect(resAmit.success).toBe(true);
+    expect(resAmit.evidence[0].employeeId).toBe("nh-amit-03");
+    expect(resAmit.evidence[0].journeyDay).toBe(2);
+    expect(resAmit.evidence[0].canonicalEvidence?.performance?.productivity).toBe(65);
+    const inputAmit = adaptSimulatorToLoopInput(amitBaseInput, resAmit.evidence[0]);
+    expect(inputAmit.workSignal.actualPickRate).toBe(65);
+    expect(inputAmit.workSignal.accuracyRate).toBe(98);
   });
 });

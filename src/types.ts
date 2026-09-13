@@ -1,3 +1,5 @@
+import { CanonicalEvidence } from "./services/intelligence";
+
 export type NewHireStatus = "Doing well" | "Needs attention" | "At risk";
 
 export type SignalCategory =
@@ -375,6 +377,7 @@ export interface DayRecord {
   actionOutcome?: ActionOutcome;
   statusAtEnd: NewHireStatus;
   statusReason: string;
+  canonicalEvidence?: CanonicalEvidence;
 }
 
 export interface ModuleActivity {
