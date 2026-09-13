@@ -21,7 +21,7 @@ export function createDefaultCapabilitiesLedger(): Record<number, CapabilityStat
   return ledger;
 }
 
-function buildRahulLedger(): Record<number, CapabilityState> {
+export function buildRahulLedger(): Record<number, CapabilityState> {
   const ledger = createDefaultCapabilitiesLedger();
   ledger[1] = {
     capabilityId: 1,

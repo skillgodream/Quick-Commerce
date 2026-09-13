@@ -87,7 +87,7 @@ export const JobReadyHumanFigure: React.FC<JobReadyHumanFigureProps> = ({
   ).length;
 
   // Modules completed (out of 10)
-  const modulesCompleted = newHire.modulesCompleted ?? Math.min(10, currentDay);
+  const modulesCompleted = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore ?? 94;
 
   // 4 Core Reference Image Pillars calculated from real intelligence state:

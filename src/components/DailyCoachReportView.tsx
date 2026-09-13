@@ -40,7 +40,7 @@ export const DailyCoachReportView: React.FC<DailyCoachReportViewProps> = ({
   const yScanAccuracy = yAccuracy;
 
   const readiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
-  const completedModules = newHire.modulesCompleted ?? 3;
+  const completedModules = newHire.completedModuleIds?.length ?? 0;
   const totalModules = 5;
 
   const handleAudioSummary = () => {

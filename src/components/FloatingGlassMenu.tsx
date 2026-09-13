@@ -1,15 +1,13 @@
 import React from "react";
+import { LearnerSection } from "../types";
 import {
   Home,
   Columns,
   Clock,
   User,
-  Activity,
   Target,
   Compass
 } from "lucide-react";
-
-export type LearnerSection = "home" | "modules" | "journey" | "dial" | "dashboard" | "buddy" | "control_tower" | "progress" | "learner_dashboard";
 
 interface FloatingGlassMenuProps {
   activeSection: LearnerSection;
@@ -53,13 +51,6 @@ export const FloatingGlassMenu: React.FC<FloatingGlassMenuProps> = ({
       labelHi: "टेलीमेट्री",
       icon: <Clock className="w-5 h-5 stroke-[2]" />,
     },
-    {
-      id: "control_tower",
-      labelEn: "Intelligence",
-      labelHi: "बुद्धिमत्ता",
-      icon: <Activity className="w-5 h-5 stroke-[1.8]" />,
-    },
-
     
     {
       id: "dashboard",

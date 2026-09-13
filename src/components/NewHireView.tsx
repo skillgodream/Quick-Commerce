@@ -8,7 +8,8 @@ import { StoreZonesGrid } from "./StoreZonesGrid";
 import { JobReadyHumanFigure } from "./JobReadyHumanFigure";
 import { ModulesView } from "./ModulesView";
 import { TenDaySkillJourneyView } from "./TenDaySkillJourneyView";
-import { FloatingGlassMenu, LearnerSection } from "./FloatingGlassMenu";
+import { FloatingGlassMenu } from "./FloatingGlassMenu";
+import { LearnerSection } from "../types";
 import { LearningProgressView } from "./LearningProgressView";
 import { LearnerJourneyRoadmap } from "./LearnerJourneyRoadmap";
 import { LearnerDailyReportCard } from "./LearnerDailyReportCard";
@@ -66,6 +67,7 @@ import {
   ArrowDownRight,
   Snowflake,
   Truck,
+  ShieldAlert
 } from "lucide-react";
 
 
@@ -145,7 +147,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const handleToggleLanguage = propOnToggleLanguage || (() => setIsHindi(!isHindi));
 
   const totalModulesCount = MANDATORY_TRAINING_MODULES.length || 10;
-  const completedModulesCount = newHire.completedModuleIds?.length ?? (newHire.modulesCompleted ?? 3);
+  const completedModulesCount = newHire.completedModuleIds?.length ?? 0;
   const courseCompletionPercentage = Math.round((completedModulesCount / totalModulesCount) * 100);
 
   // Automated Yesterday's Shift Metrics & Performance
@@ -217,6 +219,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
 
   // Active quick action modal
   const [activeModal, setActiveModal] = useState<"map" | "buddy" | "scanner" | "target" | "work" | "yesterday_detail" | null>(null);
+  const [isPerformanceExpanded, setIsPerformanceExpanded] = useState<boolean>(false);
   const [buddyAlertSent, setBuddyAlertSent] = useState<boolean>(false);
   const [showTodaysGoalView, setShowTodaysGoalView] = useState<boolean>(false);
   const [showDailyCoachReport, setShowDailyCoachReport] = useState<boolean>(false);
@@ -801,6 +804,37 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               </span>
             </div>
           </div>
+          
+          {/* Not ready / Ready for certification Card in Hero Banner (as per attached design) */}
+          <div 
+            onClick={() => setActiveModal("yesterday_detail")}
+            className="relative z-20 mt-6 mx-3 sm:mx-4 p-3.5 sm:p-4 bg-white rounded-3xl border border-slate-200/90 shadow-sm flex items-center justify-between cursor-pointer hover:border-slate-300 active:scale-[0.99] transition-all"
+          >
+            <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+              <div className={`w-1.5 h-7 sm:h-8 rounded-full shrink-0 ${isCertifiedReady ? "bg-emerald-500" : "bg-[#ff2d55]"}`} />
+              <div className="min-w-0">
+                <h4 className="text-sm sm:text-base font-bold text-slate-950 tracking-tight truncate">
+                  {isCertifiedReady
+                    ? (isHindi ? "प्रमाणन के लिए तैयार" : "Ready for certification")
+                    : (isHindi ? "प्रमाणन के लिए तैयार नहीं" : "Not ready for certification")}
+                </h4>
+                <p className="text-xs sm:text-[13px] text-slate-500 font-normal tracking-tight truncate mt-0.5">
+                  {isHindi 
+                    ? `${blockerCount} सक्रिय रुकावटें · डे ${currentDay}` 
+                    : `${blockerCount} active blocker${blockerCount === 1 ? "" : "s"} · Day ${currentDay}`}
+                </p>
+              </div>
+            </div>
+            <span className={`text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-full border shrink-0 tracking-tight ml-2 ${
+              isCertifiedReady
+                ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                : "text-[#c20d3a] bg-[#ffeef2] border-[#ffccd6]"
+            }`}>
+              {isHindi 
+                ? `${blockerCount} ब्लॉकर्स` 
+                : `${blockerCount} ${blockerCount === 1 ? "blocker" : "blockers"}`}
+            </span>
+          </div>
         </div>
 
         {/* Content Below Banner (add horizontal padding back since we removed it from the wrapper) */}
@@ -915,12 +949,17 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
 
                         {/* Yesterday's Shift Performance */}
         <div className="mb-6 space-y-3 bg-[#e0e0e0] p-4 sm:p-5 rounded-[32px]">
-          <div className="px-1">
+          <button 
+             className="w-full flex items-center justify-between text-left px-1"
+             onClick={() => setIsPerformanceExpanded(!isPerformanceExpanded)}
+          >
             <h3 className="text-[13px] font-black text-slate-800 tracking-wider uppercase">
               {isHindi ? "कल के मेट्रिक्स" : "Yesterday's Metrics"}
             </h3>
-          </div>
+            {isPerformanceExpanded ? <ChevronUp className="w-5 h-5 text-slate-800"/> : <ChevronDown className="w-5 h-5 text-slate-800"/>}
+          </button>
 
+          {isPerformanceExpanded && (
           <div className="grid grid-cols-4 gap-3">
             {[
               {
@@ -996,37 +1035,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               );
             })}
           </div>
-        </div>
-
-        {/* Ready / Not Ready for Certification Card */}
-        <div 
-          onClick={() => setActiveModal("yesterday_detail")}
-          className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs mb-4 flex items-center justify-between cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99] group"
-        >
-          <div className="flex items-center gap-3">
-            <div className={`w-1.5 h-9 rounded-full shrink-0 ${isCertifiedReady ? "bg-emerald-500" : "bg-rose-500"}`} />
-            <div>
-              <h4 className="text-xs font-black text-black tracking-tight group-hover:text-slate-800 transition-colors">
-                {isCertifiedReady
-                  ? (isHindi ? "प्रमाणन के लिए तैयार" : "Ready for certification")
-                  : (isHindi ? "प्रमाणन के लिए तैयार नहीं" : "Not ready for certification")}
-              </h4>
-              <p className="text-[11px] text-slate-500 font-medium tracking-tight mt-0.5">
-                {isCertifiedReady
-                  ? (isHindi ? `सभी 7 मानदंड उत्तीर्ण · ${automatedDate}` : `All 7 criteria cleared · ${automatedDate}`)
-                  : (isHindi ? `${blockerCount} सक्रिय रुकावटें चिन्हित · ${automatedDate}` : `${blockerCount} active blocker${blockerCount === 1 ? "" : "s"} · ${automatedDate}`)}
-              </p>
-            </div>
-          </div>
-          <span className={`ref-num text-xs font-black px-3 py-1 rounded-full border shadow-2xs shrink-0 tracking-tight ${
-            isCertifiedReady
-              ? "text-emerald-700 bg-emerald-50 border-emerald-200/80"
-              : "text-rose-700 bg-rose-50 border-rose-200/80"
-          }`}>
-            {isCertifiedReady
-              ? (isHindi ? "0 ब्लॉकर्स · तैयार" : "0 blockers · Ready")
-              : `${blockerCount} ${isHindi ? "ब्लॉकर्स" : blockerCount === 1 ? "blocker" : "blockers"}`}
-          </span>
+          )}
         </div>
 
         {/* Certification Criteria Checklist (Automated Fetched Data) */}
@@ -1372,7 +1381,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   <span>{isHindi ? "एलएमएस मॉड्यूल" : "LMS Training"}</span>
                 </div>
                 <p className="text-xs text-slate-350 mt-2 font-semibold leading-relaxed">
-                  {newHire.modulesCompleted ?? 3}/10 {isHindi ? "मॉड्यूल पूरे" : "Modules done"}
+                  {(newHire.completedModuleIds?.length ?? 0)}/10 {isHindi ? "मॉड्यूल पूरे" : "Modules done"}
                 </p>
               </div>
               <button
@@ -1611,6 +1620,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             currentDay={currentDay}
             isHindi={isHindi}
             onToggleLanguage={() => setIsHindi(!isHindi)}
+            onSelectSection={(section) => setActiveSection(section)}
           />
 
           {/* DAY 10 COMMERCIAL CERTIFICATION (7 CRITERIA) - 7 EXPANDABLE STEPS */}

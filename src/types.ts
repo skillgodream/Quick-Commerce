@@ -1,6 +1,8 @@
 import { CanonicalEvidence } from "./services/intelligence";
 
 export type NewHireStatus = "Doing well" | "Needs attention" | "At risk";
+export type LearnerSection = "home" | "modules" | "journey" | "dial" | "dashboard" | "buddy" | "control_tower" | "progress" | "learner_dashboard";
+
 
 export type SignalCategory =
   | "Environment"

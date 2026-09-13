@@ -44,12 +44,12 @@ export const LearnerJourneyRoadmap: React.FC<LearnerJourneyRoadmapProps> = ({
   // Evaluate Handover Readiness based on authoritative intelligence & overall job readiness principles
   const isHandoverReady =
     readinessScore >= 85 &&
-    (newHire.modulesCompleted ?? 0) >= 8 &&
+    (newHire.completedModuleIds?.length ?? 0) >= 8 &&
     newHire.status === "Doing well" &&
     currentStageIndex === 5;
 
   const handoverBlocker = !isHandoverReady
-    ? (newHire.modulesCompleted ?? 0) < 3
+    ? (newHire.completedModuleIds?.length ?? 0) < 3
       ? isHindi
         ? "अनिवार्य सुरक्षा ट्रेनिंग अधूरी है"
         : "Mandatory training incomplete"

@@ -14,13 +14,14 @@ import {
   Bookmark,
   Hash
 } from "lucide-react";
-import { NewHire } from "../types";
+import { NewHire, LearnerSection } from "../types";
 
 interface DashboardHeaderProps {
   newHire: NewHire;
   currentDay: number;
   isHindi?: boolean;
   onToggleLanguage?: () => void;
+  onSelectSection: (section: LearnerSection) => void;
 }
 
 interface PillarDetail {
@@ -54,11 +55,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   currentDay,
   isHindi = false,
   onToggleLanguage,
+  onSelectSection,
 }) => {
   const [activePillar, setActivePillar] = useState<PillarDetail | null>(null);
 
   const firstName = (newHire.name || "Amit").split(" ")[0];
-  const modulesDone = newHire.modulesCompleted ?? Math.min(10, currentDay);
+  const modulesDone = newHire.completedModuleIds?.length ?? 0;
 
   // 4 pillars with rich contextual data
   const pillars: PillarDetail[] = [
@@ -242,9 +244,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </div>
 
             {/* Right side: 22% circular progress ring */}
-            <div
+            <button
               id="dashboard-22-percent-circle"
-              className="relative w-[60px] h-[60px] shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100"
+              onClick={() => onSelectSection("control_tower")}
+              className="relative w-[60px] h-[60px] shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 hover:scale-105 transition-transform cursor-pointer"
             >
               <svg
                 className="absolute inset-0 w-full h-full -rotate-90 transform"
@@ -266,7 +269,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               <span className="text-[13px] font-black text-[#1c1c1c] tracking-tight z-10">
                 22%
               </span>
-            </div>
+            </button>
           </div>
 
           {/* Bottom row: 4 interactive circular pillar icons */}

@@ -67,7 +67,7 @@ export const YesterdayShiftDetailModal: React.FC<YesterdayShiftDetailModalProps>
 
   // LMS modules snapshot
   const totalModules = 10;
-  const completedCount = newHire.modulesCompleted ?? 3;
+  const completedCount = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore ?? 94;
 
   const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));

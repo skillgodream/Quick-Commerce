@@ -6,10 +6,15 @@ import {
   assessReadiness,
 } from "./intelligence";
 import { adaptGoogleFormFeedRow, DEMO_FEED_PRESETS } from "./googleFormFeedAdapter";
-import { initialRahul, initialCohort } from "../data/seedData";
+import { initialRahul, initialCohort, buildRahulLedger } from "../data/seedData";
 
 describe("Step 4 — Prove Six Doctors Across Real Conditions", () => {
-  const baseHire = initialRahul; // Rahul Sharma, Day 3
+  const baseHire = {
+    ...initialRahul,
+    quizAverageScore: 94,
+    overallReadinessScore: 35,
+    capabilities: buildRahulLedger(),
+  }; // Rahul Sharma test baseline
 
   it("Scenario 1: Navigation / Spatial Capability Problem", () => {
     const preset = DEMO_FEED_PRESETS.find((p) => p.id === "scenario-1-navigation")!;

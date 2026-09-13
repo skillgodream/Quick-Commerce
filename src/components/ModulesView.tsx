@@ -68,8 +68,9 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<"all" | "foundation" | "floor" | "cert">("all");
   const [activeCapabilityModal, setActiveCapabilityModal] = useState<number | null>(null);
+  const completedTrainingCount = newHire.completedModuleIds?.length ?? 0;
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(
-    initialModuleId || `lms-mod-0${Math.min(10, Math.max(1, (newHire.modulesCompleted || 3) + 1))}`
+    initialModuleId || `lms-mod-0${Math.min(10, Math.max(1, completedTrainingCount + 1))}`
   );
   const [activeDetailModule, setActiveDetailModule] = useState<TrainingModule | null>(
     initialModuleId ? MANDATORY_TRAINING_MODULES.find((m) => m.id === initialModuleId) || null : null
@@ -89,6 +90,8 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
     {
       id: "basics",
       icon: ShieldCheck,
+      iconColor: "text-sky-500",
+      activeRing: "ring-sky-400",
       titleHindi: "बुनियादी बातें और सुरक्षा",
       titleEnglish: "Basics & Safety",
       subtitleHindi: "नेविगेशन और सुरक्षा",
@@ -99,6 +102,8 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
     {
       id: "accuracy",
       icon: PackageCheck,
+      iconColor: "text-indigo-600",
+      activeRing: "ring-indigo-400",
       titleHindi: "सटीकता और हैंडलिंग",
       titleEnglish: "Accuracy & Product Handling",
       subtitleHindi: "सही आइटम और पैकिंग",
@@ -109,6 +114,8 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
     {
       id: "exceptions",
       icon: AlertTriangle,
+      iconColor: "text-amber-500",
+      activeRing: "ring-amber-400",
       titleHindi: "फ्लोर अपवाद",
       titleEnglish: "Floor Exceptions",
       subtitleHindi: "समस्या का समाधान",
@@ -119,6 +126,8 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
     {
       id: "flow",
       icon: Zap,
+      iconColor: "text-purple-600",
+      activeRing: "ring-purple-400",
       titleHindi: "गति और पूर्णता",
       titleEnglish: "Flow & Completion",
       subtitleHindi: "तेजी और डिस्पैच",
@@ -128,15 +137,15 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
     },
   ];
 
-  const modulesCompletedCount = newHire.modulesCompleted ?? 3;
+  const modulesCompletedCount = newHire.completedModuleIds?.length ?? 0;
   const capabilities = newHire.capabilities || DARK_STORE_CAPABILITIES;
   const overallReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
-  const completedIds = newHire.completedModuleIds || [
-    "lms-mod-01",
-    "lms-mod-02",
-    "lms-mod-03",
-  ];
+  const completedIds = newHire.completedModuleIds || [];
   const quizAvg = newHire.quizAverageScore ?? 94;
+
+  const readinessEval = (newHire.day10Evaluation || { isCommercialReady: false, isReady: false, reasons: [], unresolvedBlockers: [], criteria: {} });
+  const blockerCount = readinessEval.unresolvedBlockers?.length ?? 0;
+  const isCertifiedReady = readinessEval.isReady || (readinessEval.isCommercialReady && blockerCount === 0);
 
   const handleCompleteActivity = (modId: string, actId: string) => {
     // If the learner completes the assessment/final activity, unlock/complete the module
@@ -285,10 +294,10 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
   };
 
   const getCapabilityStatusColor = (statusStr: string | null) => {
-    if (statusStr === "Strong" || statusStr === "मजबूत") return "text-emerald-400";
-    if (statusStr === "Good" || statusStr === "अच्छा") return "text-emerald-300";
-    if (statusStr === "Needs practice" || statusStr === "अभ्यास की आवश्यकता है") return "text-amber-400";
-    return "text-pink-400"; // Developing
+    if (statusStr === "Strong" || statusStr === "मजबूत") return "text-emerald-700";
+    if (statusStr === "Good" || statusStr === "अच्छा") return "text-emerald-600";
+    if (statusStr === "Needs practice" || statusStr === "अभ्यास की आवश्यकता है") return "text-amber-700";
+    return "text-teal-700"; // Developing
   };
 
   const getCapabilityProgressText = (capId: number) => {
@@ -357,7 +366,7 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
             <div className="flex-1 min-w-0 space-y-3">
               <div className="space-y-1">
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm leading-tight">
-                  {isHindi ? "कोर्स पूर्णता" : "Course Completion"}
+                  {isHindi ? "प्रशिक्षण मॉड्यूल" : "Training Modules"}
                 </h2>
               </div>
 
@@ -419,23 +428,37 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
       {/* YOUR CURRENT FOCUS (TARGET CAPABILITY)                      */}
       {/* ========================================================= */}
       {targetCapDef && (
-        <div className="bg-[#161820] border border-white/[0.08] rounded-2xl p-3.5 sm:p-4 shadow-lg flex items-center justify-between gap-3 text-white mb-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-[#0f1117] text-cyan-400 border border-white/[0.08] flex items-center justify-center shrink-0 shadow-xs">
-              <Zap className="w-5 h-5 stroke-[1.6]" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-medium text-slate-300 uppercase tracking-wider">
-                  {isHindi ? "आपका वर्तमान ध्यान" : "Your Current Focus"}
-                </h4>
+        <div 
+          onClick={() => setActiveCapabilityModal(targetCapDef.id)}
+          className="relative overflow-hidden rounded-2xl p-4 transition-all duration-300 cursor-pointer select-none bg-white/70 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] hover:bg-white/85 hover:border-white active:scale-[0.99] text-slate-900 mb-3 group"
+        >
+          {/* Apple glass top specular sheen */}
+          <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/10 to-transparent pointer-events-none rounded-2xl" />
+          <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-cyan-500/15 transition-colors" />
+
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-cyan-50/90 backdrop-blur-md text-cyan-600 border border-cyan-200/70 flex items-center justify-center shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_2px_6px_rgba(6,182,212,0.12)]">
+                <Zap className="w-5 h-5 stroke-[2] text-cyan-600 drop-shadow-xs" />
               </div>
-              <p className="text-[14px] text-cyan-300 font-medium truncate mt-0.5">
-                {targetCapDef.name}
-              </p>
-              <p className="text-xs text-slate-400 font-normal truncate mt-0.5">
-                {isHindi ? "अनुशंसित अभ्यास जारी रखें।" : "Continue the recommended practice."}
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    {isHindi ? "आपका वर्तमान ध्यान" : "Your Current Focus"}
+                  </h4>
+                </div>
+                <p className="text-[15px] text-slate-900 font-extrabold truncate mt-0.5">
+                  {targetCapDef.name}
+                </p>
+                <p className="text-xs text-slate-600 font-medium truncate mt-0.5">
+                  {isHindi ? "अनुशंसित अभ्यास जारी रखें।" : "Continue the recommended practice."}
+                </p>
+              </div>
+            </div>
+            <div className="text-slate-500 group-hover:text-slate-900 transition-colors shrink-0 pr-1">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-900/5 hover:bg-slate-900/10 border border-slate-900/10 text-slate-700">
+                {isHindi ? "देखें" : "View"} →
+              </span>
             </div>
           </div>
         </div>
@@ -447,28 +470,18 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
       <div className="flex flex-col gap-3 pb-8 mt-3">
         <div className="flex items-center justify-between px-1 mb-0.5">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400 stroke-[1.6]" />
-            <h3 className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-cyan-600 stroke-[1.8]" />
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               {isHindi ? "सीखने के मेट्रिक्स" : "Learning Metrics"}
             </h3>
           </div>
-          <span className="text-[11px] font-normal text-slate-400">
+          <span className="text-[11px] font-semibold text-slate-500">
             {isHindi ? "4 श्रेणियां • 19 कौशल" : "4 Categories • 19 Capabilities"}
           </span>
         </div>
 
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-2 flex gap-3 items-start">
-          <BookOpen className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-300 leading-relaxed font-medium">
-            {isHindi 
-              ? "प्रशिक्षण पूरा करने का अर्थ स्वतः ही क्षमता प्रमाणित होना नहीं है। इस पृष्ठ पर दिखाया गया प्रशिक्षण कौशल निर्माण का समर्थन करता है, लेकिन वास्तविक क्षमता की पुष्टि डीन द्वारा फ्लोर के प्रदर्शन से की जाती है।"
-              : "Training completion does not automatically equal demonstrated capability. The modules here support skill building, but actual capability is verified by Dean on the floor."}
-          </p>
-        </div>
-
-        {/* 4 COMPACT CARDS IN 4-GRID PLACEMENT (NO TEXT, SLEEK ICONS) */}
-        {/* 4 COMPACT CARDS IN 4-GRID PLACEMENT (NO TEXT, SLEEK ICONS) */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-3 my-1">
+        {/* 4 COMPACT CARDS IN 4-GRID PLACEMENT (WHITE NEUMORPHIC, VIBRANT COLORED ICONS) */}
+        <div className="grid grid-cols-4 gap-2.5 sm:gap-3.5 my-1.5">
           {SKILL_CATEGORIES.map((cat) => {
             const isSelected = selectedSkillCategory === cat.id;
             const IconComponent = cat.icon;
@@ -479,10 +492,10 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                 type="button"
                 onClick={() => setSelectedSkillCategory(cat.id)}
                 title={isHindi ? `${cat.titleHindi} - ${cat.subtitleHindi}` : `${cat.titleEnglish} - ${cat.subtitleEnglish}`}
-                className={`relative aspect-square rounded-2xl sm:rounded-[22px] flex items-center justify-center transition-all duration-200 cursor-pointer select-none active:scale-95 shadow-sm ${
+                className={`relative aspect-square rounded-2xl sm:rounded-[22px] flex items-center justify-center transition-all duration-200 cursor-pointer select-none active:scale-95 bg-white ${
                   isSelected
-                    ? "bg-gradient-to-b from-[#00d2ff] via-[#00aaff] to-[#0072ff] text-slate-950 shadow-cyan-500/25 ring-2 ring-cyan-300/60 scale-[1.02]"
-                    : "bg-[#181a22] hover:bg-[#20232c] border border-white/[0.08] text-white hover:border-white/20"
+                    ? `shadow-[inset_3px_3px_6px_rgba(0,0,0,0.08),inset_-3px_-3px_6px_rgba(255,255,255,0.95)] border border-slate-200/90 ring-2 ${cat.activeRing} ring-offset-2 ring-offset-[#f8fafc] scale-[1.02]`
+                    : "shadow-[5px_5px_12px_rgba(0,0,0,0.06),-4px_-4px_10px_rgba(255,255,255,0.95),0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[7px_7px_15px_rgba(0,0,0,0.09),-5px_-5px_13px_rgba(255,255,255,1)] border border-slate-100 hover:border-slate-200/80"
                 }`}
               >
                 {/* Red alert dot if specified */}
@@ -490,10 +503,12 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                   <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#ef4444] shadow-[0_0_6px_#ef4444]" />
                 )}
 
-                {/* Centered Sleek Icon Only (Generous size, elegant stroke) */}
+                {/* Centered Sleek Icon Only (Generous size, elegant stroke, category color) */}
                 <IconComponent
-                  className={`w-8 h-8 sm:w-8.5 sm:h-8.5 transition-transform ${
-                    isSelected ? "text-slate-950 stroke-[1.6] scale-105" : "text-white/95 stroke-[1.5]"
+                  className={`w-8 h-8 sm:w-8.5 sm:h-8.5 transition-all duration-200 ${cat.iconColor} ${
+                    isSelected
+                      ? "stroke-[2.2] scale-110 drop-shadow-xs"
+                      : "stroke-[1.8] opacity-85 hover:opacity-100"
                   }`}
                 />
               </button>
@@ -514,8 +529,8 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
               <div className="h-4 my-1" aria-hidden="true" />
               
               {selectedSkillCategory === "exceptions" && (
-                <div className="mb-4 p-3 bg-[#1a1d27] border border-slate-700/50 rounded-xl">
-                  <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                <div className="mb-4 p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
+                  <p className="text-xs text-emerald-200 leading-relaxed font-medium">
                     {isHindi 
                       ? "अभी तक कोई समर्पित प्रशिक्षण मॉड्यूल नहीं है — ये कौशल फ्लोर पर सीखे और प्रदर्शित किए जाते हैं।"
                       : "No dedicated training module yet — these skills are learned and demonstrated on the floor."}
@@ -533,19 +548,19 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                   <div
                     key={cap.id}
                     onClick={() => setActiveCapabilityModal(cap.id)}
-                    className="w-full flex flex-col gap-2 p-3.5 sm:p-4 transition-all duration-200 cursor-pointer select-none bg-[#14161f] border border-white/[0.07] rounded-2xl hover:border-cyan-400/30 shadow-xs"
+                    className="w-full flex flex-col gap-2 p-3.5 sm:p-4 transition-all duration-200 cursor-pointer select-none bg-[#ecfdf5] border border-[#a7f3d0] rounded-2xl sm:rounded-[22px] hover:border-[#6ee7b7] shadow-[0_2px_8px_rgba(16,185,129,0.06)] hover:shadow-md"
                   >
                     <div className="flex items-start justify-between w-full">
                       <div className="flex flex-col">
-                        <h3 className="text-[14px] sm:text-[15px] font-medium text-slate-100 leading-snug tracking-normal">
+                        <h3 className="text-[14px] sm:text-[15px] font-bold text-[#064e3b] leading-snug tracking-normal">
                           {cap.name}
                         </h3>
                         {statusStr ? (
-                          <span className={`text-[11px] font-medium mt-1 ${statusColor}`}>
+                          <span className={`text-[11px] font-semibold mt-0.5 ${statusColor}`}>
                             {statusStr}
                           </span>
                         ) : (
-                          <span className="text-[11px] font-normal mt-1 text-slate-400">
+                          <span className="text-[11px] font-medium mt-0.5 text-emerald-700/70">
                             {isHindi ? "शुरू नहीं हुआ" : "Not started"}
                           </span>
                         )}
@@ -554,14 +569,14 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                     
                     <div className="mt-1.5 flex items-center justify-between">
                       <div className="flex-1 mr-4">
-                        <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden">
+                        <div className="h-1.5 w-full bg-emerald-200/60 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-500" 
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500" 
                             style={{ width: totalAct > 0 ? `${(compAct / totalAct) * 100}%` : '0%' }}
                           />
                         </div>
                       </div>
-                      <span className="text-[11px] font-normal text-slate-400 tracking-wide shrink-0">
+                      <span className="text-[11px] font-medium text-emerald-800/80 tracking-wide shrink-0">
                         {progText}
                       </span>
                     </div>
@@ -773,7 +788,7 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 
               {activeDetailModule.activities.map((act) => {
                 const isModCompleted = completedIds.includes(activeDetailModule.id);
-                const isActCompleted = isModCompleted || act.completed;
+                const isActCompleted = isModCompleted;
                 const isModLocked =
                   !isModCompleted &&
                   checkDeanModuleGate(activeDetailModule, newHire).isGated;

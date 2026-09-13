@@ -55,7 +55,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
   const targetOrders = prevWork?.targetOrders ?? (isFirstDay ? 20 : 42);
 
   // 3. Four-Pillar Weighted Model Calculation
-  const completedCount = newHire.modulesCompleted ?? 3;
+  const completedCount = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore ?? 94;
 
   const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));

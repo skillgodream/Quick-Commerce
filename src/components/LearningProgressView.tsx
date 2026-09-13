@@ -92,6 +92,13 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
 
   return (
     <div className="max-w-md mx-auto p-4 pb-32 space-y-6 bg-[#f8fafc] min-h-screen">
+      <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+        <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">
+          My Status
+        </h2>
+        <div className="text-xl font-bold text-slate-900">{newHire.statusLabel}</div>
+      </div>
+
       <div className="space-y-2">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Learning Progress</h1>
         <p className="text-sm font-medium text-slate-600 leading-snug">
@@ -254,7 +261,7 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
         <div className="bg-white/60 p-3 rounded-xl border border-emerald-100">
           <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Current Readiness State</div>
           <div className="text-sm font-black text-emerald-900">
-            {newHire.overallReadinessScore !== undefined ? `${newHire.overallReadinessScore}% Evaluated Readiness` : "In Progress"}
+            {newHire.overallReadinessScore !== undefined ? `${(typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0)}% Evaluated Readiness` : "In Progress"}
           </div>
           <div className="text-xs font-semibold text-emerald-700 mt-1">{newHire.status}</div>
         </div>
@@ -267,7 +274,7 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
         </h2>
         <div className="flex items-center justify-between mb-4">
           <div className="text-xs font-semibold text-slate-600">Modules Completed</div>
-          <div className="text-sm font-black text-slate-900">{newHire.modulesCompleted || 0} / 10</div>
+          <div className="text-sm font-black text-slate-900">{newHire.completedModuleIds?.length ?? 0} / 10</div>
         </div>
         {newHire.quizAverageScore !== undefined && (
           <div className="flex items-center justify-between">

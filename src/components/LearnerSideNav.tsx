@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, Compass, Target, Menu } from "lucide-react";
-import { LearnerSection } from "./FloatingGlassMenu";
+import { LearnerSection } from "../types";
 
 interface LearnerSideNavProps {
   activeSection: LearnerSection;
@@ -23,16 +23,6 @@ export const LearnerSideNav: React.FC<LearnerSideNavProps> = ({
           isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-50 translate-y-10 pointer-events-none'
         )}
       >
-        <button
-          onClick={() => { onSelectSection("learner_dashboard"); setIsOpen(false); }}
-          className={"w-12 h-12 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.15)] border flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 " + (
-            activeSection === "learner_dashboard" ? "bg-indigo-600 text-white border-indigo-700" : "bg-white text-indigo-600 border-slate-200"
-          )}
-          title={isHindi ? "मेरी स्थिति" : "My Status"}
-        >
-          <Compass className="w-5 h-5 mb-0.5" />
-          <span className="text-[8px] font-bold leading-none">{isHindi ? "स्थिति" : "Status"}</span>
-        </button>
         <button
           onClick={() => { onSelectSection("progress"); setIsOpen(false); }}
           className={"w-12 h-12 rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.15)] border flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 " + (

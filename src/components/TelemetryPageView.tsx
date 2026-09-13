@@ -11,7 +11,7 @@ import {
   User,
   ArrowLeftRight, CheckCircle2, Check,
 } from "lucide-react";
-import { LearnerSection } from "./FloatingGlassMenu";
+import { LearnerSection } from "../types";
 
 interface TelemetryPageViewProps {
   onBack?: () => void;

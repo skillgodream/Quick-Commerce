@@ -10,7 +10,7 @@ import { GoogleFormFeedModal } from "./components/GoogleFormFeedModal";
 import { ClientDemoModal } from "./components/ClientDemoModal";
 import { ChatBotPullout } from "./components/ChatBotPullout";
 import { SplashScreen } from "./components/SplashScreen";
-import { LearnerSection } from "./components/FloatingGlassMenu";
+import { LearnerSection } from "./types";
 import { LearnerSideNav } from "./components/LearnerSideNav";
 import { initialCohort, initialOrgSummary } from "./data/seedData";
 import {

@@ -112,7 +112,7 @@ export interface LoopExecutionInput {
   dayNumber: number;
   dailySignal?: DailySignal;
   managerSignal?: ManagerSignal;
-  workSignal: WorkSignal;
+  workSignal?: WorkSignal;
   actionOutcome?: ActionOutcome;
   previousRecord?: DayRecord;
   existingAction?: RecommendedAction;
@@ -411,7 +411,7 @@ export function deriveLearnerRoadmap(
   const currentRecord = hire.daysHistory.find((d) => d.dayNumber === currentDay);
   const currentPickRate = currentRecord?.workSignal?.actualPickRate ?? 0;
   const accuracy = currentRecord?.workSignal?.accuracyRate ?? 0;
-  const modulesCompleted = hire.modulesCompleted ?? Math.min(10, currentDay);
+  const modulesCompleted = hire.completedModuleIds?.length ?? 0;
   const readinessScore = (typeof hire.overallReadinessScore === "number" ? (hire.overallReadinessScore <= 1 ? Math.round(hire.overallReadinessScore * 100) : Math.round(hire.overallReadinessScore)) : 0);
 
   const demonstratedCount = (Object.values(capabilities) as CapabilityState[]).filter(
@@ -619,7 +619,7 @@ export function extractAndSelectPreviousDaySnapshot(
     (prevWork.ordersCompleted > 0 || prevWork.actualPickRate > 0)
   );
 
-  const modulesCompleted = newHire.modulesCompleted ?? 0;
+  const modulesCompleted = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore;
   const hasQuizGap = quizAvg !== undefined && quizAvg < 70;
   const isTrainingIncomplete = modulesCompleted < 3; // Foundation modules incomplete
@@ -1705,7 +1705,7 @@ function understandInternal(
 
     const cap3State = capabilities[3];
     const exposureNote =
-      hire.modulesCompleted === 10 || cap3State?.exposure === "exposed"
+      (hire.completedModuleIds?.length ?? 0) === 10 || cap3State?.exposure === "exposed"
         ? "Worker completed mandatory training modules (10/10), but real-world floor navigation is lagging. Module exposure does NOT equal floor mastery."
         : "Initial floor navigation in high-density aisles requires spatial familiarization.";
 
@@ -1722,9 +1722,9 @@ function understandInternal(
   // 9. General pacing / floor route practice
   if (
     isPacingIssue ||
-    (observed.speedGap >= 5 && (observed.managerObservesSupport || observed.managerObservesSpeed || hire.modulesCompleted === 10 || canonicalEvidence?.capability?.taskProficiency === "improving"))
+    (observed.speedGap >= 5 && (observed.managerObservesSupport || observed.managerObservesSpeed || (hire.completedModuleIds?.length ?? 0) === 10 || canonicalEvidence?.capability?.taskProficiency === "improving"))
   ) {
-    const modulePrefix = hire.modulesCompleted === 10
+    const modulePrefix = (hire.completedModuleIds?.length ?? 0) === 10
       ? "Training modules (10/10) are 100% complete, but real-world floor readiness is not yet demonstrated. "
       : "";
 
@@ -2068,7 +2068,7 @@ function chooseNextActionInternal(
     };
   }
 
-  const isTrainingFoundationComplete = (hire.modulesCompleted ?? 10) >= 3;
+  const isTrainingFoundationComplete = (hire.completedModuleIds?.length ?? 0) >= 3;
   if (isTrainingFoundationComplete && currentPickRate >= targetPickRate + 10 && accuracy >= 98 && (hire.currentCapabilityId || 1) < 8) {
     const advancedCap = DARK_STORE_CAPABILITIES.find((c) => c.id === 8) || DARK_STORE_CAPABILITIES[7];
     return {
@@ -2769,7 +2769,7 @@ export function evaluateDay10Outcome(
     (c) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")
   ).length;
 
-  const modulesCompleted = hire.modulesCompleted ?? 10;
+  const modulesCompleted = hire.completedModuleIds?.length ?? 0;
   const pickRate = currentWork.actualPickRate;
   const targetPickRate = currentWork.targetPickRate || 50;
   const accuracy = currentWork.accuracyRate;

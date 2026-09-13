@@ -215,7 +215,7 @@ export const TenDaySkillJourneyView: React.FC<TenDaySkillJourneyViewProps> = ({
 }) => {
   const activeHire = newHires.find((h) => h.id === activeHireId) || newHires[0];
   const learnerDay = activeHire.currentDay;
-  const modulesCompleted = activeHire.modulesCompleted ?? 3;
+  const modulesCompleted = activeHire.completedModuleIds?.length ?? 0;
   const isBehind = activeHire.status === "At risk" || activeHire.status === "Needs attention" || modulesCompleted < learnerDay - 1;
 
   // Authoritative Overall Job Readiness calculation

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { NewHire, TrainingModule, DayRecord, DARK_STORE_CAPABILITIES } from "../types";
 import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
-import { LearnerSection } from "./FloatingGlassMenu";
+import { LearnerSection } from "../types";
 import { CoordinateNavigationModuleView } from "./CoordinateNavigationModuleView";
 
 interface TodaysGoalLandingViewProps {
@@ -114,7 +114,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   const liveReadinessPct = baseReadiness;
 
   // Today's shift performance / daily progress score matching Home page
-  const completedCount = newHire.modulesCompleted ?? 3;
+  const completedCount = newHire.completedModuleIds?.length ?? 0;
   const totalActivities = 20;
   const quizAvg = newHire.quizAverageScore ?? 94;
   const ordersCompleted = currentRecord.workSignal?.ordersCompleted ?? 0;
@@ -481,11 +481,11 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 <div className="my-1.5 py-0.5 flex items-center justify-center">
                   <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    {Math.round(actualPickRate)}
+                    {actualPickRate != null && !Number.isNaN(actualPickRate) ? Math.round(actualPickRate) : 0}
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-blue-600 truncate w-full">
-                  /{Math.round(targetPickRate)} P/H
+                  /{targetPickRate != null && !Number.isNaN(targetPickRate) ? Math.round(targetPickRate) : 25} P/H
                 </span>
               </div>
 
@@ -496,7 +496,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 <div className="my-1.5 py-0.5 flex items-center justify-center">
                   <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    {Math.round(accuracyRate)}%
+                    {accuracyRate != null && !Number.isNaN(accuracyRate) ? Math.round(accuracyRate) : 100}%
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 truncate w-full">

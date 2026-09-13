@@ -62,7 +62,7 @@ export const CommercialCertificationCard: React.FC<CommercialCertificationCardPr
   const workerFirstName = (newHire.name || "Worker").split(" ")[0];
 
   // Dynamic values based on newHire or fallback to screenshot baseline
-  const modulesDone = newHire.modulesCompleted ?? 4;
+  const modulesDone = newHire.completedModuleIds?.length ?? 0;
   const capabilities = newHire.capabilities || {};
   const demonstratedCount = Object.values(capabilities).filter(
     (c: any) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")
