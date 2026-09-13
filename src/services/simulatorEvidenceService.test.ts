@@ -3,6 +3,7 @@ import {
   getSimulatorEndpoint,
   DEFAULT_SIMULATOR_API_URL,
   mapToCanonicalEmployeeId,
+  mapToSimulatorEmployeeId,
   validateAndSanitizeEvidenceRecord,
   isDuplicateEvidence,
   markEvidenceProcessed,
@@ -113,7 +114,133 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     const calledUrl = fetchSpy.mock.calls[0][0] as string;
     expect(calledUrl).toContain("since_timestamp=2026-09-12T00%3A00%3A00Z");
     expect(calledUrl).toContain("limit=10");
-    expect(calledUrl).toContain("employeeId=nh-rahul-01");
+    expect(calledUrl).toContain("employeeId=EMP-001");
+  });
+
+  it("E1. Outbound Employee ID Mapping: Maps check-in canonical IDs to Simulator API IDs in outbound requests", () => {
+    expect(mapToSimulatorEmployeeId("nh-rahul-01")).toBe("EMP-001");
+    expect(mapToSimulatorEmployeeId("nh-priya-02")).toBe("EMP-002");
+    expect(mapToSimulatorEmployeeId("nh-amit-03")).toBe("EMP-003");
+    expect(mapToSimulatorEmployeeId("nh-sneha-04")).toBe("EMP-004");
+  });
+
+  it("E2. TEST 1 - Check-in Priya Day 4: Sends employeeId=EMP-002 & journeyDay=4 and parses returned evidence", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-01",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          performance: { productivity: 50 },
+        },
+      ],
+    } as Response);
+
+    const res = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("employeeId=EMP-002"),
+      expect.anything()
+    );
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("journeyDay=4"),
+      expect.anything()
+    );
+    expect(res.success).toBe(true);
+    expect(res.count).toBe(1);
+    expect(res.evidence[0].employeeId).toBe("nh-priya-02");
+    expect(res.evidence[0].journeyDay).toBe(4);
+  });
+
+  it("E3. TEST 2 - Check-in Rahul Day 4: Sends employeeId=EMP-001 & journeyDay=4", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    await fetchSimulatorEvidence({ employeeId: "nh-rahul-01", journeyDay: 4 });
+    const calledUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("employeeId=EMP-001");
+    expect(calledUrl).toContain("journeyDay=4");
+  });
+
+  it("E4. TEST 3 - Check-in Amit Day 4: Sends employeeId=EMP-003 & journeyDay=4", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    await fetchSimulatorEvidence({ employeeId: "nh-amit-03", journeyDay: 4 });
+    const calledUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("employeeId=EMP-003");
+    expect(calledUrl).toContain("journeyDay=4");
+  });
+
+  it("E5. TEST 4 - Check-in Priya Day 0: Sends employeeId=EMP-002 & journeyDay=0 (Day 0 evidence only)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d0",
+          subject_id: "EMP-002",
+          context: { journey_day: 0 },
+          performance: { productivity: 58 },
+        },
+      ],
+    } as Response);
+
+    const res = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 0 });
+    const calledUrl = fetchSpy.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("employeeId=EMP-002");
+    expect(calledUrl).toContain("journeyDay=0");
+    expect(res.count).toBe(1);
+    expect(res.evidence[0].journeyDay).toBe(0);
+  });
+
+  it("E6. TEST 5 - Check-in Priya Day 4: Simulator Day 0 evidence must NEVER be used when Day 4 requested", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d0-mismatched",
+          subject_id: "EMP-002",
+          context: { journey_day: 0 },
+          performance: { productivity: 58 },
+        },
+      ],
+    } as Response);
+
+    const res = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 4 });
+    // Day 0 item must be discarded because journeyDay requested is 4
+    expect(res.count).toBe(0);
+    expect(res.evidence).toEqual([]);
+  });
+
+  it("E7. TEST 7 - Request a day with no evidence: Do NOT substitute another day, return 0 items", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as Response);
+
+    const res = await fetchSimulatorEvidence({ employeeId: "nh-priya-02", journeyDay: 8 });
+    expect(res.success).toBe(true);
+    expect(res.count).toBe(0);
+    expect(res.evidence).toEqual([]);
+
+    const baseInput: LoopExecutionInput = {
+      hire: initialRahul,
+      dayNumber: 8,
+      workSignal: {
+        dayNumber: 8,
+        targetPickRate: 50,
+        actualPickRate: 35,
+        accuracyRate: 98,
+        ordersCompleted: 44,
+        targetOrders: 65,
+      },
+    };
+    const adapted = adaptSimulatorToLoopInput(baseInput, undefined);
+    expect(adapted).toEqual(baseInput);
   });
 
   it("F. Malformed evidence & Prompt Injection handling: Rejects malformed types and neutralizes prompt injections", () => {

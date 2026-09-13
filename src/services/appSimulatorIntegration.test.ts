@@ -44,7 +44,7 @@ describe("DEANCORE App Runtime Simulator Automatic Ingestion Integration", () =>
     });
 
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining("employeeId=nh-rahul-01"),
+      expect.stringContaining("employeeId=EMP-001"),
       expect.anything()
     );
     expect(fetchSpy).toHaveBeenCalledWith(

@@ -74,11 +74,30 @@ export interface FetchSimulatorResult {
  * Check-in canonical 4 persistent test employee IDs.
  */
 export const CANONICAL_CHECKIN_EMPLOYEES = [
-  { id: "nh-rahul-01", name: "Rahul Sharma", aliases: ["emp-1", "emp-01", "rahul", "1"] },
-  { id: "nh-priya-02", name: "Priya Sundaram", aliases: ["emp-2", "emp-02", "priya", "2"] },
-  { id: "nh-amit-03", name: "Amit Verma", aliases: ["emp-3", "emp-03", "amit", "3"] },
-  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "sneha", "4"] },
+  { id: "nh-rahul-01", name: "Rahul Sharma", aliases: ["emp-1", "emp-01", "emp-001", "rahul", "1"] },
+  { id: "nh-priya-02", name: "Priya Sundaram", aliases: ["emp-2", "emp-02", "emp-002", "priya", "2"] },
+  { id: "nh-amit-03", name: "Amit Verma", aliases: ["emp-3", "emp-03", "emp-003", "amit", "3"] },
+  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "emp-004", "sneha", "4"] },
 ];
+
+/**
+ * Maps persistent canonical check-in employee IDs to outbound Simulator API employee identifiers.
+ * nh-rahul-01 -> EMP-001
+ * nh-priya-02 -> EMP-002
+ * nh-amit-03 -> EMP-003
+ * nh-sneha-04 -> EMP-004
+ */
+export function mapToSimulatorEmployeeId(canonicalId?: string): string {
+  if (!canonicalId || typeof canonicalId !== "string") return "EMP-001";
+  const cleaned = canonicalId.trim().toLowerCase();
+
+  if (cleaned.includes("priya") || cleaned.includes("nh-priya-02") || cleaned === "emp-002" || cleaned === "emp-02" || cleaned === "emp-2") return "EMP-002";
+  if (cleaned.includes("amit") || cleaned.includes("nh-amit-03") || cleaned === "emp-003" || cleaned === "emp-03" || cleaned === "emp-3") return "EMP-003";
+  if (cleaned.includes("sneha") || cleaned.includes("nh-sneha-04") || cleaned === "emp-004" || cleaned === "emp-04" || cleaned === "emp-4") return "EMP-004";
+  if (cleaned.includes("rahul") || cleaned.includes("nh-rahul-01") || cleaned === "emp-001" || cleaned === "emp-01" || cleaned === "emp-1") return "EMP-001";
+
+  return canonicalId;
+}
 
 /**
  * Maps incoming simulator employee identifiers to persistent canonical check-in employee IDs.
@@ -92,10 +111,10 @@ export function mapToCanonicalEmployeeId(rawId?: string): string {
   );
   if (matched) return matched.id;
 
-  if (cleaned.includes("rahul") || cleaned.includes("emp-1") || cleaned.includes("emp-01")) return "nh-rahul-01";
-  if (cleaned.includes("priya") || cleaned.includes("emp-2") || cleaned.includes("emp-02")) return "nh-priya-02";
-  if (cleaned.includes("amit") || cleaned.includes("emp-3") || cleaned.includes("emp-03")) return "nh-amit-03";
-  if (cleaned.includes("sneha") || cleaned.includes("emp-4") || cleaned.includes("emp-04")) return "nh-sneha-04";
+  if (cleaned.includes("rahul") || cleaned.includes("emp-1") || cleaned.includes("emp-01") || cleaned.includes("emp-001")) return "nh-rahul-01";
+  if (cleaned.includes("priya") || cleaned.includes("emp-2") || cleaned.includes("emp-02") || cleaned.includes("emp-002")) return "nh-priya-02";
+  if (cleaned.includes("amit") || cleaned.includes("emp-3") || cleaned.includes("emp-03") || cleaned.includes("emp-003")) return "nh-amit-03";
+  if (cleaned.includes("sneha") || cleaned.includes("emp-4") || cleaned.includes("emp-04") || cleaned.includes("emp-004")) return "nh-sneha-04";
 
   if (/^nh-[a-z0-9-]+$/i.test(cleaned)) {
     return cleaned;
@@ -159,12 +178,13 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
   }
 
   // Canonical employee identity mapping
-  const rawEmpId = rawItem.employeeId || rawItem.employee_id || rawItem.subjectId;
+  const rawEmpId = rawItem.employeeId || rawItem.employee_id || rawItem.subjectId || rawItem.subject_id;
   sanitizedRecord.employeeId = mapToCanonicalEmployeeId(rawEmpId);
 
-  // Preserve journeyDay strictly separate from calendar time
-  const rawDay = Number(rawItem.journeyDay ?? rawItem.journey_day ?? rawItem.dayNumber);
-  sanitizedRecord.journeyDay = Number.isFinite(rawDay) && rawDay > 0 ? Math.floor(rawDay) : 1;
+  // Preserve journeyDay strictly separate from calendar time (including Day 0)
+  const rawDayNum = rawItem.journeyDay ?? rawItem.journey_day ?? rawItem.dayNumber ?? (rawItem.context && typeof rawItem.context === "object" ? rawItem.context.journey_day : undefined);
+  const rawDay = Number(rawDayNum);
+  sanitizedRecord.journeyDay = Number.isFinite(rawDay) && rawDay >= 0 ? Math.floor(rawDay) : 0;
 
   // Preserve timestamps
   if (rawItem.timestamp || rawItem.createdAt) {
@@ -334,8 +354,13 @@ export async function fetchSimulatorEvidence(
 
     if (params?.since_timestamp) url.searchParams.set("since_timestamp", params.since_timestamp);
     if (params?.limit) url.searchParams.set("limit", String(params.limit));
-    if (params?.employeeId) url.searchParams.set("employeeId", params.employeeId);
-    if (params?.journeyDay) url.searchParams.set("journeyDay", String(params.journeyDay));
+    if (params?.employeeId) {
+      const simEmpId = mapToSimulatorEmployeeId(params.employeeId);
+      url.searchParams.set("employeeId", simEmpId);
+    }
+    if (params?.journeyDay !== undefined && params?.journeyDay !== null) {
+      url.searchParams.set("journeyDay", String(params.journeyDay));
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -369,11 +394,22 @@ export async function fetchSimulatorEvidence(
       rawList = data.data;
     }
 
+    const expectedCanonicalEmpId = params?.employeeId ? mapToCanonicalEmployeeId(params.employeeId) : undefined;
+    const expectedJourneyDay = (params?.journeyDay !== undefined && params?.journeyDay !== null) ? Number(params.journeyDay) : undefined;
+
     const validEvidence: SimulatorEvidenceItem[] = [];
     const batchKeys = new Set<string>();
     for (const raw of rawList) {
       const sanitized = validateAndSanitizeEvidenceRecord(raw);
       if (sanitized) {
+        // Strict learner identity check: must correspond to requested learner
+        if (expectedCanonicalEmpId && sanitized.employeeId !== expectedCanonicalEmpId) {
+          continue;
+        }
+        // Strict journey_day check: MUST exactly equal requested journeyDay. NO cross-day fallback!
+        if (expectedJourneyDay !== undefined && sanitized.journeyDay !== expectedJourneyDay) {
+          continue;
+        }
         const key = getEvidenceKey(sanitized);
         if (!batchKeys.has(key)) {
           batchKeys.add(key);
