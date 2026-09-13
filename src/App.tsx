@@ -187,6 +187,15 @@ export default function App() {
       });
       if (simRes.success && simRes.evidence.length > 0) {
         finalLoopInput = adaptSimulatorToLoopInput(baseInput, simRes.evidence[0]);
+        const ev = simRes.evidence[0];
+        const evVal = ev.canonicalEvidence?.performance?.productivity ?? ev.value ?? "";
+        const evId = ev.id || ev.evidence_id || ev.evidenceId || "";
+        const currentSyncFingerprint = `${hireId}-day${dayNum}-ev:${evId}:${evVal}`;
+        const isUserSubmission = Boolean(partialUpdate.dailySignal || partialUpdate.managerSignal || partialUpdate.actionOutcome);
+        if (!isUserSubmission && lastSyncedKeyRef.current === currentSyncFingerprint) {
+          return;
+        }
+        lastSyncedKeyRef.current = currentSyncFingerprint;
       }
     } catch (err) {
       // Fallback to baseInput unchanged if Simulator API fetch fails, times out, or errors
@@ -198,7 +207,10 @@ export default function App() {
       prevHires.map((hire) => {
         if (hire.id !== hireId) return hire;
 
-        const updatedMergedRecord = { ...mergedRecord };
+        const updatedMergedRecord = {
+          ...mergedRecord,
+          workSignal: finalLoopInput.workSignal,
+        };
         updatedMergedRecord.identifiedPattern = execution.pattern;
         updatedMergedRecord.recommendedAction = execution.action;
         updatedMergedRecord.statusAtEnd = execution.updatedStatus;
@@ -316,11 +328,7 @@ export default function App() {
   // Automatic startup & active learner/day synchronization with Simulator API
   useEffect(() => {
     if (!activeHireId || !currentDay) return;
-    const syncKey = `${activeHireId}-day${currentDay}`;
-    if (lastSyncedKeyRef.current !== syncKey) {
-      lastSyncedKeyRef.current = syncKey;
-      updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
-    }
+    updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
   }, [activeHireId, currentDay]);
 
   // Helper for longitudinal pattern discovery

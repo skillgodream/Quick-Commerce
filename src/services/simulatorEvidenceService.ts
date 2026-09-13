@@ -461,8 +461,20 @@ export function adaptSimulatorToLoopInput(
     },
   };
 
+  const updatedWorkSignal = { ...baseInput.workSignal };
+  if (simCanonical.performance?.productivity !== undefined) {
+    updatedWorkSignal.actualPickRate = Number(simCanonical.performance.productivity);
+  }
+  if (simCanonical.performance?.targetProductivity !== undefined) {
+    updatedWorkSignal.targetPickRate = Number(simCanonical.performance.targetProductivity);
+  }
+  if (simCanonical.performance?.accuracy !== undefined) {
+    updatedWorkSignal.accuracyRate = Number(simCanonical.performance.accuracy);
+  }
+
   return {
     ...baseInput,
+    workSignal: updatedWorkSignal,
     canonicalEvidence: mergedCanonical,
   };
 }

@@ -290,8 +290,8 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     expect(loopResult.overallReadinessScore).toBeGreaterThan(0);
   });
 
-  it("H. Deduplication Engine: Request/batch-scoped deduplication accepts updated evidence on subsequent fetches", async () => {
-    // 1. Fetch Priya EMP-002 Day 4 with evidence value 50
+  it("H. Deduplication Engine: Request/batch-scoped deduplication accepts sequential evidence updates (50 -> 70 -> 80 -> 60)", async () => {
+    // 1. Initial fetch: Priya EMP-002 Day 4 with value 50
     const mockFetch = vi.spyOn(globalThis, "fetch");
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -304,7 +304,7 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
           type: "productivity",
           value: 50,
         },
-        // Duplicate record within the SAME response
+        // In-batch duplicate record (should be filtered)
         {
           id: "ev-priya-d4-prod",
           subject_id: "EMP-002",
@@ -313,7 +313,7 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
           type: "productivity",
           value: 50,
         },
-        // Wrong learner item (isolation test)
+        // Isolation check: wrong employee ID (should be ignored)
         {
           id: "ev-rahul-d4-prod",
           subject_id: "EMP-001",
@@ -327,13 +327,11 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
 
     const res1 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
     expect(res1.success).toBe(true);
-    // 4. Confirm only duplicate records within the SAME response are filtered (1 item returned out of 2 identical IDs)
-    // 5. Confirm employee/day isolation remains intact (EMP-001 ignored)
     expect(res1.count).toBe(1);
     expect(res1.evidence[0].id).toBe("ev-priya-d4-prod");
     expect(res1.evidence[0].canonicalEvidence?.performance?.productivity).toBe(50);
 
-    // 2. Simulate a later fetch of the SAME evidence ID with value 70
+    // 2. Update 1: Same evidence ID updated to 70
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => [
@@ -349,11 +347,49 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     } as Response);
 
     const res2 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
-    // 3. Confirm the second fetch is accepted
     expect(res2.success).toBe(true);
     expect(res2.count).toBe(1);
-    expect(res2.evidence[0].id).toBe("ev-priya-d4-prod");
     expect(res2.evidence[0].canonicalEvidence?.performance?.productivity).toBe(70);
+
+    // 3. Update 2: Same evidence ID updated to 80
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 80,
+        },
+      ],
+    } as Response);
+
+    const res3 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
+    expect(res3.success).toBe(true);
+    expect(res3.count).toBe(1);
+    expect(res3.evidence[0].canonicalEvidence?.performance?.productivity).toBe(80);
+
+    // 4. Update 3: Same evidence ID updated to 60
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 60,
+        },
+      ],
+    } as Response);
+
+    const res4 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
+    expect(res4.success).toBe(true);
+    expect(res4.count).toBe(1);
+    expect(res4.evidence[0].canonicalEvidence?.performance?.productivity).toBe(60);
   });
 
   it("I. Evidence Boundary Integration: Injects Simulator CanonicalEvidence into LoopExecutionInput", () => {
