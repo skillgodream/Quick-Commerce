@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fetchSimulatorEvidence, adaptSimulatorToLoopInput, clearProcessedEvidenceCache } from "./simulatorEvidenceService";
+import { fetchSimulatorEvidence, adaptSimulatorToLoopInput } from "./simulatorEvidenceService";
 import { executeCoordinationLoop, executeCoordinationLoopAsync, LoopExecutionInput } from "./intelligence";
 import { initialRahul } from "../data/seedData";
 
 describe("DEANCORE App Runtime Simulator Automatic Ingestion Integration", () => {
   beforeEach(() => {
-    clearProcessedEvidenceCache();
     vi.restoreAllMocks();
   });
 

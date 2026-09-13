@@ -5,9 +5,6 @@ import {
   mapToCanonicalEmployeeId,
   mapToSimulatorEmployeeId,
   validateAndSanitizeEvidenceRecord,
-  isDuplicateEvidence,
-  markEvidenceProcessed,
-  clearProcessedEvidenceCache,
   fetchSimulatorEvidence,
   adaptSimulatorToLoopInput,
   SimulatorEvidenceItem,
@@ -17,7 +14,6 @@ import { initialRahul } from "../data/seedData";
 
 describe("Simulator Canonical Evidence API Service & Ingestion", () => {
   beforeEach(() => {
-    clearProcessedEvidenceCache();
     vi.restoreAllMocks();
   });
 
@@ -294,26 +290,70 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     expect(loopResult.overallReadinessScore).toBeGreaterThan(0);
   });
 
-  it("H. Deduplication Engine: Prevents repeated insertion of duplicate evidence events", () => {
-    const itemA: SimulatorEvidenceItem = {
-      id: "ev-repeat-01",
-      employeeId: "emp-1",
-      journeyDay: 3,
-      performance: { productivity: 35 },
-    };
+  it("H. Deduplication Engine: Request/batch-scoped deduplication accepts updated evidence on subsequent fetches", async () => {
+    // 1. Fetch Priya EMP-002 Day 4 with evidence value 50
+    const mockFetch = vi.spyOn(globalThis, "fetch");
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 50,
+        },
+        // Duplicate record within the SAME response
+        {
+          id: "ev-priya-d4-prod",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 50,
+        },
+        // Wrong learner item (isolation test)
+        {
+          id: "ev-rahul-d4-prod",
+          subject_id: "EMP-001",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 45,
+        },
+      ],
+    } as Response);
 
-    expect(isDuplicateEvidence(itemA)).toBe(false);
-    markEvidenceProcessed(itemA);
-    expect(isDuplicateEvidence(itemA)).toBe(true);
+    const res1 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
+    expect(res1.success).toBe(true);
+    // 4. Confirm only duplicate records within the SAME response are filtered (1 item returned out of 2 identical IDs)
+    // 5. Confirm employee/day isolation remains intact (EMP-001 ignored)
+    expect(res1.count).toBe(1);
+    expect(res1.evidence[0].id).toBe("ev-priya-d4-prod");
+    expect(res1.evidence[0].canonicalEvidence?.performance?.productivity).toBe(50);
 
-    // Same ID again
-    const itemA_duplicate: SimulatorEvidenceItem = {
-      id: "ev-repeat-01",
-      employeeId: "emp-1",
-      journeyDay: 3,
-      performance: { productivity: 40 },
-    };
-    expect(isDuplicateEvidence(itemA_duplicate)).toBe(true);
+    // 2. Simulate a later fetch of the SAME evidence ID with value 70
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "ev-priya-d4-prod",
+          subject_id: "EMP-002",
+          journey_day: 4,
+          category: "work_performance",
+          type: "productivity",
+          value: 70,
+        },
+      ],
+    } as Response);
+
+    const res2 = await fetchSimulatorEvidence({ employeeId: "EMP-002", journeyDay: 4 });
+    // 3. Confirm the second fetch is accepted
+    expect(res2.success).toBe(true);
+    expect(res2.count).toBe(1);
+    expect(res2.evidence[0].id).toBe("ev-priya-d4-prod");
+    expect(res2.evidence[0].canonicalEvidence?.performance?.productivity).toBe(70);
   });
 
   it("I. Evidence Boundary Integration: Injects Simulator CanonicalEvidence into LoopExecutionInput", () => {

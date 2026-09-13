@@ -123,17 +123,6 @@ export function mapToCanonicalEmployeeId(rawId?: string): string {
   return "nh-rahul-01";
 }
 
-// Global in-memory cache of processed evidence keys to prevent duplicate records
-const processedEvidenceKeys = new Set<string>();
-
-export function getProcessedEvidenceCount(): number {
-  return processedEvidenceKeys.size;
-}
-
-export function clearProcessedEvidenceCache(): void {
-  processedEvidenceKeys.clear();
-}
-
 /**
  * Generates a unique, deterministic evidence identity key.
  */
@@ -148,16 +137,6 @@ export function getEvidenceKey(item: SimulatorEvidenceItem): string {
   const cat = item.category || item.type || "";
   const val = item.value ?? "";
   return `${empId}_d${day}_${ts}_${cat}_${val}`;
-}
-
-export function isDuplicateEvidence(item: SimulatorEvidenceItem): boolean {
-  const key = getEvidenceKey(item);
-  return processedEvidenceKeys.has(key);
-}
-
-export function markEvidenceProcessed(item: SimulatorEvidenceItem): void {
-  const key = getEvidenceKey(item);
-  processedEvidenceKeys.add(key);
 }
 
 /**
@@ -413,7 +392,6 @@ export async function fetchSimulatorEvidence(
         const key = getEvidenceKey(sanitized);
         if (!batchKeys.has(key)) {
           batchKeys.add(key);
-          markEvidenceProcessed(sanitized);
           validEvidence.push(sanitized);
         }
       }
