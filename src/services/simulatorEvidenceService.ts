@@ -422,57 +422,99 @@ export async function fetchSimulatorEvidence(
  */
 export function adaptSimulatorToLoopInput(
   baseInput: LoopExecutionInput,
-  simulatorRecord?: SimulatorEvidenceItem
+  simulatorRecord?: SimulatorEvidenceItem | SimulatorEvidenceItem[]
 ): LoopExecutionInput {
-  if (!simulatorRecord || !simulatorRecord.canonicalEvidence) {
+  const records = Array.isArray(simulatorRecord)
+    ? simulatorRecord
+    : simulatorRecord
+    ? [simulatorRecord]
+    : [];
+
+  if (records.length === 0) {
     return baseInput;
   }
 
-  const simCanonical = simulatorRecord.canonicalEvidence;
-  const mergedCanonical: CanonicalEvidence = {
-    performance: {
-      ...baseInput.canonicalEvidence?.performance,
-      ...simCanonical.performance,
-    },
-    attendance: {
-      ...baseInput.canonicalEvidence?.attendance,
-      ...simCanonical.attendance,
-    },
-    capability: {
-      ...baseInput.canonicalEvidence?.capability,
-      ...simCanonical.capability,
-    },
-    support: {
-      ...baseInput.canonicalEvidence?.support,
-      ...simCanonical.support,
-    },
-    toolSystem: {
-      ...baseInput.canonicalEvidence?.toolSystem,
-      ...simCanonical.toolSystem,
-    },
-    environment: {
-      ...baseInput.canonicalEvidence?.environment,
-      ...simCanonical.environment,
-    },
-    observation: {
-      ...baseInput.canonicalEvidence?.observation,
-      ...simCanonical.observation,
-    },
-    outcome: {
-      ...baseInput.canonicalEvidence?.outcome,
-      ...simCanonical.outcome,
-    },
+  let mergedCanonical: CanonicalEvidence = {
+    performance: { ...baseInput.canonicalEvidence?.performance },
+    attendance: { ...baseInput.canonicalEvidence?.attendance },
+    capability: { ...baseInput.canonicalEvidence?.capability },
+    support: { ...baseInput.canonicalEvidence?.support },
+    toolSystem: { ...baseInput.canonicalEvidence?.toolSystem },
+    environment: { ...baseInput.canonicalEvidence?.environment },
+    observation: { ...baseInput.canonicalEvidence?.observation },
+    outcome: { ...baseInput.canonicalEvidence?.outcome },
   };
 
   const updatedWorkSignal = { ...baseInput.workSignal };
-  if (simCanonical.performance?.productivity !== undefined) {
-    updatedWorkSignal.actualPickRate = Number(simCanonical.performance.productivity);
-  }
-  if (simCanonical.performance?.targetProductivity !== undefined) {
-    updatedWorkSignal.targetPickRate = Number(simCanonical.performance.targetProductivity);
-  }
-  if (simCanonical.performance?.accuracy !== undefined) {
-    updatedWorkSignal.accuracyRate = Number(simCanonical.performance.accuracy);
+
+  for (const item of records) {
+    if (!item || !item.canonicalEvidence) continue;
+    const simCanonical = item.canonicalEvidence;
+
+    if (simCanonical.performance) {
+      mergedCanonical.performance = {
+        ...mergedCanonical.performance,
+        ...simCanonical.performance,
+      };
+      if (simCanonical.performance.productivity !== undefined) {
+        updatedWorkSignal.actualPickRate = Number(simCanonical.performance.productivity);
+      }
+      if (simCanonical.performance.targetProductivity !== undefined) {
+        updatedWorkSignal.targetPickRate = Number(simCanonical.performance.targetProductivity);
+      }
+      if (simCanonical.performance.accuracy !== undefined) {
+        updatedWorkSignal.accuracyRate = Number(simCanonical.performance.accuracy);
+      }
+    }
+
+    if (simCanonical.attendance) {
+      mergedCanonical.attendance = {
+        ...mergedCanonical.attendance,
+        ...simCanonical.attendance,
+      };
+    }
+
+    if (simCanonical.capability) {
+      mergedCanonical.capability = {
+        ...mergedCanonical.capability,
+        ...simCanonical.capability,
+      };
+    }
+
+    if (simCanonical.support) {
+      mergedCanonical.support = {
+        ...mergedCanonical.support,
+        ...simCanonical.support,
+      };
+    }
+
+    if (simCanonical.toolSystem) {
+      mergedCanonical.toolSystem = {
+        ...mergedCanonical.toolSystem,
+        ...simCanonical.toolSystem,
+      };
+    }
+
+    if (simCanonical.environment) {
+      mergedCanonical.environment = {
+        ...mergedCanonical.environment,
+        ...simCanonical.environment,
+      };
+    }
+
+    if (simCanonical.observation) {
+      mergedCanonical.observation = {
+        ...mergedCanonical.observation,
+        ...simCanonical.observation,
+      };
+    }
+
+    if (simCanonical.outcome) {
+      mergedCanonical.outcome = {
+        ...mergedCanonical.outcome,
+        ...simCanonical.outcome,
+      };
+    }
   }
 
   return {

@@ -187,11 +187,10 @@ export default function App() {
         journeyDay: dayNum,
       });
       if (simRes.success && simRes.evidence.length > 0) {
-        finalLoopInput = adaptSimulatorToLoopInput(baseInput, simRes.evidence[0]);
-        const ev = simRes.evidence[0];
-        const evFingerprint = JSON.stringify(ev.canonicalEvidence || ev);
-        const evId = ev.id || ev.evidence_id || ev.evidenceId || "";
-        const currentSyncFingerprint = `${hireId}-day${dayNum}-ev:${evId}:${evFingerprint}`;
+        finalLoopInput = adaptSimulatorToLoopInput(baseInput, simRes.evidence);
+        const evFingerprint = JSON.stringify(simRes.evidence.map((ev) => ev.canonicalEvidence || ev));
+        const evIds = simRes.evidence.map((ev) => ev.id || ev.evidence_id || ev.evidenceId || "").filter(Boolean).join(",");
+        const currentSyncFingerprint = `${hireId}-day${dayNum}-evs:${evIds}:${evFingerprint}`;
         const isUserSubmission = Boolean(partialUpdate.dailySignal || partialUpdate.managerSignal || partialUpdate.actionOutcome);
         if (!isUserSubmission && lastSyncedKeyRef.current === currentSyncFingerprint) {
           return;
