@@ -67,7 +67,8 @@ import {
   ArrowDownRight,
   Snowflake,
   Truck,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from "lucide-react";
 
 
@@ -114,6 +115,8 @@ interface NewHireViewProps {
   onOpenManagerConsole?: () => void;
   newHires?: NewHire[];
   onSelectHire?: (hireId: string) => void;
+  onOpenSyncModal?: () => void;
+  isSyncing?: boolean;
 }
 
 export const NewHireView: React.FC<NewHireViewProps> = ({
@@ -131,6 +134,8 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   onOpenManagerConsole,
   newHires,
   onSelectHire,
+  onOpenSyncModal,
+  isSyncing = false,
 }) => {
   // Current day record from authoritative state
   const currentRecord = newHire.daysHistory.find((d) => d.dayNumber === currentDay) || {
@@ -699,51 +704,67 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               )}
             </div>
 
-            {/* Top-Right Controls: Manager Console, Bell & Language Switcher */}
-            <div className="flex items-center gap-2">
-              {onOpenManagerConsole && (
+            {/* Top-Right Controls: Manager Console, Bell & Language Switcher with Sync Button below */}
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                {onOpenManagerConsole && (
+                  <button
+                    type="button"
+                    onClick={onOpenManagerConsole}
+                    className="h-10 px-3 rounded-full bg-indigo-500 hover:bg-indigo-400 backdrop-blur-md border border-indigo-400 flex items-center justify-center gap-1.5 text-white transition-all cursor-pointer shadow-md"
+                    title="Manager Console"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-white" />
+                    <span className="text-xs font-bold whitespace-nowrap">Manager</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={onOpenManagerConsole}
-                  className="h-10 px-3 rounded-full bg-indigo-500 hover:bg-indigo-400 backdrop-blur-md border border-indigo-400 flex items-center justify-center gap-1.5 text-white transition-all cursor-pointer shadow-md"
-                  title="Manager Console"
+                  onClick={() => setShowNextStepModal(true)}
+                  className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
+                  title="Action Highlights & Context"
                 >
-                  <ShieldCheck className="w-4 h-4 text-white" />
-                  <span className="text-xs font-bold whitespace-nowrap">Manager</span>
+                  <Bell className="w-5 h-5 text-white" />
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white/50 animate-pulse" />
+                </button>
+
+                {/* Language Toggle Pill: EN vs हिंदी */}
+                <div className="bg-white/10 backdrop-blur-md rounded-full p-1 flex items-center gap-1 border border-white/20 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setIsHindi(false)}
+                    className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
+                      !isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsHindi(true)}
+                    className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
+                      isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                    }`}
+                  >
+                    हिंदी
+                  </button>
+                </div>
+              </div>
+
+              {/* Dedicated Sync Button strictly placed separately on Home Screen below Hindi/English */}
+              {onOpenSyncModal && (
+                <button
+                  id="home-sync-simulator-btn"
+                  type="button"
+                  onClick={onOpenSyncModal}
+                  className="px-3 py-1.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 backdrop-blur-md border border-emerald-400/40 text-emerald-200 hover:text-white flex items-center gap-1.5 text-xs font-black tracking-tight transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Sync Live Simulator Shift Data"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-300 ${isSyncing ? "animate-spin" : ""}`} />
+                  <span>{isHindi ? "सिम्युलेटर सिंक" : "Sync Simulator"}</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() => setShowNextStepModal(true)}
-                className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all cursor-pointer shadow-sm"
-                title="Action Highlights & Context"
-              >
-                <Bell className="w-5 h-5 text-white" />
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white/50 animate-pulse" />
-              </button>
-
-              {/* Language Toggle Pill: EN vs हिंदी */}
-              <div className="bg-white/10 backdrop-blur-md rounded-full p-1 flex items-center gap-1 border border-white/20 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setIsHindi(false)}
-                  className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                    !isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsHindi(true)}
-                  className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                    isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
-                  }`}
-                >
-                  हिंदी
-                </button>
-              </div>
             </div>
           </div>
 

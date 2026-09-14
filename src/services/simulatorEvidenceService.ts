@@ -12,7 +12,8 @@ import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard"
  * Path: Simulator -> Canonical Evidence API -> Check-in Evidence Access Layer -> Six Doctors -> AI-3/4/5 -> AI-8 -> Doctor 6 -> Learner State -> Outcome -> Casebook / AI-6
  */
 
-export const DEFAULT_SIMULATOR_API_URL = "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence";
+export const DEFAULT_SIMULATOR_API_URL = "https://dummy-organization.vercel.app/api/v1/evidence";
+export const RUN_APP_SIMULATOR_API_URL = "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence";
 
 const STORAGE_KEY_CUSTOM_ENDPOINT = "custom_simulator_api_url";
 

@@ -683,6 +683,8 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   onOpenManagerConsole={() => setActiveTab("manager")}
                   newHires={newHires}
                   onSelectHire={setActiveHireId}
+                  onOpenSyncModal={() => setIsSyncModalOpen(true)}
+                  isSyncing={isSyncingCohort}
                 />
               )}
 

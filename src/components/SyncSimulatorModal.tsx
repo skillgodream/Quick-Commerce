@@ -18,6 +18,8 @@ import {
   Check,
   Globe,
   Settings2,
+  FileCode,
+  UploadCloud,
 } from "lucide-react";
 import {
   fetchSimulatorEvidence,
@@ -25,6 +27,7 @@ import {
   setCustomSimulatorEndpoint,
   getCustomSimulatorEndpoint,
   DEFAULT_SIMULATOR_API_URL,
+  RUN_APP_SIMULATOR_API_URL,
   SimulatorEvidenceItem,
 } from "../services/simulatorEvidenceService";
 import { NewHire } from "../types";
@@ -57,7 +60,9 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
   const [rawRecords, setRawRecords] = useState<any[]>([]);
   const [syncStatus, setSyncStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [activeViewTab, setActiveViewTab] = useState<"overview" | "breakdown" | "endpoint">("overview");
+  const [activeViewTab, setActiveViewTab] = useState<"overview" | "breakdown" | "endpoint" | "paste">("overview");
+  const [jsonPasteInput, setJsonPasteInput] = useState("");
+  const [jsonPasteMsg, setJsonPasteMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,20 +72,35 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
     }
   }, [isOpen]);
 
-  const loadPreviewData = async () => {
+  const loadPreviewData = async (targetEndpoint?: string) => {
+    const ep = targetEndpoint || getSimulatorEndpoint();
     try {
-      const ep = getSimulatorEndpoint();
       const res = await fetch(ep, { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
         const list = Array.isArray(json) ? json : json.data || json.evidence || [];
         setRawRecords(list);
         setSyncStatus("success");
+        setStatusMessage(`Successfully fetched ${list.length} telemetry records from ${ep.replace(/^https?:\/\//, "").split("/")[0]}`);
       } else {
         setSyncStatus("error");
         setStatusMessage(`HTTP ${res.status} from ${ep}`);
       }
     } catch (e: any) {
+      // If primary endpoint failed and it's not the Vercel fallback, try Vercel fallback automatically
+      if (ep !== DEFAULT_SIMULATOR_API_URL) {
+        try {
+          const fallbackRes = await fetch(DEFAULT_SIMULATOR_API_URL, { cache: "no-store" });
+          if (fallbackRes.ok) {
+            const json = await fallbackRes.json();
+            const list = Array.isArray(json) ? json : json.data || json.evidence || [];
+            setRawRecords(list);
+            setSyncStatus("success");
+            setStatusMessage(`Reconnected to public cloud mirror (${list.length} records). Click "Use Public Cloud Mirror" in Endpoint tab.`);
+            return;
+          }
+        } catch (_) {}
+      }
       setSyncStatus("error");
       setStatusMessage(e.message || "Failed to reach simulator endpoint");
     }
@@ -102,22 +122,47 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
     }
   };
 
-  const handleSaveEndpoint = () => {
-    const trimmed = customUrlInput.trim();
-    if (trimmed.length === 0) {
+  const handleSaveEndpoint = (urlToSave?: string) => {
+    const trimmed = (urlToSave !== undefined ? urlToSave : customUrlInput).trim();
+    if (trimmed.length === 0 || trimmed === DEFAULT_SIMULATOR_API_URL) {
       setCustomSimulatorEndpoint(null);
       setEndpointUrl(DEFAULT_SIMULATOR_API_URL);
-      setEndpointSaveMsg("Reset to default simulator endpoint.");
+      setEndpointSaveMsg("Set to public cloud mirror.");
+      loadPreviewData(DEFAULT_SIMULATOR_API_URL);
     } else {
       setCustomSimulatorEndpoint(trimmed);
       setEndpointUrl(trimmed);
       setEndpointSaveMsg("Custom simulator endpoint saved.");
+      loadPreviewData(trimmed);
     }
     setTimeout(() => {
       setEndpointSaveMsg(null);
       setIsEditingEndpoint(false);
-      loadPreviewData();
     }, 1200);
+  };
+
+  const handleApplyPastedJson = async () => {
+    try {
+      setJsonPasteMsg(null);
+      if (!jsonPasteInput.trim()) {
+        setJsonPasteMsg("Please paste JSON data first.");
+        return;
+      }
+      const parsed = JSON.parse(jsonPasteInput);
+      const list = Array.isArray(parsed) ? parsed : parsed.data || parsed.evidence || [];
+      if (!Array.isArray(list) || list.length === 0) {
+        setJsonPasteMsg("No valid evidence records found in the pasted JSON.");
+        return;
+      }
+      setRawRecords(list);
+      setSyncStatus("success");
+      setJsonPasteMsg(`✓ Loaded ${list.length} records! Now executing DEANCORE sync...`);
+      await onSyncAllCohort();
+      setStatusMessage(`✓ Successfully ingested ${list.length} records and updated readiness evaluations!`);
+      setActiveViewTab("overview");
+    } catch (e: any) {
+      setJsonPasteMsg(`JSON parse error: ${e.message}`);
+    }
   };
 
   if (!isOpen) return null;
@@ -247,10 +292,10 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
         )}
 
         {/* View Tabs */}
-        <div className="px-5 pt-3 border-b border-white/5 flex gap-2">
+        <div className="px-5 pt-3 border-b border-white/5 flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveViewTab("overview")}
-            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer ${
+            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer whitespace-nowrap ${
               activeViewTab === "overview"
                 ? "border-cyan-400 text-cyan-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -260,7 +305,7 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
           </button>
           <button
             onClick={() => setActiveViewTab("breakdown")}
-            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer ${
+            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer whitespace-nowrap ${
               activeViewTab === "breakdown"
                 ? "border-cyan-400 text-cyan-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -270,13 +315,24 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
           </button>
           <button
             onClick={() => setActiveViewTab("endpoint")}
-            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer ${
+            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer whitespace-nowrap ${
               activeViewTab === "endpoint"
                 ? "border-cyan-400 text-cyan-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
             API Endpoint Config
+          </button>
+          <button
+            onClick={() => setActiveViewTab("paste")}
+            className={`pb-2.5 text-xs font-bold border-b-2 px-1 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+              activeViewTab === "paste"
+                ? "border-purple-400 text-purple-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <FileCode className="w-3.5 h-3.5" />
+            <span>Direct JSON Ingest</span>
           </button>
         </div>
 
@@ -389,13 +445,54 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
                   {endpointUrl}
                 </div>
 
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <span className="text-[11px] font-semibold text-slate-400 block">Quick Switch / Presets:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveEndpoint(DEFAULT_SIMULATOR_API_URL)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        endpointUrl === DEFAULT_SIMULATOR_API_URL
+                          ? "bg-cyan-500/15 border-cyan-400/50 text-white"
+                          : "bg-white/[0.02] border-white/10 text-slate-300 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="text-xs font-bold flex items-center justify-between">
+                        <span>Public Cloud Mirror (Vercel)</span>
+                        {endpointUrl === DEFAULT_SIMULATOR_API_URL && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
+                        dummy-organization.vercel.app/...
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSaveEndpoint(RUN_APP_SIMULATOR_API_URL)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        endpointUrl === RUN_APP_SIMULATOR_API_URL
+                          ? "bg-cyan-500/15 border-cyan-400/50 text-white"
+                          : "bg-white/[0.02] border-white/10 text-slate-300 hover:bg-white/5"
+                      }`}
+                    >
+                      <div className="text-xs font-bold flex items-center justify-between">
+                        <span>Cloud Run Simulator App</span>
+                        {endpointUrl === RUN_APP_SIMULATOR_API_URL && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
+                        ais-pre-zj3dyugz...run.app/...
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 {!isEditingEndpoint ? (
                   <button
                     onClick={() => setIsEditingEndpoint(true)}
-                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer pt-1"
                   >
                     <Settings2 className="w-3.5 h-3.5" />
-                    <span>Change or Point to Custom Simulator URL</span>
+                    <span>Enter Custom URL Manually</span>
                   </button>
                 ) : (
                   <div className="space-y-2 pt-2 border-t border-white/5">
@@ -411,19 +508,13 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
                     />
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={handleSaveEndpoint}
+                        onClick={() => handleSaveEndpoint(customUrlInput)}
                         className="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs cursor-pointer"
                       >
                         Save & Apply
                       </button>
                       <button
-                        onClick={() => {
-                          setCustomUrlInput("");
-                          setCustomSimulatorEndpoint(null);
-                          setEndpointUrl(DEFAULT_SIMULATOR_API_URL);
-                          setIsEditingEndpoint(false);
-                          loadPreviewData();
-                        }}
+                        onClick={() => handleSaveEndpoint(DEFAULT_SIMULATOR_API_URL)}
                         className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 text-xs cursor-pointer"
                       >
                         Reset to Default
@@ -435,11 +526,62 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
                         Cancel
                       </button>
                     </div>
-                    {endpointSaveMsg && (
-                      <p className="text-[11px] text-emerald-400">{endpointSaveMsg}</p>
-                    )}
                   </div>
                 )}
+
+                {endpointSaveMsg && (
+                  <p className="text-[11px] text-emerald-400 font-medium">{endpointSaveMsg}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: DIRECT JSON INGEST */}
+          {activeViewTab === "paste" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/15 space-y-3">
+                <div>
+                  <h4 className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                    <UploadCloud className="w-4 h-4 text-purple-400" />
+                    Instant Direct JSON Ingestion
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                    If your simulator is on a private tab or behind a session login, copy its JSON output (or export) and paste it directly here. It will immediately synchronize into the DEANCORE engine.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <textarea
+                    rows={6}
+                    value={jsonPasteInput}
+                    onChange={(e) => setJsonPasteInput(e.target.value)}
+                    placeholder='[{"id":"EV-001","employee_id":"EMP-001","type":"pick_volume","value":45,"journey_day":1,"source_system":"wms"}]'
+                    className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-xs font-mono text-purple-200 placeholder-slate-600 focus:outline-none focus:border-purple-400 resize-none"
+                  />
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={handleApplyPastedJson}
+                      disabled={!jsonPasteInput.trim()}
+                      className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/20"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Ingest & Recalculate Now</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setJsonPasteInput("")}
+                      className="text-xs text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  {jsonPasteMsg && (
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-purple-500/20 text-xs text-purple-300 font-mono">
+                      {jsonPasteMsg}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
