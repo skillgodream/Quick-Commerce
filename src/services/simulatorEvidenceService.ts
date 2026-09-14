@@ -108,13 +108,14 @@ export interface FetchSimulatorResult {
 }
 
 /**
- * Check-in canonical 4 persistent test employee IDs.
+ * Check-in canonical 5 persistent test employee IDs matching the 5 Simulator personas (EMP-001 through EMP-005).
  */
 export const CANONICAL_CHECKIN_EMPLOYEES = [
   { id: "nh-rahul-01", name: "Rahul Sharma", aliases: ["emp-1", "emp-01", "emp-001", "rahul", "1"] },
   { id: "nh-priya-02", name: "Priya Sundaram", aliases: ["emp-2", "emp-02", "emp-002", "priya", "2"] },
   { id: "nh-amit-03", name: "Amit Verma", aliases: ["emp-3", "emp-03", "emp-003", "amit", "3"] },
-  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "emp-004", "sneha", "diana", "4"] },
+  { id: "nh-sneha-04", name: "Sneha Patel", aliases: ["emp-4", "emp-04", "emp-004", "sneha", "vikram", "diana", "4"] },
+  { id: "nh-neha-05", name: "Neha Gupta", aliases: ["emp-5", "emp-05", "emp-005", "neha", "5"] },
 ];
 
 /**
@@ -123,6 +124,7 @@ export const CANONICAL_CHECKIN_EMPLOYEES = [
  * nh-priya-02 -> EMP-002
  * nh-amit-03 -> EMP-003
  * nh-sneha-04 -> EMP-004
+ * nh-neha-05 -> EMP-005
  */
 export function mapToSimulatorEmployeeId(canonicalId?: string): string {
   if (!canonicalId || typeof canonicalId !== "string") return "EMP-001";
@@ -130,8 +132,14 @@ export function mapToSimulatorEmployeeId(canonicalId?: string): string {
 
   if (cleaned.includes("priya") || cleaned.includes("nh-priya-02") || cleaned === "emp-002" || cleaned === "emp-02" || cleaned === "emp-2") return "EMP-002";
   if (cleaned.includes("amit") || cleaned.includes("nh-amit-03") || cleaned === "emp-003" || cleaned === "emp-03" || cleaned === "emp-3") return "EMP-003";
-  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("nh-sneha-04") || cleaned === "emp-004" || cleaned === "emp-04" || cleaned === "emp-4") return "EMP-004";
+  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("vikram") || cleaned.includes("nh-sneha-04") || cleaned === "emp-004" || cleaned === "emp-04" || cleaned === "emp-4") return "EMP-004";
+  if (cleaned.includes("neha") || cleaned.includes("nh-neha-05") || cleaned === "emp-005" || cleaned === "emp-05" || cleaned === "emp-5") return "EMP-005";
   if (cleaned.includes("rahul") || cleaned.includes("nh-rahul-01") || cleaned === "emp-001" || cleaned === "emp-01" || cleaned === "emp-1") return "EMP-001";
+
+  if (/^emp-\d+$/i.test(cleaned)) {
+    const num = cleaned.replace(/^emp-0*/i, "");
+    return `EMP-${num.padStart(3, "0")}`;
+  }
 
   return canonicalId;
 }
@@ -151,7 +159,8 @@ export function mapToCanonicalEmployeeId(rawId?: string): string {
   if (cleaned.includes("rahul") || cleaned.includes("emp-1") || cleaned.includes("emp-01") || cleaned.includes("emp-001")) return "nh-rahul-01";
   if (cleaned.includes("priya") || cleaned.includes("emp-2") || cleaned.includes("emp-02") || cleaned.includes("emp-002")) return "nh-priya-02";
   if (cleaned.includes("amit") || cleaned.includes("emp-3") || cleaned.includes("emp-03") || cleaned.includes("emp-003")) return "nh-amit-03";
-  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("emp-4") || cleaned.includes("emp-04") || cleaned.includes("emp-004")) return "nh-sneha-04";
+  if (cleaned.includes("sneha") || cleaned.includes("diana") || cleaned.includes("vikram") || cleaned.includes("emp-4") || cleaned.includes("emp-04") || cleaned.includes("emp-004")) return "nh-sneha-04";
+  if (cleaned.includes("neha") || cleaned.includes("emp-5") || cleaned.includes("emp-05") || cleaned.includes("emp-005")) return "nh-neha-05";
 
   if (/^nh-[a-z0-9-]+$/i.test(cleaned)) {
     return cleaned;

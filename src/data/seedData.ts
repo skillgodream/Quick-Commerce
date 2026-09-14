@@ -139,6 +139,15 @@ function buildSnehaLedger(): Record<number, CapabilityState> {
   return ledger;
 }
 
+function buildNehaLedger(): Record<number, CapabilityState> {
+  const ledger = createDefaultCapabilitiesLedger();
+  ledger[1] = { capabilityId: 1, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 1", reinforcementCount: 0 };
+  ledger[2] = { capabilityId: 2, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 2", reinforcementCount: 0 };
+  ledger[3] = { capabilityId: 3, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 3", reinforcementCount: 0 };
+  ledger[4] = { capabilityId: 4, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 4", reinforcementCount: 0 };
+  return ledger;
+}
+
 // 5 Complete Days of Realistic Dark Store Operations History for Rahul
 export const rahulDaysHistory: DayRecord[] = [
   {
@@ -522,6 +531,29 @@ export const initialCohort: NewHire[] = [
     capabilities: buildSnehaLedger(),
     daysHistory: snehaHistory,
   },
+  {
+    id: "nh-neha-05",
+    name: "Neha Gupta",
+    roleId: "quick_commerce_picker",
+    roleTitle: "Dark Store Picker",
+    storeLocation: "Dark Store #104 (Indiranagar Central)",
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+    startDate: "2026-09-01",
+    currentDay: rahulDaysHistory[rahulDaysHistory.length - 1]?.dayNumber ?? 1,
+    shift: "Morning (07:00 - 15:30)",
+    supervisor: "Suresh K.",
+    buddy: "Vikram R.",
+    status: "Doing well",
+    statusReason: "Consistent pacing across aisles 1-4 with 99% accuracy.",
+    recommendedActionSnippet: "Batch Sorting Refinement",
+    modulesCompleted: 4,
+    quizAverageScore: 91,
+    completedModuleIds: ["lms-mod-01", "lms-mod-02", "lms-mod-03", "lms-mod-04"],
+    currentCapabilityId: 4,
+    overallReadinessScore: 50,
+    capabilities: buildNehaLedger(),
+    daysHistory: rahulDaysHistory.slice(0, 4),
+  },
 ];
 
 export const mockNewHire: NewHire = initialRahul;
@@ -530,8 +562,8 @@ export const initialOrgSummary: OrganizationSummary = {
   id: "org-qc-bengaluru",
   name: "FastCart Dark Store Operations",
   storeName: "Dark Store #104 (Indiranagar Central)",
-  totalNewHires: 4,
-  doingWellCount: 2,
+  totalNewHires: 5,
+  doingWellCount: 3,
   needsAttentionCount: 1,
   atRiskCount: 0,
   commonProblems: [

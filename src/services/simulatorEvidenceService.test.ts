@@ -70,6 +70,10 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     expect(mapToCanonicalEmployeeId("emp-4")).toBe("nh-sneha-04");
     expect(mapToCanonicalEmployeeId("sneha")).toBe("nh-sneha-04");
 
+    expect(mapToCanonicalEmployeeId("emp-5")).toBe("nh-neha-05");
+    expect(mapToCanonicalEmployeeId("emp-005")).toBe("nh-neha-05");
+    expect(mapToCanonicalEmployeeId("neha")).toBe("nh-neha-05");
+
     expect(mapToCanonicalEmployeeId("nh-rahul-01")).toBe("nh-rahul-01");
   });
 
@@ -226,14 +230,6 @@ describe("Simulator Canonical Evidence API Service & Ingestion", () => {
     const baseInput: LoopExecutionInput = {
       hire: initialRahul,
       dayNumber: 8,
-      workSignal: {
-        dayNumber: 8,
-        targetPickRate: 50,
-        actualPickRate: 35,
-        accuracyRate: 98,
-        ordersCompleted: 44,
-        targetOrders: 65,
-      },
     };
     const adapted = adaptSimulatorToLoopInput(baseInput, undefined);
     expect(adapted.workSignal).toBeUndefined();

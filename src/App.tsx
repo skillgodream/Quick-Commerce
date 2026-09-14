@@ -34,6 +34,8 @@ import {
   applyEvidenceToCohort,
 } from "./services/simulatorEvidenceService";
 import { subscribeToFirestoreEvidence, fetchEvidenceFromFirestore, pushEvidenceToFirestore } from "./services/firestoreSyncService";
+import { SimulatorLabView } from "./components/SimulatorLabView";
+import { BottomNav } from "./components/BottomNav";
 
 const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v5";
 const STORAGE_KEY_DAY = "checkin_checkout_day_v5";
@@ -83,6 +85,7 @@ export default function App() {
   const [isFeedModalOpen, setIsFeedModalOpen] = useState<boolean>(false);
   const [isClientDemoModalOpen, setIsClientDemoModalOpen] = useState<boolean>(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
+  const [isSimulatorLabOpen, setIsSimulatorLabOpen] = useState<boolean>(false);
   const [isSyncingCohort, setIsSyncingCohort] = useState<boolean>(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
@@ -673,6 +676,403 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
     setNewHires((prev) => prev.map((h) => (h.id === updatedHire.id ? updatedHire : h)));
   };
 
+  // Embedded Simulator Lab Handlers (App-in-App Direct Telemetry)
+  const handleApplySimulatorTelemetry = (
+    hireId: string,
+    dayNum: number,
+    telemetry: {
+      workSignal: WorkSignal;
+      toolStatus?: "Normal" | "Failed";
+      toolProblem?: string;
+      errorCount?: number;
+      errorNotes?: string;
+      zone?: string;
+      autoNavigate?: boolean;
+    }
+  ) => {
+    setActiveHireId(hireId);
+    setCurrentDay(dayNum);
+
+    updateHireAndRecalculate(hireId, dayNum, (existingRecord) => {
+      const canonicalEv: any = {
+        ...(existingRecord.canonicalEvidence || {}),
+        id: `sim-${hireId}-d${dayNum}-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        employeeId: hireId,
+        journeyDay: dayNum,
+        workSignal: telemetry.workSignal,
+        floorObservations: {
+          ...((existingRecord.canonicalEvidence as any)?.floorObservations || {}),
+          errorCount: telemetry.errorCount ?? 0,
+          zone: telemetry.zone || "aisle_1_4",
+          notes: telemetry.errorNotes || "",
+        },
+        toolSystem: {
+          toolStatus: telemetry.toolStatus || "Normal",
+          toolProblem: telemetry.toolProblem,
+        },
+      };
+
+      return {
+        workSignal: telemetry.workSignal,
+        canonicalEvidence: canonicalEv,
+      };
+    });
+
+    if (telemetry.autoNavigate) {
+      setActiveTab("new_hire");
+      setLearnerSection("home");
+    }
+  };
+
+  const handlePopulateTenDaysForHire = (hireId: string) => {
+    interface BenchmarkPoint {
+      day: number;
+      pickRate: number;
+      targetPickRate: number;
+      accuracy: number;
+      ordersCompleted: number;
+      targetOrders: number;
+      errorCount: number;
+      notes: string;
+      toolStatus?: "Normal" | "Failed";
+      toolProblem?: string;
+    }
+
+    const BENCHMARKS: Record<string, BenchmarkPoint[]> = {
+      "nh-amit-03": [
+        { day: 0, pickRate: 58, targetPickRate: 50, accuracy: 96.6, ordersCompleted: 46, targetOrders: 65, errorCount: 2, notes: "Day 0 dark store onboarding scan benchmark" },
+        { day: 1, pickRate: 38, targetPickRate: 50, accuracy: 95.0, ordersCompleted: 32, targetOrders: 65, errorCount: 3, notes: "Aisle 1-3 basic orientation" },
+        { day: 2, pickRate: 44, targetPickRate: 50, accuracy: 96.2, ordersCompleted: 38, targetOrders: 65, errorCount: 2, notes: "Barcode orientation improving" },
+        { day: 3, pickRate: 48, targetPickRate: 50, accuracy: 97.0, ordersCompleted: 42, targetOrders: 65, errorCount: 1, notes: "Consistent scanner grip" },
+        { day: 4, pickRate: 52, targetPickRate: 50, accuracy: 97.5, ordersCompleted: 48, targetOrders: 65, errorCount: 1, notes: "On target pick pacing" },
+        { day: 5, pickRate: 56, targetPickRate: 50, accuracy: 98.0, ordersCompleted: 52, targetOrders: 65, errorCount: 1, notes: "High accuracy maintained" },
+        { day: 6, pickRate: 60, targetPickRate: 50, accuracy: 98.4, ordersCompleted: 56, targetOrders: 65, errorCount: 0, notes: "Batch picking smooth" },
+        { day: 7, pickRate: 62, targetPickRate: 50, accuracy: 98.8, ordersCompleted: 59, targetOrders: 65, errorCount: 0, notes: "Cold room handling clear" },
+        { day: 8, pickRate: 65, targetPickRate: 50, accuracy: 99.0, ordersCompleted: 62, targetOrders: 65, errorCount: 0, notes: "Autonomous floor flow" },
+        { day: 9, pickRate: 68, targetPickRate: 50, accuracy: 99.2, ordersCompleted: 64, targetOrders: 65, errorCount: 0, notes: "Exceptional velocity" },
+        { day: 10, pickRate: 70, targetPickRate: 50, accuracy: 99.5, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Commercial certified ready" },
+      ],
+      "nh-rahul-01": [
+        { day: 0, pickRate: 40, targetPickRate: 50, accuracy: 94.0, ordersCompleted: 30, targetOrders: 65, errorCount: 4, notes: "Day 0 orientation" },
+        { day: 1, pickRate: 42, targetPickRate: 50, accuracy: 95.0, ordersCompleted: 34, targetOrders: 65, errorCount: 3, notes: "Aisle 1-4 standard picking" },
+        { day: 2, pickRate: 45, targetPickRate: 50, accuracy: 95.5, ordersCompleted: 38, targetOrders: 65, errorCount: 2, notes: "Steady pace" },
+        { day: 3, pickRate: 42, targetPickRate: 50, accuracy: 94.8, ordersCompleted: 35, targetOrders: 65, errorCount: 3, notes: "Aisle 4-8 bottleneck detected" },
+        { day: 4, pickRate: 40, targetPickRate: 50, accuracy: 94.2, ordersCompleted: 33, targetOrders: 65, errorCount: 4, notes: "Bottleneck in deep aisles 4-8" },
+        { day: 5, pickRate: 49, targetPickRate: 50, accuracy: 96.5, ordersCompleted: 44, targetOrders: 65, errorCount: 1, notes: "Post buddy intervention recovery" },
+        { day: 6, pickRate: 54, targetPickRate: 50, accuracy: 97.2, ordersCompleted: 48, targetOrders: 65, errorCount: 1, notes: "Fast routing across all aisles" },
+        { day: 7, pickRate: 58, targetPickRate: 50, accuracy: 97.8, ordersCompleted: 54, targetOrders: 65, errorCount: 1, notes: "Above target velocity" },
+        { day: 8, pickRate: 62, targetPickRate: 50, accuracy: 98.2, ordersCompleted: 58, targetOrders: 65, errorCount: 0, notes: "Clean batch handling" },
+        { day: 9, pickRate: 65, targetPickRate: 50, accuracy: 98.6, ordersCompleted: 62, targetOrders: 65, errorCount: 0, notes: "Autonomous picking" },
+        { day: 10, pickRate: 68, targetPickRate: 50, accuracy: 99.0, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Fully certified" },
+      ],
+      "nh-priya-02": [
+        { day: 0, pickRate: 35, targetPickRate: 50, accuracy: 92.0, ordersCompleted: 28, targetOrders: 65, errorCount: 5, notes: "Day 0 orientation" },
+        { day: 1, pickRate: 38, targetPickRate: 50, accuracy: 93.0, ordersCompleted: 30, targetOrders: 65, errorCount: 4, notes: "Aisle 1-4 standard picking" },
+        { day: 2, pickRate: 39, targetPickRate: 50, accuracy: 92.5, ordersCompleted: 31, targetOrders: 65, errorCount: 5, notes: "Scanner Bluetooth lag" },
+        { day: 3, pickRate: 36, targetPickRate: 50, accuracy: 91.0, ordersCompleted: 28, targetOrders: 65, errorCount: 6, notes: "Bluetooth ring scanner hardware malfunction", toolStatus: "Failed", toolProblem: "Bluetooth ring scanner pairing disconnects repeatedly" },
+        { day: 4, pickRate: 35, targetPickRate: 50, accuracy: 90.5, ordersCompleted: 27, targetOrders: 65, errorCount: 7, notes: "Tool blocked - Hardware replacement pending", toolStatus: "Failed", toolProblem: "Bluetooth ring scanner pairing disconnects repeatedly" },
+        { day: 5, pickRate: 50, targetPickRate: 50, accuracy: 97.0, ordersCompleted: 45, targetOrders: 65, errorCount: 1, notes: "Hardware swapped to Terminal B4. Immediate velocity surge" },
+        { day: 6, pickRate: 55, targetPickRate: 50, accuracy: 97.8, ordersCompleted: 50, targetOrders: 65, errorCount: 1, notes: "Strong pace" },
+        { day: 7, pickRate: 59, targetPickRate: 50, accuracy: 98.2, ordersCompleted: 55, targetOrders: 65, errorCount: 0, notes: "High accuracy" },
+        { day: 8, pickRate: 63, targetPickRate: 50, accuracy: 98.6, ordersCompleted: 59, targetOrders: 65, errorCount: 0, notes: "Autonomous picking" },
+        { day: 9, pickRate: 66, targetPickRate: 50, accuracy: 99.0, ordersCompleted: 63, targetOrders: 65, errorCount: 0, notes: "Certified level performance" },
+        { day: 10, pickRate: 69, targetPickRate: 50, accuracy: 99.4, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Fully certified" },
+      ],
+      "nh-sneha-04": [
+        { day: 0, pickRate: 42, targetPickRate: 50, accuracy: 95.0, ordersCompleted: 34, targetOrders: 65, errorCount: 3, notes: "Day 0 orientation" },
+        { day: 1, pickRate: 46, targetPickRate: 50, accuracy: 96.0, ordersCompleted: 38, targetOrders: 65, errorCount: 2, notes: "Aisle 1-4 standard picking" },
+        { day: 2, pickRate: 48, targetPickRate: 50, accuracy: 96.5, ordersCompleted: 40, targetOrders: 65, errorCount: 2, notes: "Consistent progress" },
+        { day: 3, pickRate: 51, targetPickRate: 50, accuracy: 97.0, ordersCompleted: 44, targetOrders: 65, errorCount: 1, notes: "On target" },
+        { day: 4, pickRate: 54, targetPickRate: 50, accuracy: 97.5, ordersCompleted: 48, targetOrders: 65, errorCount: 1, notes: "Fast picker" },
+        { day: 5, pickRate: 58, targetPickRate: 50, accuracy: 98.0, ordersCompleted: 52, targetOrders: 65, errorCount: 0, notes: "High pace and accuracy" },
+        { day: 6, pickRate: 61, targetPickRate: 50, accuracy: 98.5, ordersCompleted: 56, targetOrders: 65, errorCount: 0, notes: "Smooth multi-order batching" },
+        { day: 7, pickRate: 64, targetPickRate: 50, accuracy: 98.8, ordersCompleted: 60, targetOrders: 65, errorCount: 0, notes: "Top quartile picker" },
+        { day: 8, pickRate: 67, targetPickRate: 50, accuracy: 99.1, ordersCompleted: 63, targetOrders: 65, errorCount: 0, notes: "Autonomous floor leader" },
+        { day: 9, pickRate: 70, targetPickRate: 50, accuracy: 99.4, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Peak velocity" },
+        { day: 10, pickRate: 72, targetPickRate: 50, accuracy: 99.6, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Fully certified" },
+      ],
+      "nh-neha-05": [
+        { day: 0, pickRate: 36, targetPickRate: 50, accuracy: 93.0, ordersCompleted: 28, targetOrders: 65, errorCount: 4, notes: "Day 0 orientation" },
+        { day: 1, pickRate: 39, targetPickRate: 50, accuracy: 94.0, ordersCompleted: 31, targetOrders: 65, errorCount: 3, notes: "Aisle 1-4 standard picking" },
+        { day: 2, pickRate: 42, targetPickRate: 50, accuracy: 94.5, ordersCompleted: 34, targetOrders: 65, errorCount: 3, notes: "Steady learning" },
+        { day: 3, pickRate: 45, targetPickRate: 50, accuracy: 95.0, ordersCompleted: 38, targetOrders: 65, errorCount: 2, notes: "Improving speed" },
+        { day: 4, pickRate: 48, targetPickRate: 50, accuracy: 96.0, ordersCompleted: 42, targetOrders: 65, errorCount: 2, notes: "Good focus" },
+        { day: 5, pickRate: 52, targetPickRate: 50, accuracy: 97.0, ordersCompleted: 46, targetOrders: 65, errorCount: 1, notes: "On target" },
+        { day: 6, pickRate: 56, targetPickRate: 50, accuracy: 97.6, ordersCompleted: 50, targetOrders: 65, errorCount: 1, notes: "Consistent progress" },
+        { day: 7, pickRate: 60, targetPickRate: 50, accuracy: 98.2, ordersCompleted: 55, targetOrders: 65, errorCount: 0, notes: "High accuracy maintained" },
+        { day: 8, pickRate: 63, targetPickRate: 50, accuracy: 98.7, ordersCompleted: 59, targetOrders: 65, errorCount: 0, notes: "Autonomous floor pace" },
+        { day: 9, pickRate: 66, targetPickRate: 50, accuracy: 99.1, ordersCompleted: 63, targetOrders: 65, errorCount: 0, notes: "Reliable performer" },
+        { day: 10, pickRate: 68, targetPickRate: 50, accuracy: 99.4, ordersCompleted: 65, targetOrders: 65, errorCount: 0, notes: "Fully certified" },
+      ]
+    };
+
+    setNewHires((prevCohort) => {
+      return prevCohort.map((hire) => {
+        if (hire.id !== hireId) return hire;
+
+        const benchmarkSequence: BenchmarkPoint[] = BENCHMARKS[hireId] || Array.from({ length: 11 }, (_, i) => ({
+          day: i,
+          pickRate: 40 + i * 3,
+          targetPickRate: 50,
+          accuracy: Math.min(99.5, 94.0 + i * 0.55),
+          ordersCompleted: Math.min(65, 30 + i * 3.5),
+          targetOrders: 65,
+          errorCount: Math.max(0, 4 - Math.floor(i / 2)),
+          notes: `Day ${i} telemetry progression`,
+        }));
+
+        let updatedHire = { ...hire };
+        const newDaysHistory: DayRecord[] = [...(hire.daysHistory || [])];
+
+        for (const pt of benchmarkSequence) {
+          const workSignal: WorkSignal = {
+            dayNumber: pt.day,
+            targetPickRate: pt.targetPickRate,
+            actualPickRate: pt.pickRate,
+            accuracyRate: pt.accuracy,
+            ordersCompleted: pt.ordersCompleted,
+            targetOrders: pt.targetOrders,
+            gapIdentified: pt.notes,
+            hasWorkEvidence: true,
+          };
+
+          const canonicalEv: any = {
+            id: `sim-${hire.id}-d${pt.day}-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            employeeId: hire.id,
+            journeyDay: pt.day,
+            workSignal,
+            floorObservations: {
+              errorCount: pt.errorCount,
+              zone: "aisle_1_4",
+              notes: pt.notes,
+            },
+            toolSystem: {
+              toolStatus: pt.toolStatus || "Normal",
+              toolProblem: pt.toolProblem,
+            },
+          };
+
+          const existingIdx = newDaysHistory.findIndex((d) => d.dayNumber === pt.day);
+          const existingRec: DayRecord =
+            existingIdx >= 0
+              ? newDaysHistory[existingIdx]
+              : {
+                  dayNumber: pt.day,
+                  date: pt.day === 0 ? "Day 0" : `Day ${pt.day}`,
+                  statusAtEnd: "Doing well",
+                  statusReason: pt.notes,
+                };
+
+          const merged: DayRecord = {
+            ...existingRec,
+            workSignal,
+            canonicalEvidence: canonicalEv,
+          };
+
+          const prevRec = newDaysHistory.find((d) => d.dayNumber === pt.day - 1);
+          const execution = executeCoordinationLoop({
+            hire: updatedHire,
+            dayNumber: pt.day,
+            dailySignal: merged.dailySignal,
+            managerSignal: merged.managerSignal,
+            workSignal: merged.workSignal,
+            actionOutcome: merged.actionOutcome,
+            previousRecord: prevRec,
+            existingAction: merged.recommendedAction,
+          });
+
+          merged.identifiedPattern = execution.pattern;
+          merged.recommendedAction = execution.action;
+          merged.statusAtEnd = execution.updatedStatus;
+          merged.statusReason = execution.statusReason;
+
+          if (existingIdx >= 0) {
+            newDaysHistory[existingIdx] = merged;
+          } else {
+            newDaysHistory.push(merged);
+          }
+
+          updatedHire = {
+            ...updatedHire,
+            currentDay: Math.max(updatedHire.currentDay, pt.day),
+            status: merged.statusAtEnd,
+            statusReason: merged.statusReason,
+            capabilities: execution.updatedCapabilities || updatedHire.capabilities,
+            overallReadinessScore: execution.overallReadinessScore ?? updatedHire.overallReadinessScore,
+            day10Evaluation: execution.day10Evaluation ?? updatedHire.day10Evaluation,
+          };
+        }
+
+        updatedHire.daysHistory = newDaysHistory.sort((a, b) => a.dayNumber - b.dayNumber);
+        return updatedHire;
+      });
+    });
+
+    setActiveHireId(hireId);
+    setCurrentDay(10);
+  };
+
+  const handlePopulateEntireCohort = () => {
+    for (const h of newHires) {
+      handlePopulateTenDaysForHire(h.id);
+    }
+  };
+
+  // Precise batch populate up to a specified historical date and prune all future days
+  const handleBatchPopulateHistoryAndSetPresentDay = (
+    hireId: string,
+    presentDay: number,
+    endHistoryDay: number,
+    pattern: string
+  ) => {
+    setActiveHireId(hireId);
+    setCurrentDay(presentDay);
+
+    setNewHires((prevHires) =>
+      prevHires.map((hire) => {
+        if (hire.id !== hireId) return hire;
+
+        const newHistoryList: DayRecord[] = [];
+
+        for (let d = 0; d <= endHistoryDay; d++) {
+          let dPick = 50;
+          let dAcc = 96.0;
+          let dOrders = 45;
+          let dErr = 2;
+          let dTool: "Normal" | "Failed" = "Normal";
+          let dToolProb = "";
+          let dZone = "aisle_1_4";
+          let dNotes = `Day ${d} shift telemetry`;
+
+          if (pattern === "struggling" || hireId === "nh-rahul-01") {
+            if (d === 4) {
+              dPick = 40; dAcc = 94.2; dOrders = 33; dErr = 4; dZone = "aisle_4_8"; dNotes = "Aisles 4-8 bottleneck searching for items.";
+            } else if (d >= 5) {
+              dPick = Math.min(68, 49 + (d - 5) * 4); dAcc = 96.5 + (d - 5) * 0.5; dOrders = 44 + (d - 5) * 4; dErr = 1; dNotes = "Recovered after peer walkthrough.";
+            } else {
+              dPick = 42 + d * 1.5; dAcc = 94.5 + d * 0.3; dOrders = 30 + d * 2; dErr = 3;
+            }
+          } else if (pattern === "hardware" || hireId === "nh-priya-02") {
+            if (d === 3 || d === 4) {
+              dPick = 35; dAcc = 90.5; dOrders = 27; dErr = 6; dTool = "Failed"; dToolProb = "Bluetooth ring scanner disconnects repeatedly";
+              dNotes = "Scanner dropped pairing repeatedly.";
+            } else if (d >= 5) {
+              dPick = Math.min(68, 50 + (d - 5) * 3.5); dAcc = 97.0 + (d - 5) * 0.5; dOrders = 45 + (d - 5) * 4; dErr = 1;
+              dNotes = "Swapped to Terminal B4. Velocity restored.";
+            } else {
+              dPick = 38 + d * 1.5; dAcc = 93.0 + d * 0.5; dOrders = 30 + d * 2; dErr = 4;
+            }
+          } else if (pattern === "stellar" || hireId === "nh-amit-03") {
+            if (d === 0) {
+              dPick = 58; dAcc = 96.6; dOrders = 46; dErr = 2; dNotes = "Day 0 dark store onboarding scan benchmark";
+            } else {
+              dPick = Math.min(72, Math.round(38 + d * 3.2)); dAcc = Number((95.0 + d * 0.45).toFixed(1));
+              dOrders = Math.min(65, Math.round(30 + d * 3.5)); dErr = Math.max(0, 3 - Math.floor(d / 3));
+              dNotes = `Day ${d} Amit top quartile progression`;
+            }
+          } else {
+            dPick = Math.min(68, Math.round(36 + d * 3.2)); dAcc = Number((93.5 + d * 0.6).toFixed(1));
+            dOrders = Math.min(65, Math.round(28 + d * 3.7)); dErr = Math.max(0, 4 - Math.floor(d / 2));
+            dNotes = `Day ${d} steady ramp telemetry`;
+          }
+
+          const wrkSignal: WorkSignal = {
+            dayNumber: d,
+            targetPickRate: 50,
+            actualPickRate: Math.round(dPick),
+            accuracyRate: Number(dAcc.toFixed(1)),
+            ordersCompleted: Math.min(65, Math.round(dOrders)),
+            targetOrders: 65,
+            gapIdentified: dNotes,
+            hasWorkEvidence: true,
+          };
+
+          const canonicalEv: any = {
+            id: `sim-${hireId}-d${d}-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            employeeId: hireId,
+            journeyDay: d,
+            workSignal: wrkSignal,
+            floorObservations: {
+              errorCount: dErr,
+              zone: dZone,
+              notes: dNotes,
+            },
+            toolSystem: {
+              toolStatus: dTool,
+              toolProblem: dToolProb,
+            },
+          };
+
+          const prevRec = d > 0 ? newHistoryList[d - 1] : undefined;
+
+          const dayRec: DayRecord = {
+            dayNumber: d,
+            date: `Day ${d}`,
+            statusAtEnd: "Doing well",
+            statusReason: dNotes,
+            workSignal: wrkSignal,
+            canonicalEvidence: canonicalEv,
+          };
+
+          const execution = executeCoordinationLoop({
+            hire,
+            dayNumber: d,
+            workSignal: wrkSignal,
+            dailySignal: dayRec.dailySignal,
+            managerSignal: dayRec.managerSignal,
+            actionOutcome: dayRec.actionOutcome,
+            previousRecord: prevRec,
+          });
+
+          dayRec.identifiedPattern = execution.pattern;
+          dayRec.recommendedAction = execution.action;
+          dayRec.statusAtEnd = execution.updatedStatus;
+          dayRec.statusReason = execution.statusReason;
+
+          newHistoryList.push(dayRec);
+        }
+
+        const lastRec = newHistoryList[newHistoryList.length - 1];
+
+        return {
+          ...hire,
+          currentDay: presentDay,
+          status: lastRec?.statusAtEnd || hire.status,
+          statusReason: lastRec?.statusReason || hire.statusReason,
+          recommendedActionSnippet: lastRec?.recommendedAction?.title,
+          daysHistory: newHistoryList, // Strictly contains only Day 0 to endHistoryDay! Future days pruned.
+        };
+      })
+    );
+  };
+
+  // Set present day and prune any future days beyond presentDay - 1
+  const handleSetPresentDayPruned = (hireId: string, presentDay: number) => {
+    setActiveHireId(hireId);
+    setCurrentDay(presentDay);
+
+    setNewHires((prevHires) =>
+      prevHires.map((hire) => {
+        if (hire.id !== hireId) return hire;
+
+        // Keep only records where dayNumber < presentDay
+        const filteredHistory = hire.daysHistory.filter((d) => d.dayNumber < presentDay);
+        const lastRec = filteredHistory[filteredHistory.length - 1];
+
+        return {
+          ...hire,
+          currentDay: presentDay,
+          status: lastRec?.statusAtEnd || hire.status,
+          statusReason: lastRec?.statusReason || hire.statusReason,
+          daysHistory: filteredHistory,
+        };
+      })
+    );
+  };
+
   const handleAskHelp = async (question: string) => {
     return askCompanion(question, currentDay);
   };
@@ -767,8 +1167,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                 onOpenOnboarding={() => setIsOnboarding(true)}
                 onOpenFeedModal={() => setIsFeedModalOpen(true)}
                 onOpenClientDemo={() => setIsClientDemoModalOpen(true)}
-                onOpenSyncModal={() => setIsSyncModalOpen(true)}
-                isSyncing={isSyncingCohort}
+                onOpenSimulatorLab={() => setActiveTab("simulator")}
                 hasApiKey={hasApiKey}
                 doingWellCount={doingWellCount}
                 needsAttentionCount={needsAttentionCount}
@@ -825,6 +1224,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   onSelectSection={setLearnerSection}
                   onOpenOnboarding={() => setIsOnboarding(true)}
                   onOpenManagerConsole={() => setActiveTab("manager")}
+                  onOpenSimulator={() => setActiveTab("simulator")}
                   newHires={newHires}
                   onSelectHire={setActiveHireId}
                   onOpenSyncModal={() => setIsSyncModalOpen(true)}
@@ -855,7 +1255,38 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   onOpenLoopModal={() => setIsLoopModalOpen(true)}
                 />
               )}
+
+              {activeTab === "simulator" && (
+                <SimulatorLabView
+                  newHires={newHires}
+                  activeHireId={activeHireId}
+                  currentDay={effectiveDay}
+                  onSelectHire={setActiveHireId}
+                  onSelectDay={handleSelectDay}
+                  onApplyTelemetry={handleApplySimulatorTelemetry}
+                  onBatchPopulateHistory={handleBatchPopulateHistoryAndSetPresentDay}
+                  onSetPresentDay={handleSetPresentDayPruned}
+                  onPopulateTenDays={handlePopulateTenDaysForHire}
+                  onPopulateEntireCohort={handlePopulateEntireCohort}
+                  onResetCohort={handleResetDemo}
+                  onNavigateToManager={() => setActiveTab("manager")}
+                  onNavigateToLearner={() => setActiveTab("new_hire")}
+                  onNavigateToStoreOps={() => setActiveTab("organization")}
+                />
+              )}
             </main>
+
+            {/* Bottom Navigation for Management / Simulator Views */}
+            {activeTab !== "new_hire" && (
+              <BottomNav
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                onOpenLoopModal={() => setIsLoopModalOpen(true)}
+                needsAttentionCount={needsAttentionCount}
+                atRiskCount={atRiskCount}
+                currentDay={effectiveDay}
+              />
+            )}
           </>
         )}
       </div>
@@ -892,6 +1323,10 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         newHires={newHires}
         currentDay={effectiveDay}
         onSyncAllCohort={handleSyncAllCohort}
+        onOpenSimulatorLab={() => {
+          setIsSyncModalOpen(false);
+          setActiveTab("simulator");
+        }}
         lastSyncedTimestamp={lastSyncedTime}
         isSyncing={isSyncingCohort}
       />

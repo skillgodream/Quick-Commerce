@@ -40,6 +40,7 @@ interface SyncSimulatorModalProps {
   newHires: NewHire[];
   currentDay: number;
   onSyncAllCohort: () => Promise<void>;
+  onOpenSimulatorLab?: () => void;
   lastSyncedTimestamp?: string | null;
   isSyncing?: boolean;
 }
@@ -50,6 +51,7 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
   newHires,
   currentDay,
   onSyncAllCohort,
+  onOpenSimulatorLab,
   lastSyncedTimestamp,
   isSyncing = false,
 }) => {
@@ -280,15 +282,30 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
             )}
           </div>
 
-          <button
-            id="sync-modal-primary-btn"
-            onClick={handleTriggerSync}
-            disabled={syncingNow}
-            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${syncingNow ? "animate-spin" : ""}`} />
-            <span>{syncingNow ? "Syncing Simulator Data..." : "Sync Simulator Now"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenSimulatorLab && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSimulatorLab();
+                }}
+                className="px-4 py-2.5 rounded-2xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 font-black text-xs shadow-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+              >
+                <span>⚡ Open Simulator Lab</span>
+              </button>
+            )}
+
+            <button
+              id="sync-modal-primary-btn"
+              onClick={handleTriggerSync}
+              disabled={syncingNow}
+              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncingNow ? "animate-spin" : ""}`} />
+              <span>{syncingNow ? "Syncing Simulator Data..." : "Sync Simulator Now"}</span>
+            </button>
+          </div>
         </div>
 
         {/* Status Alert (if any) */}
