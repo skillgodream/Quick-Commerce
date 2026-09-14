@@ -100,7 +100,7 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
       <div className="space-y-1">
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Learning Progress</h1>
         <p className="text-xs font-semibold text-slate-500">
-          Curriculum breakdown across 10 mandatory training days and activities.
+          Curriculum breakdown across 10-day onboarding journey and 19 LMS modules.
         </p>
       </div>
 
@@ -125,7 +125,7 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
                 <BookOpen className="w-3 h-3 text-purple-300" /> Modules Done
               </div>
               <div className="text-2xl font-black text-white tracking-tight">
-                {totalModulesCompleted} <span className="text-xs font-semibold text-purple-300/70">/ 10</span>
+                {totalModulesCompleted} <span className="text-xs font-semibold text-purple-300/70">/ 19</span>
               </div>
             </div>
 
@@ -159,7 +159,7 @@ export const LearningProgressView: React.FC<LearningProgressViewProps> = ({ newH
       {/* Expand / Collapse All Controls */}
       <div className="flex items-center justify-between px-1">
         <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
-          10-Day Curriculum
+          10-Day Journey Roadmap
         </h2>
         <div className="flex items-center gap-2 text-xs font-bold text-purple-700">
           <button 

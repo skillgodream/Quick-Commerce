@@ -10,6 +10,7 @@ import {
   FileCheck,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Clock,
   Sparkles,
   Award,
@@ -366,24 +367,29 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
             <div className="flex-1 min-w-0 space-y-3">
               <div className="space-y-1">
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm leading-tight">
-                  {isHindi ? "प्रशिक्षण मॉड्यूल" : "Training Modules"}
+                  {isHindi ? "एलएमएस प्रशिक्षण मॉड्यूल" : "LMS Training Modules"}
                 </h2>
+                <p className="text-xs text-cyan-100/80 font-medium">
+                  {isHindi 
+                    ? "10-दिवसीय कौशल यात्रा • 19 एलएमएस वीडियो मॉड्यूल" 
+                    : "10-Day Skill Journey • 19 LMS Video Modules"}
+                </p>
               </div>
 
               {/* Course Progress Bar */}
               <div className="pt-2 space-y-2 max-w-[290px]">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="text-slate-300 uppercase tracking-widest text-[10px]">
-                    {isHindi ? "कोर्स प्रगति" : "Course Progress"}
+                    {isHindi ? "एलएमएस मॉड्यूल प्रगति" : "LMS Modules Completed"}
                   </span>
                   <span className="text-cyan-300 font-black">
-                    {modulesCompletedCount} / 10 ({Math.round((modulesCompletedCount / 10) * 100)}%) {isHindi ? "पूर्ण" : "Completed"}
+                    {modulesCompletedCount} / 19 ({Math.round((modulesCompletedCount / 19) * 100)}%) {isHindi ? "पूर्ण" : "Done"}
                   </span>
                 </div>
                 <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/10 backdrop-blur-md shadow-inner">
                   <div 
                     className="h-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 rounded-full transition-all duration-700 ease-out shadow-[0_0_12px_rgba(56,189,248,0.5)]"
-                    style={{ width: `${Math.max(6, Math.round((modulesCompletedCount / 10) * 100))}%` }}
+                    style={{ width: `${Math.max(6, Math.round((modulesCompletedCount / 19) * 100))}%` }}
                   />
                 </div>
               </div>
@@ -425,42 +431,47 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 
 
       {/* ========================================================= */}
-      {/* YOUR CURRENT FOCUS (TARGET CAPABILITY)                      */}
+      {/* YOUR CURRENT FOCUS / NEXT STEP (TARGET CAPABILITY)         */}
       {/* ========================================================= */}
       {targetCapDef && (
         <div 
           onClick={() => setActiveCapabilityModal(targetCapDef.id)}
-          className="relative overflow-hidden rounded-2xl p-4 transition-all duration-300 cursor-pointer select-none bg-white/70 backdrop-blur-2xl border border-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] hover:bg-white/85 hover:border-white active:scale-[0.99] text-slate-900 mb-3 group"
+          className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/80 rounded-[28px] p-5 sm:p-6 shadow-xs mb-5 cursor-pointer transition-all active:scale-[0.99] group text-left"
         >
-          {/* Apple glass top specular sheen */}
-          <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/10 to-transparent pointer-events-none rounded-2xl" />
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-cyan-500/15 transition-colors" />
-
-          <div className="relative z-10 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-cyan-50/90 backdrop-blur-md text-cyan-600 border border-cyan-200/70 flex items-center justify-center shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_2px_6px_rgba(6,182,212,0.12)]">
-                <Zap className="w-5 h-5 stroke-[2] text-cyan-600 drop-shadow-xs" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    {isHindi ? "आपका वर्तमान ध्यान" : "Your Current Focus"}
-                  </h4>
-                </div>
-                <p className="text-[15px] text-slate-900 font-extrabold truncate mt-0.5">
-                  {targetCapDef.name}
-                </p>
-                <p className="text-xs text-slate-600 font-medium truncate mt-0.5">
-                  {isHindi ? "अनुशंसित अभ्यास जारी रखें।" : "Continue the recommended practice."}
-                </p>
-              </div>
-            </div>
-            <div className="text-slate-500 group-hover:text-slate-900 transition-colors shrink-0 pr-1">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-900/5 hover:bg-slate-900/10 border border-slate-900/10 text-slate-700">
-                {isHindi ? "देखें" : "View"} →
-              </span>
-            </div>
+          <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-3.5">
+            {isHindi ? "अगला कदम" : "NEXT STEP"}
           </div>
+
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100/70 transition-colors">
+                <Target className="w-6 h-6 text-blue-600 stroke-[2.2]" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">
+                  {targetCapDef.name}
+                </h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 leading-relaxed mt-1">
+                  {isHindi 
+                    ? "आपके हाल के काम के साक्ष्य से आइटम की पहचान में सुधार की आवश्यकता दिखाई देती है।" 
+                    : "Your recent work evidence shows repeated issues with item identification."}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 self-center group-hover:text-slate-600 transition-colors ml-1" />
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveCapabilityModal(targetCapDef.id);
+            }}
+            className="w-full bg-[#1b64f2] hover:bg-[#1553d1] text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-full flex items-center justify-center gap-2 shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
+          >
+            <span>{isHindi ? "अभ्यास शुरू करें" : "Start practice"}</span>
+            <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
+          </button>
         </div>
       )}
 
@@ -476,7 +487,7 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
             </h3>
           </div>
           <span className="text-[11px] font-semibold text-slate-500">
-            {isHindi ? "4 श्रेणियां • 19 कौशल" : "4 Categories • 19 Capabilities"}
+            {isHindi ? "4 कौशल श्रेणियां • 19 एलएमएस मॉड्यूल" : "4 Skill Categories • 19 LMS Modules"}
           </span>
         </div>
 
@@ -538,51 +549,72 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
                 </div>
               )}
 
-              {skillsToDisplay.map((cap) => {
-                const statusStr = getCapabilityStatus(cap.id);
-                const statusColor = getCapabilityStatusColor(statusStr);
-                const progText = getCapabilityProgressText(cap.id);
-                const { compAct, totalAct } = getCapabilityProgressRatio(cap.id);
-                
-                return (
-                  <div
-                    key={cap.id}
-                    onClick={() => setActiveCapabilityModal(cap.id)}
-                    className="w-full flex flex-col gap-2 p-3.5 sm:p-4 transition-all duration-200 cursor-pointer select-none bg-[#ecfdf5] border border-[#a7f3d0] rounded-2xl sm:rounded-[22px] hover:border-[#6ee7b7] shadow-[0_2px_8px_rgba(16,185,129,0.06)] hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between w-full">
-                      <div className="flex flex-col">
-                        <h3 className="text-[14px] sm:text-[15px] font-bold text-[#064e3b] leading-snug tracking-normal">
-                          {cap.name}
-                        </h3>
-                        {statusStr ? (
-                          <span className={`text-[11px] font-semibold mt-0.5 ${statusColor}`}>
-                            {statusStr}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-medium mt-0.5 text-emerald-700/70">
-                            {isHindi ? "शुरू नहीं हुआ" : "Not started"}
-                          </span>
-                        )}
+              {/* 4 GRID PLACEMENT FOR SKILL CARDS (CLEAN ICONS, NO OVER-TEXTING) */}
+              <div className="grid grid-cols-4 gap-2 sm:gap-3 my-2">
+                {skillsToDisplay.map((cap) => {
+                  const { compAct, totalAct } = getCapabilityProgressRatio(cap.id);
+                  const isDone = totalAct > 0 && compAct === totalAct;
+                  
+                  const getCapIcon = (id: number) => {
+                    switch (id) {
+                      case 1: return MapPin;
+                      case 2: return Cpu;
+                      case 3: return ScanLine;
+                      case 4: return Snowflake;
+                      case 5: return ShoppingCart;
+                      case 6: return Target;
+                      case 7: return Award;
+                      case 8: return ShieldCheck;
+                      case 9: return Boxes;
+                      case 10: return PackageCheck;
+                      case 11: return AlertTriangle;
+                      case 12: return AlertCircle;
+                      case 13: return Package;
+                      case 14: return Zap;
+                      case 15: return Trophy;
+                      case 16: return Layers;
+                      case 17: return FileCheck;
+                      case 18: return Truck;
+                      case 19: return Clock;
+                      default: return Target;
+                    }
+                  };
+
+                  const IconComponent = getCapIcon(cap.id);
+
+                  return (
+                    <div
+                      key={cap.id}
+                      onClick={() => setActiveCapabilityModal(cap.id)}
+                      className={`relative aspect-square rounded-2xl sm:rounded-[22px] p-2 sm:p-2.5 flex flex-col items-center justify-between transition-all duration-200 cursor-pointer select-none active:scale-95 text-center ${
+                        isDone
+                          ? "bg-emerald-500/10 border border-emerald-500/30 shadow-xs hover:border-emerald-500/50"
+                          : "bg-white border border-slate-100 shadow-[4px_4px_10px_rgba(0,0,0,0.05),-2px_-2px_8px_rgba(255,255,255,0.9)] hover:shadow-md hover:border-slate-200"
+                      }`}
+                    >
+                      <div className={`p-1.5 sm:p-2 rounded-xl mt-0.5 ${isDone ? "bg-emerald-500/20 text-emerald-500" : "bg-slate-100 text-slate-700"}`}>
+                        <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
+                      </div>
+
+                      <h4 className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight line-clamp-2 px-0.5 my-auto">
+                        {cap.name}
+                      </h4>
+
+                      <div className="w-full flex items-center justify-center">
+                        <span className={`text-[9px] sm:text-[10px] font-black px-1.5 py-0.5 rounded-full border ${
+                          isDone
+                            ? "bg-emerald-500/20 text-emerald-600 border-emerald-500/30"
+                            : compAct > 0
+                            ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+                            : "bg-slate-100 text-slate-500 border-slate-200"
+                        }`}>
+                          {compAct}/{totalAct}
+                        </span>
                       </div>
                     </div>
-                    
-                    <div className="mt-1.5 flex items-center justify-between">
-                      <div className="flex-1 mr-4">
-                        <div className="h-1.5 w-full bg-emerald-200/60 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500" 
-                            style={{ width: totalAct > 0 ? `${(compAct / totalAct) * 100}%` : '0%' }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-medium text-emerald-800/80 tracking-wide shrink-0">
-                        {progText}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </>
           );
         })()}

@@ -815,7 +815,7 @@ export function extractAndSelectPreviousDaySnapshot(
       category: "required_training_incomplete",
       titleEn: "Mandatory Training Gap",
       titleHi: "अनिवार्य ट्रेनिंग अधूरी",
-      metricValue: `${modulesCompleted}/10`,
+      metricValue: `${modulesCompleted}/19`,
       metricUnit: "modules",
       contextTextEn: "Foundation safety & terminal LMS modules must be completed",
       contextTextHi: "सुरक्षा व टर्मिनल के बुनियादी ट्रेनिंग मॉड्यूल पूरे करना जरूरी",
@@ -853,7 +853,7 @@ export function extractAndSelectPreviousDaySnapshot(
       category: "training_completed",
       titleEn: "Training Modules",
       titleHi: "ट्रेनिंग मॉड्यूल पूर्ण",
-      metricValue: `${modulesCompleted}/10`,
+      metricValue: `${modulesCompleted}/19`,
       metricUnit: "completed",
       contextTextEn: `Foundation LMS modules verified with ${quizAvg ?? 90}% average score`,
       contextTextHi: `बुनियादी सुरक्षा व टर्मिनल मॉड्यूल ${quizAvg ?? 90}% स्कोर के साथ पूर्ण`,
@@ -861,7 +861,7 @@ export function extractAndSelectPreviousDaySnapshot(
       badgeHi: "✓ सत्यापित",
       iconName: "CheckCircle2",
       themeColor: "purple",
-      progressPct: Math.min(100, Math.round((modulesCompleted / 10) * 100)),
+      progressPct: Math.min(100, Math.round((modulesCompleted / 19) * 100)),
       priorityWeight: 75,
     });
   }
@@ -1053,7 +1053,7 @@ export function extractAndSelectPreviousDaySnapshot(
       category: "training_completed",
       titleEn: "Training Status",
       titleHi: "ट्रेनिंग स्थिति",
-      metricValue: `${modulesCompleted}/10`,
+      metricValue: `${modulesCompleted}/19`,
       metricUnit: "modules",
       contextTextEn: `${modulesCompleted} modules completed (${quizAvg ?? 90}% quiz score)`,
       contextTextHi: `${modulesCompleted} मॉड्यूल पूर्ण (${quizAvg ?? 90}% क्विज़ स्कोर)`,
@@ -3177,7 +3177,7 @@ export function evaluateDay10Outcome(
     {
       name: "Mandatory Training Completed",
       met: isTrainingComplete,
-      detail: `${modulesCompleted}/10 foundation modules completed`,
+      detail: `${modulesCompleted}/19 foundation modules completed`,
     },
     {
       name: "Required Capabilities Demonstrated",

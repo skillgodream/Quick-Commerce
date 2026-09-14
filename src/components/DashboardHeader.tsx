@@ -69,9 +69,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       title: "Learning",
       titleHi: "लर्निंग",
       weight: 20,
-      progressPercent: Math.min(100, Math.round((modulesDone / 10) * 100)),
-      metricLabel: `${modulesDone}/10 Modules Completed`,
-      metricLabelHi: `${modulesDone}/10 मॉड्यूल पूर्ण`,
+      progressPercent: Math.min(100, Math.round((modulesDone / 19) * 100)),
+      metricLabel: `${modulesDone}/19 Modules Completed`,
+      metricLabelHi: `${modulesDone}/19 मॉड्यूल पूर्ण`,
       statusBadge: "On Track",
       statusBadgeHi: "ट्रैक पर",
       statusColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
@@ -82,10 +82,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         "Digital micro-learning modules covering standard dark store operating procedures, inventory safety, aisle scanning rules, and equipment handling.",
       descriptionHi:
         "डिजिटल माइक्रो-लर्निंग मॉड्यूल जो डार्क स्टोर की मानक संचालन प्रक्रिया, सुरक्षा, शेल्फ स्कैनिंग और उपकरण रखरखाव को कवर करते हैं।",
-      currentPerformance: `Completed ${modulesDone} of 10 micro-modules with average quiz accuracy of ${newHire.quizAverageScore ?? 94}%.`,
-      currentPerformanceHi: `10 में से ${modulesDone} मॉड्यूल पूरे, क्विज़ में औसत सटीकता ${newHire.quizAverageScore ?? 94}% है।`,
-      targetBenchmark: "Complete at least 8 modules before Day 10 Certification.",
-      targetBenchmarkHi: "डे 10 सर्टिफिकेशन से पहले न्यूनतम 8 मॉड्यूल पूरे करें।",
+      currentPerformance: `Completed ${modulesDone} of 19 LMS modules with average quiz accuracy of ${newHire.quizAverageScore ?? 94}%.`,
+      currentPerformanceHi: `19 में से ${modulesDone} मॉड्यूल पूरे, क्विज़ में औसत सटीकता ${newHire.quizAverageScore ?? 94}% है।`,
+      targetBenchmark: "Complete all 19 LMS modules before Day 10 Certification.",
+      targetBenchmarkHi: "डे 10 सर्टिफिकेशन से पहले 19 एलएमएस मॉड्यूल पूरे करें।",
       actionGuidance:
         "Focus on completing 'Cold Room & Dairy Safety' module today to stay ahead of schedule.",
       actionGuidanceHi:

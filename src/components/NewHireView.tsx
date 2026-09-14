@@ -76,26 +76,34 @@ const HOME_LEARNING_METRICS = [
   {
     id: "basics",
     titleEn: "Basics & Safety",
-    titleHi: "मूल बातें और सुरक्षा",
-    capIds: [1, 2, 3, 4, 5]
+    titleShortEn: "Basics",
+    titleHi: "सुरक्षा",
+    capIds: [1, 2, 3, 4, 5],
+    icon: ShieldCheck
   },
   {
     id: "accuracy",
-    titleEn: "Accuracy & Product Handling",
-    titleHi: "सटीकता और उत्पाद प्रबंधन",
-    capIds: [6, 7, 8, 10]
+    titleEn: "Accuracy & Handling",
+    titleShortEn: "Accuracy",
+    titleHi: "सटीकता",
+    capIds: [6, 7, 8, 10],
+    icon: Target
   },
   {
     id: "exceptions",
-    titleEn: "Floor Execution & Exceptions",
-    titleHi: "फ़्लोर निष्पादन और अपवाद",
-    capIds: [11, 12, 13, 18]
+    titleEn: "Floor Exceptions",
+    titleShortEn: "Exceptions",
+    titleHi: "अपवाद",
+    capIds: [11, 12, 13, 18],
+    icon: AlertTriangle
   },
   {
     id: "flow",
     titleEn: "Flow & Completion",
-    titleHi: "प्रवाह और समापन",
-    capIds: [9, 14, 15, 16, 17, 19]
+    titleShortEn: "Flow",
+    titleHi: "प्रवाह",
+    capIds: [9, 14, 15, 16, 17, 19],
+    icon: Zap
   }
 ];
 
@@ -151,37 +159,53 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const setIsHindi = propSetIsHindi || setLocalIsHindi;
   const handleToggleLanguage = propOnToggleLanguage || (() => setIsHindi(!isHindi));
 
-  const totalModulesCount = MANDATORY_TRAINING_MODULES.length || 10;
+  const totalModulesCount = 19;
   const completedModulesCount = newHire.completedModuleIds?.length ?? 0;
   const courseCompletionPercentage = Math.round((completedModulesCount / totalModulesCount) * 100);
+  const isTrainingMet = completedModulesCount >= 19;
 
-  // Automated Yesterday's Shift Metrics & Performance
+  // Automated Till-Date Performance & Shift Metrics
+  const completedDays = (newHire.daysHistory || []).filter((d) => d.dayNumber <= currentDay && d.workSignal);
   const yesterdayNumber = Math.max(1, currentDay - 1);
-  const yesterdayRecord = newHire.daysHistory.find((d) => d.dayNumber === yesterdayNumber) ||
-    newHire.daysHistory.filter((d) => d.dayNumber < currentDay).pop() ||
-    newHire.daysHistory[0];
+  const yesterdayRecord = newHire.daysHistory?.find((d) => d.dayNumber === yesterdayNumber) ||
+    newHire.daysHistory?.filter((d) => d.dayNumber < currentDay).pop() ||
+    newHire.daysHistory?.[0];
 
   const prevWork = yesterdayRecord?.workSignal;
-  const actualPickRate = prevWork?.actualPickRate ?? (currentDay === 1 ? 20 : 32);
-  const targetPickRate = prevWork?.targetPickRate ?? (currentDay === 1 ? 25 : 35);
+
+  // Real Till-Date Average Pick Rate & Benchmark Target (Guarded against 0/NaN)
+  const rawActual = prevWork?.actualPickRate ?? (completedDays.length > 0
+    ? Math.round(completedDays.reduce((acc, d) => acc + (d.workSignal?.actualPickRate || 0), 0) / completedDays.length)
+    : 32);
+  const actualPickRate = Number.isNaN(rawActual) || rawActual <= 0 ? 32 : rawActual;
+
+  const rawTarget = prevWork?.targetPickRate ?? 50;
+  const targetPickRate = Number.isNaN(rawTarget) || rawTarget <= 0 ? 50 : rawTarget;
   const isPickRateBad = actualPickRate < targetPickRate;
 
-  const accuracyRate = prevWork?.accuracyRate ?? 99;
+  // Real Till-Date Accuracy Rate
+  const rawAccuracy = prevWork?.accuracyRate ?? (completedDays.length > 0
+    ? Math.round(completedDays.reduce((acc, d) => acc + (d.workSignal?.accuracyRate || 99), 0) / completedDays.length)
+    : 98);
+  const accuracyRate = Number.isNaN(rawAccuracy) || rawAccuracy <= 0 ? 98 : rawAccuracy;
   const targetAccuracy = 98;
   const isAccuracyBad = accuracyRate < targetAccuracy;
 
-  const ordersCompleted = prevWork?.ordersCompleted ?? (currentDay === 1 ? 15 : 38);
-  const targetOrders = prevWork?.targetOrders ?? (currentDay === 1 ? 20 : 42);
-  const isOrdersBad = ordersCompleted < targetOrders;
+  // Real Till-Date Demonstrated Capabilities Count
+  const capabilities = newHire.capabilities || {};
+  const demonstratedCount = Object.values(capabilities).filter(
+    (c: any) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")
+  ).length || (newHire.capabilitiesDemonstrated?.length ?? 2);
+  const isCapabilitiesMet = demonstratedCount >= 10;
 
-  const trainingScore = Math.min(100, Math.round(((completedModulesCount / totalModulesCount) * 50 + ((newHire.quizAverageScore ?? 94) / 100) * 50)));
+  // Real Till-Date Overall Shift Score Calculation
+  const trainingScore = Math.min(100, Math.round((completedModulesCount / totalModulesCount) * 100));
   const speedScore = Math.min(100, Math.round((actualPickRate / targetPickRate) * 100));
-  const accuracyScore = Math.min(100, Math.round(accuracyRate));
-  const ordersScore = Math.min(100, Math.round((ordersCompleted / targetOrders) * 100));
-  const yesterdayShiftScore = Math.round(
-    trainingScore * 0.25 + speedScore * 0.30 + accuracyScore * 0.30 + ordersScore * 0.15
-  );
-  const targetShiftScore = 90;
+  const accuracyScore = Math.min(100, accuracyRate);
+  
+  const calculatedShiftScore = Math.round(trainingScore * 0.30 + speedScore * 0.35 + accuracyScore * 0.35);
+  const yesterdayShiftScore = Number.isNaN(calculatedShiftScore) || calculatedShiftScore <= 0 ? 75 : calculatedShiftScore;
+  const targetShiftScore = 85;
   const isShiftScoreBad = yesterdayShiftScore < targetShiftScore;
 
   // Automated Certification Readiness Evaluation
@@ -190,7 +214,6 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const isCertifiedReady = readinessEval.isReady;
   const currentCertificationDate = currentRecord?.date || (isHindi ? `दिन ${currentDay}` : `Day ${currentDay}`);
   const automatedDate = yesterdayRecord?.date || (isHindi ? `दिन ${yesterdayNumber}` : `Day ${yesterdayNumber}`);
-  const demonstratedCount = newHire.capabilitiesDemonstrated?.length || 2;
 
   // Active learner navigation tab: "home" | "modules" | "dial" | "dashboard" | "buddy"
   const [localActiveSection, setLocalActiveSection] = useState<LearnerSection>("home");
@@ -279,10 +302,8 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const authoritativeReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   // Derive simple human state from existing intelligence ledger with dynamic live readiness checks
-  const requiredModulesForDay = currentDay === 10 ? 10 : Math.min(10, currentDay);
-  const requiredCapabilitiesForDay = currentDay === 10 ? 14 : Math.min(20, Math.round((currentDay / 10) * 14));
-  const isTrainingMet = completedModulesCount >= requiredModulesForDay;
-  const isCapabilitiesMet = demonstratedCount >= requiredCapabilitiesForDay;
+  const requiredModulesForDay = Math.min(19, currentDay * 2);
+  const requiredCapabilitiesForDay = Math.min(19, Math.round((currentDay / 10) * 14));
   const hasActiveBlockers = blockerCount > 0 || isPickRateBad || isAccuracyBad || !isTrainingMet || !isCapabilitiesMet;
 
   const dynamicStatus = (
@@ -672,7 +693,19 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
       <div className="max-w-md mx-auto p-1.5 sm:p-2 pb-36 select-none min-h-screen bg-white text-slate-900 relative font-ref antialiased">
         
         {/* Full-Bleed Hero Banner containing Top Header and Readiness Score */}
-        <div className="bg-gradient-to-b from-[#0E4AA9] to-[#021F54] rounded-[40px] px-5 pt-5 pb-12 mb-7 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.4),0_15px_25px_-10px_rgba(0,0,0,0.2),inset_0_3px_8px_rgba(255,255,255,0.15),inset_0_-3px_8px_rgba(0,0,0,0.15)] flex flex-col text-white border border-white/10 relative overflow-hidden">
+        <div className="bg-[#12131c] rounded-[40px] px-5 pt-5 pb-12 mb-7 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] flex flex-col text-white border border-white/10 relative overflow-hidden">
+          
+          {/* Hero Banner Background - Replicated from Screenshot (Blue and Red Dual Radial Glows) */}
+          <div className="absolute inset-0 pointer-events-none rounded-[40px] overflow-hidden">
+            {/* Left Royal Blue Ambient Radial Glow */}
+            <div className="absolute -top-12 -left-12 w-72 h-72 bg-[#1d4ed8]/65 rounded-full blur-3xl pointer-events-none" />
+            {/* Right Crimson/Red Ambient Radial Glow */}
+            <div className="absolute top-1/4 -right-12 w-72 h-72 bg-[#e11d48]/60 rounded-full blur-3xl pointer-events-none" />
+            {/* Vignette Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+          </div>
+
+          {/* Top Header: Learner Profile Switcher (Left) & Manager Console / Bell / Language (Right) */}
           
           {/* Top Header: Learner Profile Switcher (Left) & Manager Console / Bell / Language (Right) */}
           <div className="flex items-center justify-between mb-8 relative z-20">
@@ -751,7 +784,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   type="button"
                   onClick={() => setIsHindi(false)}
                   className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                    !isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                    !isHindi ? "bg-white text-slate-900 shadow-xs" : "text-white hover:bg-white/10"
                   }`}
                 >
                   EN
@@ -760,7 +793,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   type="button"
                   onClick={() => setIsHindi(true)}
                   className={`px-3 py-1 rounded-full text-xs font-black tracking-tight transition-all cursor-pointer ${
-                    isHindi ? "bg-white text-[#0E4AA9] shadow-xs" : "text-white hover:bg-white/10"
+                    isHindi ? "bg-white text-slate-900 shadow-xs" : "text-white hover:bg-white/10"
                   }`}
                 >
                   हिंदी
@@ -773,7 +806,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           <div className="flex flex-col items-center justify-center relative z-10 pt-2">
             
             {/* Circular Progress Gauge */}
-            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7 bg-[#e0e0e0] rounded-full shadow-[3px_3px_6px_#b8b8b8,-3px_-3px_6px_#ffffff]">
+            <div className="relative w-52 h-52 sm:w-60 sm:h-60 flex items-center justify-center mb-7 bg-white/10 backdrop-blur-xl border border-white/20 rounded-full shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
               <svg viewBox="0 0 180 180" className="w-full h-full -rotate-90 drop-shadow-md">
                 {/* Background Track */}
                 <circle
@@ -781,7 +814,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   cy="90"
                   r="76"
                   fill="none"
-                  stroke="rgba(0, 0, 0, 0.1)"
+                  stroke="rgba(255, 255, 255, 0.15)"
                   strokeWidth="14"
                 />
                 {/* Progress Arc */}
@@ -790,7 +823,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   cy="90"
                   r="76"
                   fill="none"
-                  stroke="#0E4AA9"
+                  stroke="#38bdf8"
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray={2 * Math.PI * 76}
@@ -803,16 +836,16 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               <div className="absolute inset-0 flex flex-col items-center justify-center pt-1">
                 <div className="flex items-baseline gap-1 mb-1">
                   <span 
-                    className="font-bold text-slate-900 tracking-[-0.04em] leading-none font-sans"
+                    className="font-bold text-white tracking-[-0.04em] leading-none font-sans drop-shadow-md"
                     style={{ fontSize: 'clamp(4.5rem, 15vw, 5.5rem)' }}
                   >
                     {authoritativeReadiness ?? 35}
                   </span>
-                  <span className="text-2xl sm:text-3xl font-bold text-slate-700">
+                  <span className="text-2xl sm:text-3xl font-bold text-slate-300">
                     %
                   </span>
                 </div>
-                <span className="text-[11px] sm:text-[12px] font-bold text-slate-700 tracking-[0.15em] uppercase">
+                <span className="text-[11px] sm:text-[12px] font-bold text-cyan-200 tracking-[0.15em] uppercase drop-shadow-xs">
                   {isHindi ? "भूमिका तत्परता" : "Role Readiness"}
                 </span>
               </div>
@@ -892,27 +925,46 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
         </div>
 
-                        {/* Current Focus Card - Coordinate Navigation (Placed above the four metric cards) */}
+                        {/* Current Focus / Next Step Card - Matched strictly to uploaded screenshot design */}
         <div
           id="home-current-focus-card"
           onClick={() => setShowTodaysGoalView(true)}
-          className="bg-[#000000] text-white rounded-3xl p-4 border border-black shadow-md mb-4 flex items-center justify-between cursor-pointer hover:bg-neutral-900 transition-all active:scale-[0.99] group relative"
+          className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/80 rounded-[28px] p-5 sm:p-6 shadow-xs mb-5 cursor-pointer transition-all active:scale-[0.99] group text-left"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400 shrink-0 group-hover:bg-white/15 transition-colors shadow-2xs">
-              <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400 animate-icon-blink" />
-            </div>
-            <div>
-              <span className="text-sm sm:text-base font-black tracking-widest text-white block uppercase">
-                {isHindi ? "वर्तमान फोकस" : "CURRENT FOCUS"}
-              </span>
-            </div>
+          <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-3.5">
+            {isHindi ? "अगला कदम" : "NEXT STEP"}
           </div>
-          <div className="flex items-center pr-1 shrink-0">
-            <div className="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-yellow-400">
-              <ArrowRight className="w-5 h-5 text-yellow-400" />
+
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100/70 transition-colors">
+                <Target className="w-6 h-6 text-blue-600 stroke-[2.2]" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">
+                  {isHindi ? "पिकिंग सटीकता में सुधार करें" : "Improve picking accuracy"}
+                </h3>
+                <p className="text-xs sm:text-sm font-normal text-slate-500 leading-relaxed mt-1">
+                  {isHindi 
+                    ? "आपके हाल के काम के साक्ष्य से आइटम की पहचान में लगातार समस्याएं दिखाई देती हैं।" 
+                    : "Your recent work evidence shows repeated issues with item identification."}
+                </p>
+              </div>
             </div>
+            <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 self-center group-hover:text-slate-600 transition-colors ml-1" />
           </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTodaysGoalView(true);
+            }}
+            className="w-full bg-[#1b64f2] hover:bg-[#1553d1] text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-full flex items-center justify-center gap-2 shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
+          >
+            <span>{isHindi ? "अभ्यास शुरू करें" : "Start practice"}</span>
+            <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
+          </button>
         </div>
 
         {/* MY SKILLS 4-Grid Visual Capability Dashboard */}
@@ -926,32 +978,23 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-4 gap-2">
             {HOME_LEARNING_METRICS.map(metric => {
-              // Check if any capability in this metric needs attention or has positive demonstrated evidence
+              const IconComp = metric.icon;
+              
               let hasAttention = false;
               let hasDemonstrated = false;
               
               metric.capIds.forEach(capId => {
                 const state = newHire.capabilities?.[capId];
                 if (!state) return;
-                
-                // Real below-target capability problem or inconsistent evidence
                 if (state.performance === "below_target" || state.evidence === "inconsistent") {
                   hasAttention = true;
                 }
-                
-                // Real positive demonstrated/mastered capability evidence
                 if (state.evidence === "demonstrated" || state.mastery === "proficient" || state.mastery === "mastered") {
                   hasDemonstrated = true;
                 }
               });
-
-              const statusText = hasAttention
-                ? (isHindi ? "ध्यान आवश्यक" : "Needs attention")
-                : (hasDemonstrated
-                    ? (isHindi ? "ट्रैक पर" : "On track")
-                    : (isHindi ? "पर्याप्त साक्ष्य नहीं" : "Not enough evidence"));
 
               return (
                 <div 
@@ -959,31 +1002,27 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
                   onClick={() => {
                     setActiveSection("learner_dashboard");
                   }}
-                  className={`rounded-2xl p-3.5 border ${
+                  className={`aspect-square rounded-2xl p-2.5 border flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-all shadow-xs hover:border-slate-300 ${
                     hasAttention 
-                      ? 'bg-rose-50 border-rose-200' 
+                      ? 'bg-rose-50/80 border-rose-200' 
                       : hasDemonstrated 
-                      ? 'bg-emerald-50/40 border-emerald-200/70' 
-                      : 'bg-slate-50 border-slate-200'
-                  } flex flex-col justify-between min-h-[92px] cursor-pointer active:scale-95 transition-all shadow-sm hover:border-slate-300`}
+                      ? 'bg-emerald-50/70 border-emerald-200' 
+                      : 'bg-white border-slate-200'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-1 mb-2">
-                    <span className={`text-xs font-bold leading-tight ${hasAttention ? 'text-rose-900' : 'text-slate-800'}`}>
-                      {isHindi ? metric.titleHi : metric.titleEn}
-                    </span>
-                    {hasAttention && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                  <div className={`p-2 rounded-xl mb-1.5 ${
+                    hasAttention 
+                      ? 'bg-rose-500/15 text-rose-600' 
+                      : hasDemonstrated 
+                      ? 'bg-emerald-500/15 text-emerald-600' 
+                      : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    <IconComp className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2]" />
                   </div>
-                  <div className="mt-auto">
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${
-                      hasAttention 
-                        ? 'text-rose-600' 
-                        : hasDemonstrated 
-                        ? 'text-emerald-700' 
-                        : 'text-slate-400'
-                    }`}>
-                      {statusText}
-                    </span>
-                  </div>
+
+                  <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-800 leading-tight">
+                    {isHindi ? metric.titleHi : metric.titleShortEn}
+                  </span>
                 </div>
               );
             })}
@@ -1082,22 +1121,27 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         </div>
 
         {/* Certification Criteria Checklist (Automated Fetched Data) */}
-        <div className="bg-[#12141c] text-white rounded-3xl p-5 shadow-xl border border-slate-800 space-y-4 mb-24 font-ref">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-slate-400" />
-              <h3 className="text-sm font-black text-white tracking-tight">
+        <div className="relative overflow-hidden bg-gradient-to-b from-[#1e2230]/85 via-[#12141c]/90 to-[#0a0c12]/95 text-white rounded-[28px] p-5 sm:p-6 shadow-2xl border border-white/15 backdrop-blur-2xl space-y-4 mb-24 font-ref">
+          <div className="absolute -top-24 -right-24 w-52 h-52 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-52 h-52 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-emerald-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-white tracking-tight">
                 {isCertifiedReady
                   ? (isHindi ? "प्रमाणन मानदंड स्थिति" : "Certification Criteria Status")
                   : (isHindi ? "प्रमाणन ब्लॉकर्स और मानदंड" : "Certification Criteria & Blockers")}
               </h3>
             </div>
-            <span className="ref-num text-[10px] font-black uppercase tracking-wider text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
+            <span className="ref-num text-[10px] font-black uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20 backdrop-blur-md">
               {currentCertificationDate}
             </span>
           </div>
 
-          <div className="space-y-2">
+          <div className="relative z-10 space-y-2.5 pt-1">
             {[
               { 
                 label: isHindi ? "अनिवार्य ट्रेनिंग पूरी" : "Mandatory training completed", 
@@ -1106,7 +1150,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               },
               { 
                 label: isHindi ? "आवश्यक क्षमताएं प्रदर्शित" : "Required capabilities demonstrated", 
-                value: `${demonstratedCount}/20`, 
+                value: `${demonstratedCount}/19`, 
                 met: isCapabilitiesMet 
               },
               { 
@@ -1127,13 +1171,16 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex items-center justify-between text-xs hover:bg-white/[0.07] transition-colors"
+                className="relative overflow-hidden bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/15 hover:border-white/25 rounded-2xl p-3.5 flex items-center justify-between text-xs transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.2)] group"
               >
-                <div className="flex items-center gap-2.5">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${item.met ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]"}`} />
-                  <span className="font-bold text-slate-200 tracking-tight">{item.label}</span>
+                {/* iOS Specular Sheen */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none opacity-80" />
+                
+                <div className="relative z-10 flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.met ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"}`} />
+                  <span className="font-bold text-white/95 tracking-tight text-[13px]">{item.label}</span>
                 </div>
-                <span className={`ref-num font-black tracking-tight ${item.met ? "text-emerald-400" : "text-rose-400 font-mono"}`}>
+                <span className={`relative z-10 font-black tracking-tight text-xs ${item.met ? "text-emerald-300" : "text-rose-300 font-mono"}`}>
                   {item.value}
                 </span>
               </div>
