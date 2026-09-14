@@ -87,6 +87,18 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
       console.warn("Firestore fetch in modal:", err);
     }
 
+    try {
+      const simRes = await fetchSimulatorEvidence();
+      if (simRes.success && simRes.evidence.length > 0) {
+        setRawRecords(simRes.evidence);
+        setSyncStatus("success");
+        setStatusMessage(`Connected to Live Simulator: ${simRes.evidence.length} telemetry records active!`);
+        return;
+      }
+    } catch (simErr) {
+      console.warn("fetchSimulatorEvidence in modal:", simErr);
+    }
+
     const ep = targetEndpoint || getSimulatorEndpoint();
     try {
       const res = await fetch(ep, { cache: "no-store" });
@@ -101,20 +113,6 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
         setStatusMessage(`HTTP ${res.status} from ${ep}`);
       }
     } catch (e: any) {
-      // If primary endpoint failed and it's not the Vercel fallback, try Vercel fallback automatically
-      if (ep !== DEFAULT_SIMULATOR_API_URL) {
-        try {
-          const fallbackRes = await fetch(DEFAULT_SIMULATOR_API_URL, { cache: "no-store" });
-          if (fallbackRes.ok) {
-            const json = await fallbackRes.json();
-            const list = Array.isArray(json) ? json : json.data || json.evidence || [];
-            setRawRecords(list);
-            setSyncStatus("success");
-            setStatusMessage(`Reconnected to public cloud mirror (${list.length} records). Click "Use Public Cloud Mirror" in Endpoint tab.`);
-            return;
-          }
-        } catch (_) {}
-      }
       setSyncStatus("error");
       setStatusMessage(e.message || "Failed to reach simulator endpoint");
     }

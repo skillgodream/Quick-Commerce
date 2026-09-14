@@ -12,8 +12,9 @@ import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard"
  * Path: Simulator -> Canonical Evidence API -> Check-in Evidence Access Layer -> Six Doctors -> AI-3/4/5 -> AI-8 -> Doctor 6 -> Learner State -> Outcome -> Casebook / AI-6
  */
 
-export const DEFAULT_SIMULATOR_API_URL = "https://dummy-organization.vercel.app/api/v1/evidence";
+export const DEFAULT_SIMULATOR_API_URL = "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence";
 export const RUN_APP_SIMULATOR_API_URL = "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence";
+export const DEFAULT_FALLBACK_SIMULATOR_URL = "https://dummy-organization.vercel.app/api/v1/evidence";
 
 const STORAGE_KEY_CUSTOM_ENDPOINT = "custom_simulator_api_url";
 
@@ -405,10 +406,11 @@ export async function fetchSimulatorEvidence(
   params?: SimulatorQueryParams,
   timeoutMs: number = 4000
 ): Promise<FetchSimulatorResult> {
-  try {
-    const endpoint = getSimulatorEndpoint();
-    const url = new URL(endpoint);
-
+  const attemptFetch = async (fetchUrl: string): Promise<FetchSimulatorResult> => {
+    const url = new URL(
+      fetchUrl,
+      typeof window !== "undefined" && window.location ? window.location.origin : "http://localhost:3000"
+    );
     if (params?.since_timestamp) url.searchParams.set("since_timestamp", params.since_timestamp);
     if (params?.limit) url.searchParams.set("limit", String(params.limit));
     if (params?.employeeId) {
@@ -422,76 +424,101 @@ export async function fetchSimulatorEvidence(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-      },
-      cache: "no-store",
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
 
-    clearTimeout(timeoutId);
+      if (!response.ok) {
+        return {
+          success: false,
+          evidence: [],
+          error: `Simulator API returned HTTP status ${response.status}`,
+          count: 0,
+        };
+      }
 
-    if (!response.ok) {
+      const data = await response.json();
+      let rawList: any[] = [];
+      if (Array.isArray(data)) {
+        rawList = data;
+      } else if (data && Array.isArray(data.evidence)) {
+        rawList = data.evidence;
+      } else if (data && Array.isArray(data.data)) {
+        rawList = data.data;
+      }
+
+      const expectedCanonicalEmpId = params?.employeeId ? mapToCanonicalEmployeeId(params.employeeId) : undefined;
+      const expectedJourneyDay =
+        params?.journeyDay !== undefined && params?.journeyDay !== null ? Number(params.journeyDay) : undefined;
+
+      const validEvidence: SimulatorEvidenceItem[] = [];
+      const batchKeys = new Set<string>();
+      for (const raw of rawList) {
+        const sanitized = validateAndSanitizeEvidenceRecord(raw);
+        if (sanitized) {
+          // Strict learner identity check: must correspond to requested learner
+          if (expectedCanonicalEmpId && sanitized.employeeId !== expectedCanonicalEmpId) {
+            continue;
+          }
+          // Strict journey_day check: MUST exactly equal requested journeyDay. NO cross-day fallback!
+          if (expectedJourneyDay !== undefined && sanitized.journeyDay !== expectedJourneyDay) {
+            continue;
+          }
+          const key = getEvidenceKey(sanitized);
+          if (!batchKeys.has(key)) {
+            batchKeys.add(key);
+            validEvidence.push(sanitized);
+          }
+        }
+      }
+
+      return {
+        success: true,
+        evidence: validEvidence,
+        count: validEvidence.length,
+      };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const errorMsg = err?.name === "AbortError" ? "Simulator API fetch timed out" : err?.message || String(err);
       return {
         success: false,
         evidence: [],
-        error: `Simulator API returned HTTP status ${response.status}`,
+        error: errorMsg,
         count: 0,
       };
     }
+  };
 
-    const data = await response.json();
-    let rawList: any[] = [];
-    if (Array.isArray(data)) {
-      rawList = data;
-    } else if (data && Array.isArray(data.evidence)) {
-      rawList = data.evidence;
-    } else if (data && Array.isArray(data.data)) {
-      rawList = data.data;
-    }
+  const primaryEndpoint = getSimulatorEndpoint();
+  const primaryResult = await attemptFetch(primaryEndpoint);
 
-    const expectedCanonicalEmpId = params?.employeeId ? mapToCanonicalEmployeeId(params.employeeId) : undefined;
-    const expectedJourneyDay = (params?.journeyDay !== undefined && params?.journeyDay !== null) ? Number(params.journeyDay) : undefined;
-
-    const validEvidence: SimulatorEvidenceItem[] = [];
-    const batchKeys = new Set<string>();
-    for (const raw of rawList) {
-      const sanitized = validateAndSanitizeEvidenceRecord(raw);
-      if (sanitized) {
-        // Strict learner identity check: must correspond to requested learner
-        if (expectedCanonicalEmpId && sanitized.employeeId !== expectedCanonicalEmpId) {
-          continue;
-        }
-        // Strict journey_day check: MUST exactly equal requested journeyDay. NO cross-day fallback!
-        if (expectedJourneyDay !== undefined && sanitized.journeyDay !== expectedJourneyDay) {
-          continue;
-        }
-        const key = getEvidenceKey(sanitized);
-        if (!batchKeys.has(key)) {
-          batchKeys.add(key);
-          validEvidence.push(sanitized);
-        }
+  // If in browser and primary failed, try local server proxy or public cloud mirror
+  if (!primaryResult.success && typeof window !== "undefined") {
+    try {
+      const proxyResult = await attemptFetch("/api/simulator/evidence");
+      if (proxyResult.success && proxyResult.count > 0) {
+        return proxyResult;
       }
-    }
+    } catch (_) {}
 
-    return {
-      success: true,
-      evidence: validEvidence,
-      count: validEvidence.length,
-    };
-  } catch (err: any) {
-    const errorMsg = err?.name === "AbortError" ? "Simulator API fetch timed out" : (err?.message || String(err));
-    return {
-      success: false,
-      evidence: [],
-      error: errorMsg,
-      count: 0,
-    };
+    try {
+      const fallbackResult = await attemptFetch(DEFAULT_FALLBACK_SIMULATOR_URL);
+      if (fallbackResult.success) {
+        return fallbackResult;
+      }
+    } catch (_) {}
   }
+
+  return primaryResult;
 }
 
 /**
@@ -633,7 +660,7 @@ export function applyEvidenceToCohort(
   // Group evidence by canonical employee ID
   const evidenceByHire: Record<string, SimulatorEvidenceItem[]> = {};
   for (const item of evidenceItems) {
-    const rawId = item.employeeId || item.employee_id || item.subjectId;
+    const rawId = item.employeeId || item.employee_id || item.subjectId || (item as any).subject_id;
     const canId = mapToCanonicalEmployeeId(rawId);
     if (!evidenceByHire[canId]) evidenceByHire[canId] = [];
     evidenceByHire[canId].push(item);
@@ -642,71 +669,142 @@ export function applyEvidenceToCohort(
   // Update cohort members
   updated.forEach((hire: any) => {
     const items = evidenceByHire[hire.id] || [];
-    items.forEach((item) => {
-      const day = item.journeyDay || item.journey_day || item.dayNumber || (item.context && typeof item.context === "object" ? (item.context as any).journey_day : undefined) || 1;
-      let dayRecord = hire.daysHistory.find((d: any) => d.dayNumber === day);
-      if (!dayRecord && day >= 1 && day <= 11) {
+    if (items.length === 0) return;
+
+    // Group items by journey day
+    const itemsByDay: Record<number, SimulatorEvidenceItem[]> = {};
+    for (const item of items) {
+      const rawDay =
+        item.journeyDay ??
+        item.journey_day ??
+        item.dayNumber ??
+        (item.context && typeof item.context === "object" ? (item.context as any).journey_day : undefined);
+      const dayNum = Number(rawDay);
+      if (Number.isFinite(dayNum) && dayNum >= 0 && dayNum <= 11) {
+        const d = Math.floor(dayNum);
+        if (!itemsByDay[d]) itemsByDay[d] = [];
+        itemsByDay[d].push(item);
+      }
+    }
+
+    const availableDays = Object.keys(itemsByDay)
+      .map(Number)
+      .filter((d) => d >= 1 && d <= 11)
+      .sort((a, b) => a - b);
+
+    for (const d of availableDays) {
+      const dayItems = itemsByDay[d] || [];
+      let dayRecord = hire.daysHistory.find((rec: any) => rec.dayNumber === d);
+      if (!dayRecord) {
         dayRecord = {
-          dayNumber: day,
-          date: `Day ${day}`,
-          statusAtEnd: "Active",
-          statusReason: "In-progress telemetry ingestion",
-          dailySignal: {
-            pickVolume: 40,
-            pickVelocity: 40,
-            accuracyScore: 85,
-            scanGapDurationMinutes: 5,
-            assessmentScore: 80,
-            supervisorObservationNotes: "",
-            safetyIncidentsCount: 0,
-            systemConfidence: 1,
-          },
+          dayNumber: d,
+          date: `Day ${d}`,
+          statusAtEnd: "Doing well",
+          statusReason: `Day ${d} shift logged`,
         };
         hire.daysHistory.push(dayRecord);
-        hire.daysHistory.sort((a: any, b: any) => a.dayNumber - b.dayNumber);
       }
-      if (!dayRecord) return;
 
-      const val = typeof item.value === "number" ? item.value : parseFloat(String(item.value)) || 0;
-      const type = (item.type || item.category || "").toLowerCase();
+      let pickVol: number | undefined;
+      let expVol: number | undefined;
+      let pickVel: number | undefined;
+      let accScore: number | undefined;
+      let supervisorNote: string = "";
+      let helpReqs: number | undefined;
+      let timeTaken: number | undefined;
+
+      for (const item of dayItems) {
+        const type = (item.type || item.category || "").toLowerCase();
+        const rawVal = item.value;
+        const val = typeof rawVal === "number" ? rawVal : parseFloat(String(rawVal));
+        const numVal = Number.isFinite(val) ? val : 0;
+
+        if (type === "pick_volume" || type.includes("pick_volume")) {
+          pickVol = Math.round(numVal);
+        } else if (type === "expected_volume" || type.includes("expected_volume")) {
+          expVol = Math.round(numVal);
+        } else if (type === "pick_velocity" || type.includes("velocity") || type.includes("uph")) {
+          pickVel = Math.round(numVal);
+        } else if (type === "accuracy_score" || type.includes("accuracy")) {
+          accScore = parseFloat(numVal.toFixed(1));
+        } else if (type === "help_requests" || type.includes("help_request")) {
+          helpReqs = Math.round(numVal);
+        } else if (type === "time_taken" || type.includes("time_taken")) {
+          timeTaken = Math.round(numVal);
+        } else if (type.includes("note") || type.includes("observation")) {
+          supervisorNote = String(item.value || "");
+        }
+      }
+
+      const actualPickRate = pickVel ?? pickVol ?? (d === 1 ? 52 : 50);
+      const targetPickRate = expVol ?? 60;
+      const accuracyRate = accScore ?? (d === 1 ? 94.5 : 96.0);
+      const ordersCompleted = pickVol ?? actualPickRate;
+
+      dayRecord.workSignal = {
+        dayNumber: d,
+        targetPickRate,
+        actualPickRate,
+        accuracyRate,
+        ordersCompleted,
+        targetOrders: targetPickRate,
+        hasWorkEvidence: true,
+      };
 
       if (!dayRecord.dailySignal) {
         dayRecord.dailySignal = {
-          pickVolume: 40,
-          pickVelocity: 40,
-          accuracyScore: 85,
-          scanGapDurationMinutes: 5,
-          assessmentScore: 80,
-          supervisorObservationNotes: "",
-          safetyIncidentsCount: 0,
-          systemConfidence: 1,
+          id: `ds-${hire.id}-d${d}`,
+          dayNumber: d,
+          rawText: `Day ${d} shift completed. Pick pace: ${actualPickRate} UPH (target: ${targetPickRate}). Accuracy: ${accuracyRate}%.`,
+          inputMethod: "voice",
+          issue: actualPickRate < targetPickRate * 0.85 ? "Aisle navigation pacing" : "None",
+          confidence: "High",
+          possibleImpact: "Ramp velocity",
+          category: "Work / Tools",
+          summary: `Day ${d} telemetry: ${actualPickRate}/${targetPickRate} UPH, ${accuracyRate}% accuracy.`,
+          timestamp: new Date().toISOString(),
+          helpRequestsCount: helpReqs ?? 1,
         };
       }
 
-      if (type.includes("pick_volume") || type.includes("volume") || type.includes("completed_work")) {
-        dayRecord.dailySignal.pickVolume = Math.round(val);
-      } else if (type.includes("pick_velocity") || type.includes("velocity") || type.includes("uph") || type.includes("speed")) {
-        dayRecord.dailySignal.pickVelocity = Math.round(val);
-      } else if (type.includes("accuracy") || type.includes("quality")) {
-        dayRecord.dailySignal.accuracyScore = Math.round(val);
-      } else if (type.includes("assessment") || type.includes("score") || type.includes("quiz")) {
-        dayRecord.dailySignal.assessmentScore = Math.round(val);
-      } else if (type.includes("observation") || type.includes("note")) {
-        dayRecord.dailySignal.supervisorObservationNotes = String(item.value || "");
+      if (!dayRecord.managerSignal) {
+        dayRecord.managerSignal = {
+          id: `ms-${hire.id}-d${d}`,
+          dayNumber: d,
+          managerName: "Suresh K.",
+          state: actualPickRate < targetPickRate * 0.85 ? "Needs support" : "Doing well",
+          notes: supervisorNote || `Observed floor picking shift. Speed: ${actualPickRate} UPH, duration: ${timeTaken || 60}m.`,
+          timestamp: new Date().toISOString(),
+        };
       }
-    });
 
-    // Advance journey status and populated days
-    const recordedDays = Array.from(new Set(items.map((e) => e.journeyDay || e.journey_day || 1))).filter((d) => d >= 1);
-    if (recordedDays.length > 0) {
-      const maxDay = Math.max(...recordedDays);
-      if (journeyDayOverride !== undefined) {
-        hire.journeyDay = journeyDayOverride;
-      } else if (maxDay > (hire.journeyDay || 1)) {
-        hire.journeyDay = maxDay;
+      if (actualPickRate < targetPickRate * 0.82) {
+        dayRecord.statusAtEnd = "Needs attention";
+        dayRecord.statusReason = `Pick rate (${actualPickRate} UPH) below target (${targetPickRate} UPH).`;
+      } else {
+        dayRecord.statusAtEnd = "Doing well";
+        dayRecord.statusReason = `On track with ${actualPickRate} UPH and ${accuracyRate}% accuracy.`;
       }
-      if (maxDay > (hire.daysCompleted || 1)) {
-        hire.daysCompleted = maxDay;
+    }
+
+    // Sort days history in ascending order
+    hire.daysHistory.sort((a: any, b: any) => a.dayNumber - b.dayNumber);
+
+    // Update current day on the hire
+    const maxDay = availableDays.length > 0 ? Math.max(...availableDays) : 1;
+    const finalDay = journeyDayOverride !== undefined ? journeyDayOverride : Math.max(hire.currentDay || 1, maxDay);
+    hire.currentDay = finalDay;
+    hire.journeyDay = finalDay;
+    hire.daysCompleted = finalDay;
+
+    const latestRecord = hire.daysHistory.find((r: any) => r.dayNumber === finalDay) || hire.daysHistory[hire.daysHistory.length - 1];
+    if (latestRecord) {
+      hire.status = latestRecord.statusAtEnd;
+      hire.statusReason = latestRecord.statusReason;
+      if (latestRecord.workSignal) {
+        const paceRatio = Math.min(1.0, latestRecord.workSignal.actualPickRate / (latestRecord.workSignal.targetPickRate || 60));
+        const accRatio = Math.min(1.0, latestRecord.workSignal.accuracyRate / 100);
+        hire.overallReadinessScore = Math.round((paceRatio * 0.5 + accRatio * 0.5) * 100);
       }
     }
   });

@@ -157,15 +157,6 @@ export const rahulDaysHistory: DayRecord[] = [
       notes: "Attended safety briefing on time. Good attitude.",
       timestamp: "16:00",
     },
-    workSignal: {
-      dayNumber: 1,
-      targetPickRate: 25,
-      actualPickRate: 22,
-      accuracyRate: 100,
-      ordersCompleted: 14,
-      targetOrders: 15,
-      hasWorkEvidence: true,
-    },
     recommendedAction: {
       id: "act-r-d1",
       dayNumber: 1,

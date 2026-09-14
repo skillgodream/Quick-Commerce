@@ -154,6 +154,11 @@ export default function App() {
       });
   }, []);
 
+  // Automatically connect to live Simulator on startup and ingest all journey evidence
+  useEffect(() => {
+    handleSyncAllCohort();
+  }, []);
+
   const activeHire = newHires.find((h) => h.id === activeHireId) || newHires[0];
 
 

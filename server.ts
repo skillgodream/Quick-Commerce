@@ -35,6 +35,54 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// 1.1 Live Simulator Evidence Proxy
+// Transparently proxies evidence from the Simulator API, seamlessly falling back between
+// Cloud Run applet endpoint and public cloud mirror to bypass CORS and cookie walls.
+app.get("/api/simulator/evidence", async (req, res) => {
+  const { url: customUrl, employeeId, journeyDay, since_timestamp, limit } = req.query;
+
+  const targetEndpoints = [
+    customUrl ? String(customUrl) : null,
+    process.env.SIMULATOR_API_URL || null,
+    "https://dummy-organization.vercel.app/api/v1/evidence",
+    "https://ais-pre-zj3dyugz2dislznxqdahrd-891743969591.asia-east1.run.app/api/v1/evidence",
+  ].filter(Boolean) as string[];
+
+  for (const ep of targetEndpoints) {
+    try {
+      const u = new URL(ep);
+      if (employeeId) u.searchParams.set("employeeId", String(employeeId));
+      if (journeyDay !== undefined && journeyDay !== null) u.searchParams.set("journeyDay", String(journeyDay));
+      if (since_timestamp) u.searchParams.set("since_timestamp", String(since_timestamp));
+      if (limit) u.searchParams.set("limit", String(limit));
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+      const resp = await fetch(u.toString(), {
+        headers: {
+          "Accept": "application/json",
+          "Cache-Control": "no-cache",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) {
+        const contentType = resp.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await resp.json();
+          return res.json(data);
+        }
+      }
+    } catch (err) {
+      // try next fallback
+    }
+  }
+
+  res.status(502).json({ error: "Failed to fetch from simulator endpoints" });
+});
+
 // 2. Understand Daily Signal (Speech or Text from New Hire)
 app.post("/api/signals/understand-daily", async (req, res) => {
   try {

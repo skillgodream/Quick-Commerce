@@ -3116,10 +3116,10 @@ export function evaluateDay10Outcome(
     (c) => c && (c.evidence === "demonstrated" || c.mastery === "proficient" || c.mastery === "mastered")
   ).length;
 
-  const modulesCompleted =
-    hire.completedModuleIds && hire.completedModuleIds.length > 0
-      ? hire.completedModuleIds.length
-      : hire.modulesCompleted ?? 0;
+  const modulesCompleted = Math.max(
+    hire.completedModuleIds ? hire.completedModuleIds.length : 0,
+    hire.modulesCompleted ?? 0
+  );
   const pickRate = currentWork.actualPickRate;
   const targetPickRate = currentWork.targetPickRate || 50;
   const accuracy = currentWork.accuracyRate;
