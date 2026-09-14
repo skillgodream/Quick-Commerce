@@ -31,11 +31,13 @@ import {
 import {
   fetchSimulatorEvidence,
   adaptSimulatorToLoopInput,
+  applyEvidenceToCohort,
 } from "./services/simulatorEvidenceService";
+import { subscribeToFirestoreEvidence, fetchEvidenceFromFirestore } from "./services/firestoreSyncService";
 
-const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v4";
-const STORAGE_KEY_DAY = "checkin_checkout_day_v4";
-const STORAGE_KEY_ACTIVE_HIRE = "checkin_checkout_active_hire_v4";
+const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v5";
+const STORAGE_KEY_DAY = "checkin_checkout_day_v5";
+const STORAGE_KEY_ACTIVE_HIRE = "checkin_checkout_active_hire_v5";
 
 export default function App() {
   const [newHires, setNewHires] = useState<NewHire[]>(() => {
@@ -63,7 +65,7 @@ export default function App() {
         }
       }
     } catch (e) {}
-    return 1; // Starts at Day 1 fresh orientation
+    return 4; // Default to Day 4 populated active shift
   });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("new_hire");
@@ -90,6 +92,28 @@ export default function App() {
   // Splash Screen and Onboarding disabled by default so the home screen loads immediately matching user request
   const [showSplash, setShowSplash] = useState<boolean>(false);
   const [isOnboarding, setIsOnboarding] = useState<boolean>(false);
+
+  // Real-time Cloud Firestore continuous listener (sub-second broadcast from Simulator)
+  useEffect(() => {
+    const unsubscribe = subscribeToFirestoreEvidence((liveEvidence) => {
+      if (liveEvidence && liveEvidence.length > 0) {
+        setNewHires((prevCohort) => {
+          return applyEvidenceToCohort(prevCohort, liveEvidence, undefined, currentDay);
+        });
+        const days = liveEvidence
+          .map((e) => e.journeyDay || e.journey_day || 1)
+          .filter((d) => d >= 1 && d <= 11);
+        if (days.length > 0) {
+          const maxDay = Math.max(...days);
+          if (maxDay !== currentDay) {
+            setCurrentDay(maxDay);
+          }
+        }
+        setLastSyncedTime(new Date().toLocaleTimeString());
+      }
+    });
+    return () => unsubscribe();
+  }, [currentDay]);
 
   // Clean up any legacy persisted onboarding state so onboarding always comes by default
   useEffect(() => {
@@ -247,21 +271,34 @@ export default function App() {
     );
   };
 
-  // Force sync all cohort members from the simulator API for the active journey day
+  // Force sync all cohort members from the shared Cloud Database or Simulator API
   const handleSyncAllCohort = async () => {
     setIsSyncingCohort(true);
     lastSyncedKeyRef.current = null;
     try {
-      for (const hire of newHires) {
-        await updateHireAndRecalculateAsync(
-          hire.id,
-          currentDay,
-          (rec) => ({
-            dailySignal: rec.dailySignal,
-          })
-        );
+      const fsRecords = await fetchEvidenceFromFirestore();
+      if (fsRecords && fsRecords.length > 0) {
+        setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, fsRecords, undefined, currentDay));
+        const days = fsRecords
+          .map((e) => e.journeyDay || e.journey_day || 1)
+          .filter((d) => d >= 1 && d <= 11);
+        if (days.length > 0) {
+          setCurrentDay(Math.max(...days));
+        }
+        setLastSyncedTime(new Date().toLocaleTimeString());
+      } else {
+        const simRes = await fetchSimulatorEvidence();
+        if (simRes.success && simRes.evidence.length > 0) {
+          setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, simRes.evidence, undefined, currentDay));
+          const days = simRes.evidence
+            .map((e) => e.journeyDay || e.journey_day || 1)
+            .filter((d) => d >= 1 && d <= 11);
+          if (days.length > 0) {
+            setCurrentDay(Math.max(...days));
+          }
+          setLastSyncedTime(new Date().toLocaleTimeString());
+        }
       }
-      setLastSyncedTime(new Date().toLocaleTimeString());
     } catch (e) {
       console.warn("Error during cohort simulator sync:", e);
     } finally {

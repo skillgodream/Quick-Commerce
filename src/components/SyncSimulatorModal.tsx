@@ -29,7 +29,9 @@ import {
   DEFAULT_SIMULATOR_API_URL,
   RUN_APP_SIMULATOR_API_URL,
   SimulatorEvidenceItem,
+  syncSimulatorEvidenceToCohort,
 } from "../services/simulatorEvidenceService";
+import { fetchEvidenceFromFirestore, pushEvidenceToFirestore } from "../services/firestoreSyncService";
 import { NewHire } from "../types";
 
 interface SyncSimulatorModalProps {
@@ -73,6 +75,18 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
   }, [isOpen]);
 
   const loadPreviewData = async (targetEndpoint?: string) => {
+    try {
+      const fsRecords = await fetchEvidenceFromFirestore();
+      if (fsRecords && fsRecords.length > 0) {
+        setRawRecords(fsRecords);
+        setSyncStatus("success");
+        setStatusMessage(`Connected to Cloud Firestore: ${fsRecords.length} live evidence records active!`);
+        return;
+      }
+    } catch (err) {
+      console.warn("Firestore fetch in modal:", err);
+    }
+
     const ep = targetEndpoint || getSimulatorEndpoint();
     try {
       const res = await fetch(ep, { cache: "no-store" });

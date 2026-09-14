@@ -608,3 +608,148 @@ export function adaptSimulatorToLoopInput(
     canonicalEvidence: finalCanonical,
   };
 }
+
+/**
+ * Public parser and canonical adapter for incoming evidence
+ */
+export function parseCanonicalEvidence(rawItem: any): SimulatorEvidenceItem | null {
+  return validateAndSanitizeEvidenceRecord(rawItem);
+}
+
+/**
+ * Ingests a list of evidence items and updates the active cohort's day records, metrics, and journey day.
+ */
+export function applyEvidenceToCohort(
+  cohort: any[],
+  evidenceItems: SimulatorEvidenceItem[],
+  journeyDayOverride?: number,
+  _targetDay: number = 4
+): any[] {
+  const updated = JSON.parse(JSON.stringify(cohort));
+  if (!Array.isArray(evidenceItems) || evidenceItems.length === 0) {
+    return updated;
+  }
+
+  // Group evidence by canonical employee ID
+  const evidenceByHire: Record<string, SimulatorEvidenceItem[]> = {};
+  for (const item of evidenceItems) {
+    const rawId = item.employeeId || item.employee_id || item.subjectId;
+    const canId = mapToCanonicalEmployeeId(rawId);
+    if (!evidenceByHire[canId]) evidenceByHire[canId] = [];
+    evidenceByHire[canId].push(item);
+  }
+
+  // Update cohort members
+  updated.forEach((hire: any) => {
+    const items = evidenceByHire[hire.id] || [];
+    items.forEach((item) => {
+      const day = item.journeyDay || item.journey_day || item.dayNumber || (item.context && typeof item.context === "object" ? (item.context as any).journey_day : undefined) || 1;
+      let dayRecord = hire.daysHistory.find((d: any) => d.dayNumber === day);
+      if (!dayRecord && day >= 1 && day <= 11) {
+        dayRecord = {
+          dayNumber: day,
+          date: `Day ${day}`,
+          statusAtEnd: "Active",
+          statusReason: "In-progress telemetry ingestion",
+          dailySignal: {
+            pickVolume: 40,
+            pickVelocity: 40,
+            accuracyScore: 85,
+            scanGapDurationMinutes: 5,
+            assessmentScore: 80,
+            supervisorObservationNotes: "",
+            safetyIncidentsCount: 0,
+            systemConfidence: 1,
+          },
+        };
+        hire.daysHistory.push(dayRecord);
+        hire.daysHistory.sort((a: any, b: any) => a.dayNumber - b.dayNumber);
+      }
+      if (!dayRecord) return;
+
+      const val = typeof item.value === "number" ? item.value : parseFloat(String(item.value)) || 0;
+      const type = (item.type || item.category || "").toLowerCase();
+
+      if (!dayRecord.dailySignal) {
+        dayRecord.dailySignal = {
+          pickVolume: 40,
+          pickVelocity: 40,
+          accuracyScore: 85,
+          scanGapDurationMinutes: 5,
+          assessmentScore: 80,
+          supervisorObservationNotes: "",
+          safetyIncidentsCount: 0,
+          systemConfidence: 1,
+        };
+      }
+
+      if (type.includes("pick_volume") || type.includes("volume") || type.includes("completed_work")) {
+        dayRecord.dailySignal.pickVolume = Math.round(val);
+      } else if (type.includes("pick_velocity") || type.includes("velocity") || type.includes("uph") || type.includes("speed")) {
+        dayRecord.dailySignal.pickVelocity = Math.round(val);
+      } else if (type.includes("accuracy") || type.includes("quality")) {
+        dayRecord.dailySignal.accuracyScore = Math.round(val);
+      } else if (type.includes("assessment") || type.includes("score") || type.includes("quiz")) {
+        dayRecord.dailySignal.assessmentScore = Math.round(val);
+      } else if (type.includes("observation") || type.includes("note")) {
+        dayRecord.dailySignal.supervisorObservationNotes = String(item.value || "");
+      }
+    });
+
+    // Advance journey status and populated days
+    const recordedDays = Array.from(new Set(items.map((e) => e.journeyDay || e.journey_day || 1))).filter((d) => d >= 1);
+    if (recordedDays.length > 0) {
+      const maxDay = Math.max(...recordedDays);
+      if (journeyDayOverride !== undefined) {
+        hire.journeyDay = journeyDayOverride;
+      } else if (maxDay > (hire.journeyDay || 1)) {
+        hire.journeyDay = maxDay;
+      }
+      if (maxDay > (hire.daysCompleted || 1)) {
+        hire.daysCompleted = maxDay;
+      }
+    }
+  });
+
+  return updated;
+}
+
+export interface EvidenceSyncResult {
+  success: boolean;
+  count: number;
+  data: SimulatorEvidenceItem[];
+  updatedCohort?: any[];
+}
+
+/**
+ * Orchestrates full evidence synchronization from Firestore and Simulator APIs
+ */
+export async function syncSimulatorEvidenceToCohort(
+  currentCohort: any[],
+  targetDay: number = 4,
+  onStatusUpdate?: (status: "idle" | "fetching" | "success" | "fallback" | "error", message: string) => void
+): Promise<EvidenceSyncResult> {
+  onStatusUpdate?.("fetching", "Checking Shared Cloud Database...");
+  try {
+    const { fetchEvidenceFromFirestore } = await import("./firestoreSyncService");
+    const fsEvidence = await fetchEvidenceFromFirestore();
+    if (fsEvidence && fsEvidence.length > 0) {
+      const updated = applyEvidenceToCohort(currentCohort, fsEvidence, undefined, targetDay);
+      onStatusUpdate?.("success", `✓ Loaded ${fsEvidence.length} live records from Cloud Firestore!`);
+      return { success: true, count: fsEvidence.length, data: fsEvidence, updatedCohort: updated };
+    }
+  } catch (fsErr) {
+    console.log("Firestore fetch fallback:", fsErr);
+  }
+
+  // Fallback to REST API
+  const res = await fetchSimulatorEvidence();
+  if (res.success && res.evidence.length > 0) {
+    const updated = applyEvidenceToCohort(currentCohort, res.evidence, undefined, targetDay);
+    onStatusUpdate?.("success", `✓ Loaded ${res.evidence.length} records from Simulator API!`);
+    return { success: true, count: res.evidence.length, data: res.evidence, updatedCohort: updated };
+  }
+
+  return { success: false, count: 0, data: [] };
+}
+
