@@ -329,34 +329,37 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-28 select-none relative font-sans">
       {/* MAIN CONTENT CONTAINER */}
-      <div className="max-w-md mx-auto p-1.5 sm:p-2 space-y-3">
+      <div className="max-w-md mx-auto p-2 sm:p-3 space-y-4">
         {/* ========================================================= */}
         {/* SECTION 1: 3-TAB PROGRESS CARD (DAY, CAREER, YESTERDAY)   */}
         {/* ========================================================= */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div
             id="circular-telemetry-dial-widget"
-            className="bg-[#e5e5e5] rounded-[40px] px-5 py-5 shadow-sm space-y-2 select-none relative overflow-hidden text-black border border-slate-200/80"
+            className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-[32px] p-5 shadow-xl space-y-3 select-none relative overflow-hidden text-white border border-slate-700/60"
           >
+            {/* Subtle decorative glow */}
+            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
             {/* Top Bar inside Hero Banner: Back Button, Blinking Green Dot, and Hindi Language Icon */}
-            <div className="flex items-center justify-between relative z-20 pb-0.5">
+            <div className="flex items-center justify-between relative z-20">
               {/* Floating Back Action */}
               <button
                 type="button"
                 onClick={onBack}
-                className="w-8 h-8 rounded-xl bg-white hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center text-slate-800 border border-slate-200 cursor-pointer shadow-sm"
+                className="w-9 h-9 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center text-white border border-white/15 cursor-pointer shadow-xs"
                 title={isHindi ? "वापस जाएं" : "Back to Home"}
               >
-                <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
+                <ChevronLeft className="w-5 h-5 stroke-[2.5]" />
               </button>
 
               {/* Green Blinking Status Dot */}
-              <div className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full bg-white border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 shadow-xs backdrop-blur-xs">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-700">
+                <span className="text-[10px] font-black uppercase tracking-wider">
                   {isHindi ? "लाइव" : "LIVE"}
                 </span>
               </div>
@@ -366,53 +369,58 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <button
                   type="button"
                   onClick={onToggleLanguage}
-                  className="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 text-[11px] font-black tracking-wide border border-slate-200 transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-sm"
+                  className="px-3 py-1.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-black tracking-wide border border-white/15 transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-xs"
                   title="Toggle Hindi / English"
                 >
-                  <Languages className="w-3 h-3 text-cyan-600" />
+                  <Languages className="w-3.5 h-3.5 text-cyan-300" />
                   <span>{isHindi ? "हिंदी" : "EN"}</span>
                 </button>
               ) : (
-                <div className="w-8" />
+                <div className="w-9" />
               )}
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between relative z-10 pt-1">
               {/* Large Left-Aligned Number */}
-              <div className="flex items-center gap-3 sm:gap-4 pt-1 pb-1">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <div className="flex items-baseline shrink-0 leading-[0.85]">
                   <span 
-                    className="font-medium text-black tracking-[-0.05em]"
-                    style={{ fontSize: 'clamp(5rem, 22vw, 6.5rem)' }}
+                    className="font-black text-white tracking-[-0.05em] drop-shadow-sm"
+                    style={{ fontSize: 'clamp(4.5rem, 20vw, 6rem)' }}
                   >
                     {String(displayedPercentage).padStart(2, '0')}
                   </span>
                   <span 
-                    className="font-bold text-black/60 tracking-[-0.02em] ml-1 sm:ml-1.5"
-                    style={{ fontSize: 'clamp(2.5rem, 9vw, 3.5rem)' }}
+                    className="font-bold text-indigo-300 tracking-[-0.02em] ml-1 sm:ml-1.5"
+                    style={{ fontSize: 'clamp(2.2rem, 8vw, 3rem)' }}
                   >
                     %
                   </span>
                 </div>
-                <div className="text-xs sm:text-sm font-medium text-slate-700 leading-tight tracking-tight max-w-[100px]">
-                  {dialSubtext}
+                <div className="space-y-1 max-w-[120px]">
+                  <span className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/30 border border-indigo-400/40 text-indigo-200">
+                    {dialBadgeText}
+                  </span>
+                  <div className="text-xs font-semibold text-slate-300 leading-tight">
+                    {dialSubtext}
+                  </div>
                 </div>
               </div>
 
               {/* Three Character / Role Icons ON THE RIGHT - Vertical */}
-              <div className="flex flex-col items-center justify-start gap-2">
+              <div className="flex flex-col items-center justify-start gap-2 bg-black/25 p-1.5 rounded-2xl border border-white/10 backdrop-blur-xs">
                 {/* Character Icon 1: Day (Shift Progress) */}
                 <button
                   type="button"
                   onClick={() => setActiveDialTab("day")}
                   title={isHindi ? "दैनिक शिफ्ट प्रोग्रेस" : "Day / Shift Progress"}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "day"
-                      ? "bg-white text-black border-slate-200 shadow-sm"
-                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
+                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/40 font-bold"
+                      : "bg-transparent text-slate-400 border-transparent hover:bg-white/10"
                   }`}
                 >
-                  <Zap className={`w-4 h-4 ${activeDialTab === "day" ? "text-amber-500 fill-amber-400" : "text-slate-400"}`} />
+                  <Zap className={`w-4 h-4 ${activeDialTab === "day" ? "fill-slate-950" : ""}`} />
                 </button>
 
                 {/* Character Icon 2: Career (Role Readiness / 85%) */}
@@ -420,13 +428,13 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                   type="button"
                   onClick={() => setActiveDialTab("career")}
                   title={isHindi ? "करियर रेडीनेस (85%+)" : "Career Readiness (85%+)"}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "career"
-                      ? "bg-white text-black border-slate-200 shadow-sm"
-                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
+                      ? "bg-cyan-400 text-slate-950 border-cyan-300 shadow-md ring-2 ring-cyan-400/40 font-bold"
+                      : "bg-transparent text-slate-400 border-transparent hover:bg-white/10"
                   }`}
                 >
-                  <TrendingUp className={`w-4 h-4 ${activeDialTab === "career" ? "text-cyan-600 stroke-[2.5]" : "text-slate-400"}`} />
+                  <TrendingUp className="w-4 h-4 stroke-[2.5]" />
                 </button>
 
                 {/* Character Icon 3: Yesterday (Shift Performance) */}
@@ -434,31 +442,31 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                   type="button"
                   onClick={() => setActiveDialTab("yesterday")}
                   title={isHindi ? "कल का शिफ्ट प्रदर्शन" : "Yesterday Performance"}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer active:scale-95 border ${
                     activeDialTab === "yesterday"
-                      ? "bg-white text-black border-slate-200 shadow-sm"
-                      : "bg-transparent text-slate-500 border-transparent hover:bg-slate-200/50"
+                      ? "bg-indigo-400 text-slate-950 border-indigo-300 shadow-md ring-2 ring-indigo-400/40 font-bold"
+                      : "bg-transparent text-slate-400 border-transparent hover:bg-white/10"
                   }`}
                 >
-                  <Clock className={`w-4 h-4 ${activeDialTab === "yesterday" ? "text-indigo-600 stroke-[2.5]" : "text-slate-400"}`} />
+                  <Clock className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </div>
             </div>
           </div>
           
           {/* Progress Completion Tab positioned UNDER the banner */}
-          <div className="bg-white rounded-[32px] p-4 sm:p-5 shadow-sm border border-slate-200 flex flex-col gap-3.5">
+          <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200/90 flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-base font-black text-black tracking-tight">
+              <span className="text-base font-black text-slate-900 tracking-tight">
                 {isHindi ? "आज के कार्य पूर्णता" : "Today's Task Completion"}
               </span>
-              <span className="text-lg font-black text-black leading-none">
+              <span className="text-xl font-black text-purple-700 leading-none">
                 {overallTodayCompletionPct}%
               </span>
             </div>
 
             {/* 2 Grids Tab: LMS Tasks & Activity Tasks */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-3">
               {/* Grid 1: LMS Tasks */}
               <div 
                 onClick={() => {
@@ -468,14 +476,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     onSelectSection("modules");
                   }
                 }}
-                className="bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-xs group"
+                className="bg-indigo-50/60 hover:bg-indigo-50 border border-indigo-200/80 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-2xs group"
               >
                 <div className="flex items-start justify-between gap-1 mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-3.5 h-3.5" />
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <BookOpen className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-slate-900 leading-tight">
+                    <span className="text-xs font-black text-slate-900 leading-tight">
                       {isHindi ? "LMS कार्य" : "LMS Tasks"}
                     </span>
                   </div>
@@ -501,16 +509,16 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 {/* Progress bar and details */}
                 <div className="space-y-1.5 mt-auto pt-1">
                   <div className="flex items-center justify-between text-[11px] font-bold">
-                    <span className="text-slate-500">
+                    <span className="text-slate-600">
                       {!hasAssignedLms
                         ? (isHindi ? "आज कोई मॉड्यूल नहीं" : "No modules today")
                         : `${todayLmsCompleted}/${todayLmsTotal} ${isHindi ? "मॉड्यूल" : "modules"}`}
                     </span>
-                    <span className="text-indigo-600 font-black">
+                    <span className="text-indigo-700 font-black">
                       {!hasAssignedLms ? "100%" : `${lmsProgressPct}%`}
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-indigo-200/60 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-indigo-600 rounded-full transition-all duration-500"
                       style={{ width: `${!hasAssignedLms ? 100 : Math.max(todayLmsCompleted > 0 ? 10 : 0, lmsProgressPct)}%` }}
@@ -528,14 +536,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     onSelectSection("dial");
                   }
                 }}
-                className="bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-xs group"
+                className="bg-amber-50/60 hover:bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-2xs group"
               >
                 <div className="flex items-start justify-between gap-1 mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                      <Activity className="w-3.5 h-3.5" />
+                    <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <Activity className="w-4 h-4" />
                     </div>
-                    <span className="text-xs font-bold text-slate-900 leading-tight">
+                    <span className="text-xs font-black text-slate-900 leading-tight">
                       {isHindi ? "गतिविधि कार्य" : "Activity Tasks"}
                     </span>
                   </div>
@@ -557,14 +565,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 {/* Progress bar and details */}
                 <div className="space-y-1.5 mt-auto pt-1">
                   <div className="flex items-center justify-between text-[11px] font-bold">
-                    <span className="text-slate-500">
+                    <span className="text-slate-600">
                       {completedActivityTasks}/{totalActivityTasks} {isHindi ? "कार्य" : "tasks"}
                     </span>
-                    <span className="text-amber-600 font-black">{activityProgressPct}%</span>
+                    <span className="text-amber-700 font-black">{activityProgressPct}%</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="w-full h-2 bg-amber-200/60 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-[#f97316] rounded-full transition-all duration-500"
+                      className="h-full bg-amber-500 rounded-full transition-all duration-500"
                       style={{ width: `${Math.max(completedActivityTasks > 0 ? 10 : 0, activityProgressPct)}%` }}
                     />
                   </div>
@@ -572,7 +580,6 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               </div>
             </div>
           </div>
-          
         </div>
 
         {/* ========================================================= */}
@@ -580,80 +587,83 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
         {/* ========================================================= */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 px-1">
-            <span className="h-4 w-1 bg-slate-900 rounded-full" />
-            <h3 className="text-xs font-black tracking-widest uppercase text-slate-600">
+            <span className="h-4 w-1 bg-purple-600 rounded-full" />
+            <h3 className="text-xs font-black tracking-widest uppercase text-slate-500">
               {isHindi ? "आज के लाइव मेट्रिक्स" : "TODAY'S LIVE METRICS"}
             </h3>
           </div>
 
-          <div className="bg-[#e0e0e0] rounded-[24px] p-4 shadow-xs text-slate-900 space-y-3 border-transparent">
+          <div className="bg-[#242426] rounded-[32px] p-4 text-white shadow-lg border border-[#38383c]/80 space-y-3 relative">
             <div className="flex items-center justify-between">
-              <span className="text-xs sm:text-[13px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-black uppercase tracking-wider text-[#ebebf5]/90 flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30d158] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#30d158]" />
+                </span>
                 {isHindi ? "लाइव शिफ्ट मेट्रिक्स" : "LIVE SHIFT METRICS"}
               </span>
-              <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-[#ebebf5]/80 bg-[#353538] px-2.5 py-0.5 rounded-full border border-[#48484a]/60">
                 {isHindi ? `दिन ${currentDay} लाइव` : `Day ${currentDay} Live`}
               </span>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-4 gap-2">
               {/* 1. Live Module Completion % */}
-              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
+              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
+                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
                   {isHindi ? "मॉड्यूल" : "Modules"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
-                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
+                  <span className="text-base font-black text-white leading-none tracking-tight">
                     {Math.min(100, Math.round((completedCount / 10) * 100))}%
                   </span>
                 </div>
-                <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 truncate w-full">
+                <span className="text-[9px] font-extrabold text-[#30d158] truncate w-full">
                   {isHindi ? `${completedCount}/10 पूर्ण` : `${completedCount}/10 Done`}
                 </span>
               </div>
 
               {/* 2. Pick Rate Live */}
-              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
+              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
+                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
                   {isHindi ? "पिक रेट" : "Pick Rate"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
-                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
+                  <span className="text-base font-black text-white leading-none tracking-tight">
                     {actualPickRate != null && !Number.isNaN(actualPickRate) ? Math.round(actualPickRate) : 0}
                   </span>
                 </div>
-                <span className="text-[8px] sm:text-[9px] font-bold text-blue-600 truncate w-full">
+                <span className="text-[9px] font-extrabold text-[#64d2ff] truncate w-full">
                   /{targetPickRate != null && !Number.isNaN(targetPickRate) ? Math.round(targetPickRate) : 25} P/H
                 </span>
               </div>
 
               {/* 3. Accuracy Live */}
-              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
+              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
+                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
                   {isHindi ? "सटीकता" : "Accuracy"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
-                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
+                  <span className="text-base font-black text-white leading-none tracking-tight">
                     {accuracyRate != null && !Number.isNaN(accuracyRate) ? Math.round(accuracyRate) : 100}%
                   </span>
                 </div>
-                <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 truncate w-full">
+                <span className="text-[9px] font-extrabold text-[#30d158] truncate w-full">
                   {isHindi ? "लक्ष्य पार" : "On Target"}
                 </span>
               </div>
 
               {/* 4. Quality Check */}
-              <div className="bg-[#e0e0e0] rounded-xl p-2 sm:p-2.5 text-center flex flex-col items-center justify-center overflow-hidden shadow-[6px_6px_12px_#b8b8b8,-6px_-6px_12px_#ffffff]">
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
+              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
+                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
                   {isHindi ? "क्वालिटी" : "QC Check"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
-                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
+                  <span className="text-base font-black text-white leading-none tracking-tight">
                     99%
                   </span>
                 </div>
-                <span className="text-[8px] sm:text-[9px] font-bold text-blue-600 truncate w-full">
+                <span className="text-[9px] font-extrabold text-[#64d2ff] truncate w-full">
                   {isHindi ? "पास (OK)" : "Passed"}
                 </span>
               </div>
