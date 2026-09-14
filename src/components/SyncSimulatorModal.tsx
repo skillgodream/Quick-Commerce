@@ -186,20 +186,25 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
     { id: "EMP-001", name: "Rahul Sharma", alias: "Rahul" },
     { id: "EMP-002", name: "Priya Sundaram", alias: "Priya" },
     { id: "EMP-003", name: "Amit Verma", alias: "Amit" },
-    { id: "EMP-004", name: "Diana / Sneha", alias: "Diana" },
+    { id: "EMP-004", name: "Sneha Patel", alias: "Sneha" },
   ].map((emp) => {
     const empRecords = rawRecords.filter((r) => {
       const sid = r.subject_id || r.employee_id || r.employeeId || "";
       return (
         sid === emp.id ||
         sid.toLowerCase().includes(emp.alias.toLowerCase()) ||
-        sid.toLowerCase().includes(emp.id.toLowerCase())
+        sid.toLowerCase().includes(emp.id.toLowerCase()) ||
+        (emp.alias === "Sneha" && sid.toLowerCase().includes("diana"))
       );
     });
 
+    // Detect the individual latest day for this employee from records
+    const empDays = empRecords.map((r) => Number(r.context?.journey_day ?? r.journey_day ?? r.journeyDay ?? 1)).filter((d) => !isNaN(d) && d > 0);
+    const empCurrentDay = empDays.length > 0 ? Math.max(...empDays) : currentDay;
+
     const dayRecords = empRecords.filter((r) => {
       const day = r.context?.journey_day ?? r.journey_day ?? r.journeyDay;
-      return Number(day) === currentDay;
+      return Number(day) === empCurrentDay;
     });
 
     const pickVol = dayRecords.find((r) => r.type === "pick_volume")?.value;
@@ -212,6 +217,7 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
 
     return {
       ...emp,
+      currentDay: empCurrentDay,
       totalCount: empRecords.length,
       dayCount: dayRecords.length,
       pickVol,
@@ -261,10 +267,10 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Target: Day {currentDay} Shift Telemetry</span>
+              <span>Cohort Shift Telemetry</span>
               <span className="text-slate-400">•</span>
               <span className="text-slate-300 font-normal">
-                {rawRecords.length} records available in cloud
+                {rawRecords.length} records across all journey days
               </span>
             </div>
             {lastSyncedTimestamp && (
@@ -313,7 +319,7 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            Cohort Day {currentDay} Numbers
+            Cohort Current Day Metrics
           </button>
           <button
             onClick={() => setActiveViewTab("breakdown")}
@@ -365,7 +371,7 @@ export const SyncSimulatorModal: React.FC<SyncSimulatorModalProps> = ({
                         <div className="text-[10px] text-cyan-400 font-mono">{emp.id}</div>
                       </div>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-slate-300 border border-white/10">
-                        {emp.dayCount} Day {currentDay} events
+                        Day {emp.currentDay} ({emp.dayCount} events)
                       </span>
                     </div>
 

@@ -649,8 +649,7 @@ export function parseCanonicalEvidence(rawItem: any): SimulatorEvidenceItem | nu
 export function applyEvidenceToCohort(
   cohort: any[],
   evidenceItems: SimulatorEvidenceItem[],
-  journeyDayOverride?: number,
-  _targetDay: number = 4
+  journeyDayOverride?: number
 ): any[] {
   const updated = JSON.parse(JSON.stringify(cohort));
   if (!Array.isArray(evidenceItems) || evidenceItems.length === 0) {
@@ -671,7 +670,7 @@ export function applyEvidenceToCohort(
     const items = evidenceByHire[hire.id] || [];
     if (items.length === 0) return;
 
-    // Group items by journey day
+    // Group items by journey day (no artificial day cap - accepts any day from simulator)
     const itemsByDay: Record<number, SimulatorEvidenceItem[]> = {};
     for (const item of items) {
       const rawDay =
@@ -680,7 +679,7 @@ export function applyEvidenceToCohort(
         item.dayNumber ??
         (item.context && typeof item.context === "object" ? (item.context as any).journey_day : undefined);
       const dayNum = Number(rawDay);
-      if (Number.isFinite(dayNum) && dayNum >= 0 && dayNum <= 11) {
+      if (Number.isFinite(dayNum) && dayNum >= 1) {
         const d = Math.floor(dayNum);
         if (!itemsByDay[d]) itemsByDay[d] = [];
         itemsByDay[d].push(item);
@@ -689,7 +688,7 @@ export function applyEvidenceToCohort(
 
     const availableDays = Object.keys(itemsByDay)
       .map(Number)
-      .filter((d) => d >= 1 && d <= 11)
+      .filter((d) => d >= 1)
       .sort((a, b) => a - b);
 
     for (const d of availableDays) {
@@ -790,9 +789,9 @@ export function applyEvidenceToCohort(
     // Sort days history in ascending order
     hire.daysHistory.sort((a: any, b: any) => a.dayNumber - b.dayNumber);
 
-    // Update current day on the hire
-    const maxDay = availableDays.length > 0 ? Math.max(...availableDays) : 1;
-    const finalDay = journeyDayOverride !== undefined ? journeyDayOverride : Math.max(hire.currentDay || 1, maxDay);
+    // Update current day on the hire (driven by this hire's individual evidence)
+    const maxDay = availableDays.length > 0 ? Math.max(...availableDays) : (hire.currentDay || 1);
+    const finalDay = journeyDayOverride !== undefined ? journeyDayOverride : maxDay;
     hire.currentDay = finalDay;
     hire.journeyDay = finalDay;
     hire.daysCompleted = finalDay;
@@ -824,7 +823,7 @@ export interface EvidenceSyncResult {
  */
 export async function syncSimulatorEvidenceToCohort(
   currentCohort: any[],
-  targetDay: number = 4,
+  journeyDayOverride?: number,
   onStatusUpdate?: (status: "idle" | "fetching" | "success" | "fallback" | "error", message: string) => void
 ): Promise<EvidenceSyncResult> {
   onStatusUpdate?.("fetching", "Checking Shared Cloud Database...");
@@ -832,7 +831,7 @@ export async function syncSimulatorEvidenceToCohort(
     const { fetchEvidenceFromFirestore } = await import("./firestoreSyncService");
     const fsEvidence = await fetchEvidenceFromFirestore();
     if (fsEvidence && fsEvidence.length > 0) {
-      const updated = applyEvidenceToCohort(currentCohort, fsEvidence, undefined, targetDay);
+      const updated = applyEvidenceToCohort(currentCohort, fsEvidence, journeyDayOverride);
       onStatusUpdate?.("success", `✓ Loaded ${fsEvidence.length} live records from Cloud Firestore!`);
       return { success: true, count: fsEvidence.length, data: fsEvidence, updatedCohort: updated };
     }
@@ -843,7 +842,7 @@ export async function syncSimulatorEvidenceToCohort(
   // Fallback to REST API
   const res = await fetchSimulatorEvidence();
   if (res.success && res.evidence.length > 0) {
-    const updated = applyEvidenceToCohort(currentCohort, res.evidence, undefined, targetDay);
+    const updated = applyEvidenceToCohort(currentCohort, res.evidence, journeyDayOverride);
     onStatusUpdate?.("success", `✓ Loaded ${res.evidence.length} records from Simulator API!`);
     return { success: true, count: res.evidence.length, data: res.evidence, updatedCohort: updated };
   }

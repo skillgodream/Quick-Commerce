@@ -98,22 +98,13 @@ export default function App() {
     const unsubscribe = subscribeToFirestoreEvidence((liveEvidence) => {
       if (liveEvidence && liveEvidence.length > 0) {
         setNewHires((prevCohort) => {
-          return applyEvidenceToCohort(prevCohort, liveEvidence, undefined, currentDay);
+          return applyEvidenceToCohort(prevCohort, liveEvidence, undefined);
         });
-        const days = liveEvidence
-          .map((e) => e.journeyDay || e.journey_day || 1)
-          .filter((d) => d >= 1 && d <= 11);
-        if (days.length > 0) {
-          const maxDay = Math.max(...days);
-          if (maxDay !== currentDay) {
-            setCurrentDay(maxDay);
-          }
-        }
         setLastSyncedTime(new Date().toLocaleTimeString());
       }
     });
     return () => unsubscribe();
-  }, [currentDay]);
+  }, []);
 
   // Clean up any legacy persisted onboarding state so onboarding always comes by default
   useEffect(() => {
@@ -160,6 +151,8 @@ export default function App() {
   }, []);
 
   const activeHire = newHires.find((h) => h.id === activeHireId) || newHires[0];
+  // The current active hire's day is their own authoritative journey day
+  const effectiveDay = activeHire.currentDay || currentDay || 4;
 
 
   const updateHireAndRecalculateAsync = async (
@@ -283,24 +276,12 @@ export default function App() {
     try {
       const fsRecords = await fetchEvidenceFromFirestore();
       if (fsRecords && fsRecords.length > 0) {
-        setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, fsRecords, undefined, currentDay));
-        const days = fsRecords
-          .map((e) => e.journeyDay || e.journey_day || 1)
-          .filter((d) => d >= 1 && d <= 11);
-        if (days.length > 0) {
-          setCurrentDay(Math.max(...days));
-        }
+        setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, fsRecords, undefined));
         setLastSyncedTime(new Date().toLocaleTimeString());
       } else {
         const simRes = await fetchSimulatorEvidence();
         if (simRes.success && simRes.evidence.length > 0) {
-          setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, simRes.evidence, undefined, currentDay));
-          const days = simRes.evidence
-            .map((e) => e.journeyDay || e.journey_day || 1)
-            .filter((d) => d >= 1 && d <= 11);
-          if (days.length > 0) {
-            setCurrentDay(Math.max(...days));
-          }
+          setNewHires((prevCohort) => applyEvidenceToCohort(prevCohort, simRes.evidence, undefined));
           setLastSyncedTime(new Date().toLocaleTimeString());
         }
       }
@@ -651,7 +632,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
               <Header
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                currentDay={currentDay}
+                currentDay={effectiveDay}
                 onSelectDay={handleSelectDay}
                 onResetDemo={handleResetDemo}
                 onOpenLoopModal={() => setIsLoopModalOpen(true)}
@@ -679,12 +660,13 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                 learnerName={activeHire.name}
                 buddyName={activeHire.buddy}
                 onOpenSplash={() => setShowSplash(true)}
+                availableDays={activeHire.daysHistory?.map(d => d.dayNumber) || [effectiveDay]}
               />
             )}
 
             {/* Purple Hidden Side Bar: 10-Day Journey & AI Floor Companion */}
             <ChatBotPullout
-              currentDay={currentDay}
+              currentDay={effectiveDay}
               learnerName={activeHire.name}
               buddyName={activeHire.buddy}
               newHire={activeHire}
@@ -711,7 +693,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
               {activeTab === "new_hire" && (
                 <NewHireView
                   newHire={activeHire}
-                  currentDay={currentDay}
+                  currentDay={effectiveDay}
                   onDailySignalSubmitted={handleDailySignalSubmitted}
                   onAskHelp={handleAskHelp}
                   onSelectDay={handleSelectDay}
@@ -735,7 +717,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   newHires={newHires}
                   activeHireId={activeHireId}
                   onSelectHire={(id) => setActiveHireId(id)}
-                  currentDay={currentDay}
+                  currentDay={effectiveDay}
                   onManagerSignalSubmitted={handleManagerSignalSubmitted}
                   onWorkSignalUpdated={handleWorkSignalUpdated}
                   onActionOutcomeRecorded={handleActionOutcomeRecorded}
@@ -763,7 +745,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         isOpen={isLoopModalOpen}
         onClose={() => setIsLoopModalOpen(false)}
         newHire={activeHire}
-        currentDay={currentDay}
+        currentDay={effectiveDay}
       />
 
       {/* Direct Floor Telemetry / Temperature Gauge Modal */}
@@ -771,7 +753,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         isOpen={isTelemetryModalOpen}
         onClose={() => setIsTelemetryModalOpen(false)}
         newHire={activeHire}
-        currentDay={currentDay}
+        currentDay={effectiveDay}
       />
 
       {/* Client Demo Work-Signal Feed (Google Form / Sheet Ingestor) Modal */}
@@ -788,7 +770,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         newHires={newHires}
-        currentDay={currentDay}
+        currentDay={effectiveDay}
         onSyncAllCohort={handleSyncAllCohort}
         lastSyncedTimestamp={lastSyncedTime}
         isSyncing={isSyncingCohort}
@@ -800,7 +782,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         onClose={() => setIsClientDemoModalOpen(false)}
         onRunScenario={handleGoogleFormFeedIngested}
         currentHire={activeHire}
-        currentDay={currentDay}
+        currentDay={effectiveDay}
         onOpenLoopInspector={() => setIsLoopModalOpen(true)}
         onSelectTab={setActiveTab}
         onResetDemo={handleResetDemo}

@@ -44,6 +44,7 @@ interface HeaderProps {
   learnerName?: string;
   buddyName?: string;
   onOpenSplash?: () => void;
+  availableDays?: number[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -69,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   learnerName = "Rahul",
   buddyName = "Vikram",
   onOpenSplash,
+  availableDays,
 }) => {
   const [isEyeMenuOpen, setIsEyeMenuOpen] = useState(false);
   const eyeMenuRef = useRef<HTMLDivElement>(null);
@@ -393,51 +395,25 @@ export const Header: React.FC<HeaderProps> = ({
                 Day:
               </span>
 
-              <div className="grid grid-cols-4 gap-1 flex-1">
-                <button
-                  id="btn-day-1"
-                  onClick={() => onSelectDay(1)}
-                  className={`py-1.5 px-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all text-center truncate ${
-                    currentDay === 1
-                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-xs font-black"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Day 1
-                </button>
-                <button
-                  id="btn-day-3"
-                  onClick={() => onSelectDay(3)}
-                  className={`py-1.5 px-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all text-center truncate ${
-                    currentDay === 3
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xs font-black"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Day 3 ⚠️
-                </button>
-                <button
-                  id="btn-day-4"
-                  onClick={() => onSelectDay(4)}
-                  className={`py-1.5 px-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all text-center truncate ${
-                    currentDay === 4
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-xs font-black"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Day 4 🤝
-                </button>
-                <button
-                  id="btn-day-5"
-                  onClick={() => onSelectDay(5)}
-                  className={`py-1.5 px-1 rounded-xl text-[11px] font-bold cursor-pointer transition-all text-center truncate ${
-                    currentDay === 5
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-black"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Day 5 🎉
-                </button>
+              {/* Dynamic day list with fallbacks */}
+              <div className="flex items-center gap-1 flex-1 overflow-x-auto no-scrollbar py-0.5">
+                {(availableDays && availableDays.length > 0
+                  ? Array.from(new Set([...availableDays, currentDay])).sort((a, b) => a - b)
+                  : [1, 3, 4, 5, ...(currentDay > 5 ? [currentDay] : [])]
+                ).map((d) => (
+                  <button
+                    key={d}
+                    id={`btn-day-${d}`}
+                    onClick={() => onSelectDay(d)}
+                    className={`py-1.5 px-2.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all text-center whitespace-nowrap shrink-0 ${
+                      currentDay === d
+                        ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-xs font-black"
+                        : "text-slate-600 hover:text-slate-900 bg-white/60 hover:bg-white"
+                    }`}
+                  >
+                    Day {d}
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -130,6 +130,15 @@ function buildAmitLedger(): Record<number, CapabilityState> {
   return ledger;
 }
 
+function buildSnehaLedger(): Record<number, CapabilityState> {
+  const ledger = createDefaultCapabilitiesLedger();
+  ledger[1] = { capabilityId: 1, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 1", reinforcementCount: 0 };
+  ledger[2] = { capabilityId: 2, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 2", reinforcementCount: 0 };
+  ledger[3] = { capabilityId: 3, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 3", reinforcementCount: 0 };
+  ledger[4] = { capabilityId: 4, exposure: "exposed", evidence: "demonstrated", performance: "on_target", mastery: "proficient", lastAssessedAt: "Day 4", reinforcementCount: 0 };
+  return ledger;
+}
+
 // 5 Complete Days of Realistic Dark Store Operations History for Rahul
 export const rahulDaysHistory: DayRecord[] = [
   {
@@ -398,7 +407,7 @@ export const initialRahul: NewHire = {
   storeLocation: "Dark Store #104 (Indiranagar Central)",
   avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
   startDate: "2026-09-01",
-  currentDay: 4,
+  currentDay: rahulDaysHistory[rahulDaysHistory.length - 1]?.dayNumber ?? 1,
   shift: "Morning (07:00 - 15:30)",
   supervisor: "Suresh K. (Shift In-charge)",
   buddy: "Vikram R. (Senior Picker)",
@@ -414,6 +423,34 @@ export const initialRahul: NewHire = {
   daysHistory: rahulDaysHistory,
 };
 
+const priyaHistory = rahulDaysHistory.map(d => ({
+  ...d,
+  workSignal: {
+    dayNumber: d.dayNumber,
+    targetPickRate: 45,
+    actualPickRate: 50 + d.dayNumber,
+    accuracyRate: 99.5,
+    ordersCompleted: 45 + d.dayNumber * 2,
+    targetOrders: 42,
+    hasWorkEvidence: true,
+  }
+}));
+
+const amitHistory = rahulDaysHistory.slice(0, 4);
+
+const snehaHistory = rahulDaysHistory.slice(0, 4).map((d) => ({
+  ...d,
+  workSignal: {
+    dayNumber: d.dayNumber,
+    targetPickRate: 50,
+    actualPickRate: 54 + d.dayNumber,
+    accuracyRate: 98,
+    ordersCompleted: 46 + d.dayNumber * 2,
+    targetOrders: 45,
+    hasWorkEvidence: true,
+  },
+}));
+
 export const initialCohort: NewHire[] = [
   initialRahul,
   {
@@ -424,7 +461,7 @@ export const initialCohort: NewHire[] = [
     storeLocation: "Dark Store #104 (Indiranagar Central)",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     startDate: "2026-08-27",
-    currentDay: 4,
+    currentDay: priyaHistory[priyaHistory.length - 1]?.dayNumber ?? 1,
     shift: "Evening (14:00 - 22:30)",
     supervisor: "Suresh K.",
     buddy: "Anita M.",
@@ -437,18 +474,7 @@ export const initialCohort: NewHire[] = [
     currentCapabilityId: 16,
     overallReadinessScore: 82,
     capabilities: buildPriyaLedger(),
-    daysHistory: rahulDaysHistory.map(d => ({
-      ...d,
-      workSignal: {
-        dayNumber: d.dayNumber,
-        targetPickRate: 45,
-        actualPickRate: 50 + d.dayNumber,
-        accuracyRate: 99.5,
-        ordersCompleted: 45 + d.dayNumber * 2,
-        targetOrders: 42,
-        hasWorkEvidence: true,
-      }
-    })),
+    daysHistory: priyaHistory,
   },
   {
     id: "nh-amit-03",
@@ -458,7 +484,7 @@ export const initialCohort: NewHire[] = [
     storeLocation: "Dark Store #104 (Indiranagar Central)",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     startDate: "2026-08-31",
-    currentDay: 4,
+    currentDay: amitHistory[amitHistory.length - 1]?.dayNumber ?? 1,
     shift: "Morning (07:00 - 15:30)",
     supervisor: "Suresh K.",
     buddy: "Vikram R.",
@@ -471,7 +497,30 @@ export const initialCohort: NewHire[] = [
     currentCapabilityId: 6,
     overallReadinessScore: 38,
     capabilities: buildAmitLedger(),
-    daysHistory: rahulDaysHistory.slice(0, 4),
+    daysHistory: amitHistory,
+  },
+  {
+    id: "nh-sneha-04",
+    name: "Sneha Patel",
+    roleId: "quick_commerce_picker",
+    roleTitle: "Dark Store Picker",
+    storeLocation: "Dark Store #104 (Indiranagar Central)",
+    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+    startDate: "2026-09-01",
+    currentDay: snehaHistory[snehaHistory.length - 1]?.dayNumber ?? 1,
+    shift: "Morning (07:00 - 15:30)",
+    supervisor: "Suresh K.",
+    buddy: "Anita M.",
+    status: "Doing well",
+    statusReason: "High-velocity picker with consistent 97%+ accuracy across Aisles 1-6.",
+    recommendedActionSnippet: "Cold Room Protocols & Chilled Pick Prep",
+    modulesCompleted: 4,
+    quizAverageScore: 92,
+    completedModuleIds: ["lms-mod-01", "lms-mod-02", "lms-mod-03", "lms-mod-04"],
+    currentCapabilityId: 4,
+    overallReadinessScore: 48,
+    capabilities: buildSnehaLedger(),
+    daysHistory: snehaHistory,
   },
 ];
 
@@ -481,7 +530,7 @@ export const initialOrgSummary: OrganizationSummary = {
   id: "org-qc-bengaluru",
   name: "FastCart Dark Store Operations",
   storeName: "Dark Store #104 (Indiranagar Central)",
-  totalNewHires: 3,
+  totalNewHires: 4,
   doingWellCount: 2,
   needsAttentionCount: 1,
   atRiskCount: 0,

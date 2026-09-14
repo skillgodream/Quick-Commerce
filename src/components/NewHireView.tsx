@@ -821,7 +821,9 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             <div className="relative z-10 inline-flex items-center justify-center gap-2.5 px-5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-sm">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               <span className="text-xs sm:text-sm font-semibold text-white tracking-wide">
-                {isHindi ? "प्रमाणन के लिए 6 दिन शेष" : "6 days to certification"}
+                {isHindi
+                  ? `प्रमाणन के लिए ${Math.max(0, 10 - currentDay)} दिन शेष`
+                  : `${Math.max(0, 10 - currentDay)} days to certification`}
               </span>
             </div>
           </div>

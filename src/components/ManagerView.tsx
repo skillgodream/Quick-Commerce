@@ -47,12 +47,16 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
 }) => {
   const activeHire = newHires.find((h) => h.id === activeHireId) || newHires[0];
 
-  // Find record for current day
-  const currentRecord = activeHire.daysHistory.find((d) => d.dayNumber === currentDay) || {
-    dayNumber: currentDay,
-    date: `Day ${currentDay}`,
+  // Active hire's authoritative day: prefer their individual journey day or the selected day
+  const effectiveDay = activeHire.currentDay || currentDay || 1;
+
+  // Find record for effective day (or latest available record in history)
+  const currentRecord = activeHire.daysHistory.find((d) => d.dayNumber === effectiveDay) ||
+    activeHire.daysHistory[activeHire.daysHistory.length - 1] || {
+    dayNumber: effectiveDay,
+    date: `Day ${effectiveDay}`,
     workSignal: {
-      dayNumber: currentDay,
+      dayNumber: effectiveDay,
       targetPickRate: 50,
       actualPickRate: 35,
       accuracyRate: 98,
@@ -101,7 +105,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
     setIssueType(currentRecord.managerSignal?.issueCategory || "Process");
     setManagerNote(
       currentRecord.managerSignal?.notes ||
-        (currentDay === 3 && activeHire.id === "nh-rahul-01"
+        (effectiveDay === 3 && activeHire.id === "nh-rahul-01"
           ? "Repeated location searches on multi-aisle grocery orders."
           : "")
     );
@@ -113,13 +117,13 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
       currentRecord.actionOutcome?.notes ||
         `Buddy ${activeHire.buddy.split(" ")[0]} walked aisles 4-8 with ${activeHire.name.split(" ")[0]}. Navigation improved and pick pace recovered.`
     );
-  }, [currentDay, activeHire.id, currentRecord.managerSignal, currentRecord.workSignal, currentRecord.actionOutcome]);
+  }, [effectiveDay, activeHire.id, currentRecord.managerSignal, currentRecord.workSignal, currentRecord.actionOutcome]);
 
   const handleSaveManagerSignal = () => {
     setIsSavingManagerSignal(true);
     const signal: ManagerSignal = {
       id: `mgr-${Date.now()}`,
-      dayNumber: currentDay,
+      dayNumber: effectiveDay,
       managerName: `${activeHire.supervisor.split(" ")[0]} (Shift Supervisor)`,
       state: managerState,
       issueCategory: managerState !== "Doing well" ? issueType : undefined,
@@ -133,7 +137,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
   const handleSaveWorkSignal = () => {
     setIsUpdatingWorkSignal(true);
     const workSignal: WorkSignal = {
-      dayNumber: currentDay,
+      dayNumber: effectiveDay,
       targetPickRate: Number(targetRate),
       actualPickRate: Number(actualRate),
       accuracyRate: Number(accuracyRate),
@@ -153,7 +157,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
     const outcome: ActionOutcome = {
       id: `out-${Date.now()}`,
       actionId: currentRecord.recommendedAction?.id || "act-default",
-      dayNumber: currentDay,
+      dayNumber: effectiveDay,
       performedBy: `${activeHire.supervisor.split(" ")[0]} (Supervisor) & ${activeHire.buddy.split(" ")[0]} (Buddy)`,
       performedAt: "Floor Check completed",
       improved: outcomeStatus,
@@ -190,7 +194,7 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
             <span className="text-lg">📋</span>
           </h1>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
-            Dark Store #104 • Day {currentDay} of 14
+            Dark Store #104 • {activeHire.name}: Day {effectiveDay} of 14
           </p>
         </div>
 
@@ -277,7 +281,10 @@ export const ManagerView: React.FC<ManagerViewProps> = ({
         <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none snap-x">
           {newHires.map((hire) => {
             const isSelected = hire.id === activeHire.id;
-            const hireRecord = hire.daysHistory.find((d) => d.dayNumber === currentDay) || hire.daysHistory[0];
+            const hireDay = hire.currentDay || currentDay || 1;
+            const hireRecord = hire.daysHistory.find((d) => d.dayNumber === hireDay) ||
+              hire.daysHistory[hire.daysHistory.length - 1] ||
+              hire.daysHistory[0];
 
             return (
               <button
