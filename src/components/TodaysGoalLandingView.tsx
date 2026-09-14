@@ -465,9 +465,9 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
               </span>
             </div>
 
-            {/* 2 Grids Tab: LMS Tasks & Activity Tasks */}
+            {/* 2 Grids Tab: LMS & Activity */}
             <div className="grid grid-cols-2 gap-3">
-              {/* Grid 1: LMS Tasks */}
+              {/* Grid 1: LMS */}
               <div 
                 onClick={() => {
                   if (todaysPrescribedModules.length > 0) {
@@ -484,26 +484,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                       <BookOpen className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-black text-slate-900 leading-tight">
-                      {isHindi ? "LMS कार्य" : "LMS Tasks"}
+                      LMS
                     </span>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 ${
-                    !hasAssignedLms
-                      ? "bg-slate-100 text-slate-600 border border-slate-200/60"
-                      : todayLmsCompleted >= todayLmsTotal
-                      ? "bg-emerald-100 text-emerald-800"
-                      : todayLmsCompleted > 0
-                      ? "bg-indigo-100 text-indigo-800"
-                      : "bg-amber-100 text-amber-800"
-                  }`}>
-                    {!hasAssignedLms
-                      ? (isHindi ? "कोई नहीं" : "None")
-                      : todayLmsCompleted >= todayLmsTotal
-                      ? (isHindi ? "पूर्ण" : "Done")
-                      : todayLmsCompleted > 0
-                      ? (isHindi ? "प्रगति में" : "In Progress")
-                      : (isHindi ? "लंबित" : "Pending")}
-                  </span>
+                  {todayLmsCompleted >= todayLmsTotal && hasAssignedLms && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 bg-emerald-100 text-emerald-800">
+                      {isHindi ? "पूर्ण" : "Done"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Progress bar and details */}
@@ -527,7 +515,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </div>
               </div>
 
-              {/* Grid 2: Activity Tasks */}
+              {/* Grid 2: Activity */}
               <div 
                 onClick={() => {
                   if (recAction) {
@@ -544,29 +532,21 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                       <Activity className="w-4 h-4" />
                     </div>
                     <span className="text-xs font-black text-slate-900 leading-tight">
-                      {isHindi ? "गतिविधि कार्य" : "Activity Tasks"}
+                      {isHindi ? "गतिविधि" : "Activity"}
                     </span>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 ${
-                    completedActivityTasks >= totalActivityTasks
-                      ? "bg-emerald-100 text-emerald-800"
-                      : completedActivityTasks > 0
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-slate-200/80 text-slate-700"
-                  }`}>
-                    {completedActivityTasks >= totalActivityTasks
-                      ? (isHindi ? "पूर्ण" : "Done")
-                      : completedActivityTasks > 0
-                      ? (isHindi ? "सक्रिय" : "Active")
-                      : (isHindi ? "लंबित" : "Pending")}
-                  </span>
+                  {completedActivityTasks >= totalActivityTasks && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 bg-emerald-100 text-emerald-800">
+                      {isHindi ? "पूर्ण" : "Done"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Progress bar and details */}
                 <div className="space-y-1.5 mt-auto pt-1">
                   <div className="flex items-center justify-between text-[11px] font-bold">
                     <span className="text-slate-600">
-                      {completedActivityTasks}/{totalActivityTasks} {isHindi ? "कार्य" : "tasks"}
+                      {completedActivityTasks}/{totalActivityTasks}
                     </span>
                     <span className="text-amber-700 font-black">{activityProgressPct}%</span>
                   </div>
