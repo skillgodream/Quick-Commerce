@@ -26,6 +26,7 @@ import {
 import { askCompanion, deriveLearnerRoadmap, CanonicalRoadmapStage } from "../services/intelligence";
 import { speakMessage, stopSpeaking } from "../utils/speech";
 import { NewHire } from "../types";
+import { MANDATORY_TRAINING_MODULES } from "../data/modulesData";
 
 interface ChatBotPulloutProps {
   currentDay: number;
@@ -487,7 +488,7 @@ export const ChatBotPullout: React.FC<ChatBotPulloutProps> = ({
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     activeTab === "journey" ? "bg-purple-100 text-purple-800" : "bg-white/15 text-white"
                   }`}>
-                    6 Stages
+                    10 Modules
                   </span>
                 </button>
 
@@ -509,233 +510,266 @@ export const ChatBotPullout: React.FC<ChatBotPulloutProps> = ({
             {/* ========================================================= */}
             {/* TAB CONTENT: 10-DAY JOURNEY                               */}
             {/* ========================================================= */}
-            {activeTab === "journey" && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                {/* Journey Readiness Banner */}
-                <div className="bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-800 rounded-3xl p-4 text-white shadow-md relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-purple-200">
-                        {isHindi ? "तत्परता स्कोर" : "Job Readiness"}
-                      </span>
-                      <h4 className="text-xl font-black text-white mt-0.5 flex items-center gap-2">
-                        <span>{readinessScore}%</span>
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-400/25 text-emerald-200 border border-emerald-400/40">
-                          {isHindi ? "प्रगति पर" : "On Track"}
+            {activeTab === "journey" && (() => {
+              const completedModuleIds = newHire?.completedModuleIds || [];
+              const completedModulesCount = Math.min(10, completedModuleIds.length);
+              const totalModulesCount = 10;
+
+              let totalTasksCount = 0;
+              let completedTasksCount = 0;
+
+              MANDATORY_TRAINING_MODULES.forEach((mod) => {
+                const isModDone = completedModuleIds.includes(mod.id);
+                mod.activities.forEach((act) => {
+                  totalTasksCount++;
+                  if (isModDone || act.completed) {
+                    completedTasksCount++;
+                  }
+                });
+              });
+
+              const overallCompletionPct = Math.round((completedTasksCount / (totalTasksCount || 1)) * 100);
+
+              return (
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                  {/* Purple Banner Card */}
+                  <div className="bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-800 rounded-3xl p-4 text-white shadow-md relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-purple-200">
+                          {isHindi ? "एलएमएस ट्रेनिंग प्रोग्रेस" : "LMS Training Progress"}
                         </span>
-                      </h4>
-                      <p className="text-xs text-purple-100 mt-1">
-                        {isHindi
-                          ? `स्टेज ${currentStageIndex + 1}/6: ${currentStage?.titleHi || "कौशल प्रगति"}`
-                          : `Stage ${currentStageIndex + 1}/6: ${currentStage?.titleEn || "Skill Progression"}`}
-                      </p>
-                    </div>
+                        <h4 className="text-lg font-black text-white mt-0.5 flex items-center gap-2">
+                          <span>{completedModulesCount} / {totalModulesCount} {isHindi ? "मॉड्यूल पूरे" : "Modules Done"}</span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-400/25 text-emerald-200 border border-emerald-400/40">
+                            {completedModulesCount >= (currentDay || 1) ? (isHindi ? "लक्ष्य पर" : "On Track") : (isHindi ? "प्रगति में" : "In Progress")}
+                          </span>
+                        </h4>
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={handlePlayJourneyAudio}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-sm ${
-                        isPlayingAudio
-                          ? "bg-rose-500 border-rose-400 text-white animate-pulse"
-                          : "bg-white/15 hover:bg-white/25 border-white/20 text-white active:scale-95"
-                      }`}
-                      title="Listen to journey briefing"
-                    >
-                      <Volume2 className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Visual 6-Step Indicator */}
-                  <div className="mt-3 pt-3 border-t border-white/15">
-                    <div className="flex items-center justify-between gap-1">
-                      {stages.map((st, idx) => {
-                        const isDone = st.status === "completed";
-                        const isCurrent = st.status === "current";
-                        return (
-                          <div
-                            key={st.id}
-                            className={`flex-1 h-2 rounded-full transition-all ${
-                              isDone
-                                ? "bg-emerald-400"
-                                : isCurrent
-                                ? "bg-white ring-2 ring-purple-300"
-                                : "bg-white/20"
-                            }`}
-                            title={`Stage ${idx + 1}`}
-                          />
-                        );
-                      })}
-                    </div>
-                    <div className="flex justify-between text-[10px] text-purple-200 font-semibold mt-1.5">
-                      <span>Day 0 (Induction)</span>
-                      <span className="font-bold text-white">Day {currentDay}</span>
-                      <span>Day 10 (Handover)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 6 Stages Timeline List */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between px-1">
-                    <h5 className="text-xs font-black uppercase tracking-wider text-slate-500">
-                      {isHindi ? "6 मुख्य चरण (Roadmap)" : "6 Canonical Stages"}
-                    </h5>
-                    <span className="text-[11px] font-bold text-purple-700">
-                      {isHindi ? "टैप करके विवरण देखें" : "Tap for details"}
-                    </span>
-                  </div>
-
-                  {stages.map((stage, idx) => {
-                    const isDone = stage.status === "completed";
-                    const isCurrent = stage.status === "current";
-                    const isExpanded = expandedStageId === stage.id;
-
-                    return (
-                      <div
-                        key={stage.id}
-                        onClick={() => setExpandedStageId(isExpanded ? null : stage.id)}
-                        className={`rounded-2xl border p-3.5 transition-all cursor-pointer ${
-                          isCurrent
-                            ? "bg-white border-purple-300 shadow-md ring-1 ring-purple-400/30"
-                            : isDone
-                            ? "bg-emerald-50/70 border-emerald-200 hover:bg-emerald-50"
-                            : "bg-white border-slate-200 hover:bg-slate-50 opacity-80"
+                      <button
+                        type="button"
+                        onClick={handlePlayJourneyAudio}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer shadow-sm ${
+                          isPlayingAudio
+                            ? "bg-rose-500 border-rose-400 text-white animate-pulse"
+                            : "bg-white/15 hover:bg-white/25 border-white/20 text-white active:scale-95"
                         }`}
+                        title="Listen to journey briefing"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
-                                isDone
-                                  ? "bg-emerald-600 text-white"
-                                  : isCurrent
-                                  ? "bg-purple-600 text-white shadow-sm"
-                                  : "bg-slate-100 text-slate-500"
-                              }`}
-                            >
-                              {isDone ? (
-                                <CheckCircle2 className="w-4 h-4" />
-                              ) : (
-                                getStageIcon(stage.key)
-                              )}
-                            </div>
+                        <Volume2 className="w-5 h-5" />
+                      </button>
+                    </div>
 
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                  Stage {stage.stageNumber}
-                                </span>
-                                {isCurrent && (
-                                  <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800">
-                                    CURRENT
-                                  </span>
+                    {/* Stats Grid inside Purple Card */}
+                    <div className="grid grid-cols-2 gap-2 bg-black/20 backdrop-blur-xs p-3 rounded-2xl border border-white/10 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center shrink-0">
+                          <BookOpen className="w-4 h-4 text-purple-200" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block leading-none mb-1">
+                            {isHindi ? "मॉड्यूल पूर्ण" : "Modules Done"}
+                          </span>
+                          <span className="text-sm font-black text-white leading-none">
+                            {completedModulesCount} / {totalModulesCount}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-purple-500/30 border border-purple-400/40 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-purple-200 font-bold uppercase tracking-wider block leading-none mb-1">
+                            {isHindi ? "कार्य पूर्ण" : "Tasks Done"}
+                          </span>
+                          <span className="text-sm font-black text-white leading-none">
+                            {completedTasksCount} / {totalTasksCount}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="pt-2 border-t border-white/15">
+                      <div className="flex justify-between items-center text-[10px] text-purple-200 font-bold mb-1">
+                        <span>{isHindi ? "समग्र एलएमएस पूर्णता" : "Overall LMS Completion"}</span>
+                        <span>{overallCompletionPct}%</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-white/20 overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all duration-500"
+                          style={{ width: `${overallCompletionPct}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-purple-200 font-semibold mt-1.5">
+                        <span>Day 1</span>
+                        <span className="font-bold text-white">Day {currentDay}</span>
+                        <span>Day 10</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Day 1 to Day 10 LMS Modules & Activities List */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between px-1">
+                      <h5 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        {isHindi ? "10-दिवसीय एलएमएस मॉड्यूल व गतिविधियां" : "10-Day LMS Modules & Activities"}
+                      </h5>
+                      <span className="text-[11px] font-bold text-purple-700">
+                        {isHindi ? "विवरण के लिए टैप करें" : "Tap for details"}
+                      </span>
+                    </div>
+
+                    {MANDATORY_TRAINING_MODULES.map((mod) => {
+                      const dayNumber = mod.dayNumber;
+                      const isCompleted = completedModuleIds.includes(mod.id);
+                      const isCurrentDay = dayNumber === currentDay;
+                      const isExpanded = expandedStageId === `day-${dayNumber}`;
+
+                      const modCompletedActs = mod.activities.filter((a) => isCompleted || a.completed).length;
+                      const modTotalActs = mod.activities.length;
+
+                      return (
+                        <div
+                          key={mod.id}
+                          onClick={() => setExpandedStageId(isExpanded ? null : `day-${dayNumber}`)}
+                          className={`rounded-2xl border p-3.5 transition-all cursor-pointer ${
+                            isCurrentDay
+                              ? "bg-white border-purple-300 shadow-md ring-1 ring-purple-400/30"
+                              : isCompleted
+                              ? "bg-emerald-50/70 border-emerald-200 hover:bg-emerald-50"
+                              : "bg-white border-slate-200 hover:bg-slate-50 opacity-90"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                                  isCompleted
+                                    ? "bg-emerald-600 text-white"
+                                    : isCurrentDay
+                                    ? "bg-purple-600 text-white shadow-sm"
+                                    : "bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircle2 className="w-5 h-5 text-white" />
+                                ) : (
+                                  `D${dayNumber}`
                                 )}
                               </div>
-                              <h6 className="text-xs font-black text-slate-900 leading-tight">
-                                {isHindi ? stage.titleHi : stage.titleEn}
-                              </h6>
+
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 font-mono">
+                                    Day {dayNumber} • {mod.code}
+                                  </span>
+                                  {isCurrentDay && (
+                                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-800">
+                                      TODAY
+                                    </span>
+                                  )}
+                                  {isCompleted && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
+                                      DONE
+                                    </span>
+                                  )}
+                                </div>
+                                <h6 className="text-xs font-black text-slate-900 leading-tight">
+                                  {isHindi ? mod.titleHi : mod.title}
+                                </h6>
+                              </div>
                             </div>
-                          </div>
 
-                          <ChevronDown
-                            className={`w-4 h-4 text-slate-400 transition-transform ${
-                              isExpanded ? "rotate-180 text-purple-600" : ""
-                            }`}
-                          />
-                        </div>
-
-                        {/* Expandable Details */}
-                        {isExpanded && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 text-xs space-y-2 animate-in fade-in">
-                            <div className="bg-purple-50/70 rounded-xl p-2.5 border border-purple-100 text-purple-950 space-y-1">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 block">
-                                {isHindi ? "मुख्य लक्ष्य (Milestone):" : "Target Milestone:"}
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                {modCompletedActs}/{modTotalActs} {isHindi ? "कार्यों" : "Tasks"}
                               </span>
-                              <p className="font-semibold text-xs leading-relaxed">
-                                {isHindi ? stage.milestoneHi : stage.milestoneEn}
-                              </p>
+                              <ChevronDown
+                                className={`w-4 h-4 text-slate-400 transition-transform ${
+                                  isExpanded ? "rotate-180 text-purple-600" : ""
+                                }`}
+                              />
                             </div>
-
-                            <p className="text-slate-600 leading-relaxed text-[11px]">
-                              {isHindi ? stage.shortDescHi : stage.shortDescEn}
-                            </p>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
 
-                {/* Day-by-Day Milestone Targets */}
-                <div className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-2xs space-y-2.5">
-                  <h5 className="text-xs font-black text-slate-900 flex items-center justify-between">
-                    <span>{isHindi ? "10-दिवसीय माइलस्टोन लक्ष्य" : "10-Day Milestone Milestones"}</span>
-                    <Award className="w-4 h-4 text-amber-500" />
-                  </h5>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-start gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 font-black text-[10px] shrink-0">
-                        Day 1-3
-                      </span>
-                      <div>
-                        <strong className="text-slate-900 block font-bold text-xs">
-                          {isHindi ? "सुरक्षा व मूल स्कैनर चालन" : "Safe & Steady Picker"}
-                        </strong>
-                        <span className="text-slate-500 text-[11px]">
-                          {isHindi ? "सुरक्षा गियर, स्कैनर पेयरिंग, आइसल 1-4" : "PPE, scanner pairing, Aisles 1-4"}
-                        </span>
-                      </div>
-                    </div>
+                          {/* Expanded Activity List */}
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5 animate-in fade-in" onClick={(e) => e.stopPropagation()}>
+                              <p className="text-[11px] font-medium text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                {isHindi ? mod.descriptionHi : mod.description}
+                              </p>
 
-                    <div className="flex items-start gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 font-black text-[10px] shrink-0">
-                        Day 4-6
-                      </span>
-                      <div>
-                        <strong className="text-slate-900 block font-bold text-xs">
-                          {isHindi ? "सटीकता व गति (50 पिक/घंटा)" : "Core Consistency & Speed"}
-                        </strong>
-                        <span className="text-slate-500 text-[11px]">
-                          {isHindi ? "नाजुक सामान, संतुलित टोट, 50 पिक/घंटा" : "Fragile handling, tote balance, 50 picks/hr"}
-                        </span>
-                      </div>
-                    </div>
+                              <div className="space-y-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
+                                  {isHindi ? "गतिविधियां व कार्य" : "Activities & Tasks"}:
+                                </span>
+                                {mod.activities.map((act, actIdx) => {
+                                  const actDone = isCompleted || act.completed;
+                                  return (
+                                    <div
+                                      key={act.id || actIdx}
+                                      className={`flex items-center justify-between p-2 rounded-xl text-xs border ${
+                                        actDone
+                                          ? "bg-emerald-50/50 border-emerald-100 text-slate-900"
+                                          : "bg-white border-slate-100 text-slate-700"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5">
+                                        {actDone ? (
+                                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        ) : (
+                                          <div className="w-4 h-4 rounded-full border-2 border-slate-300 shrink-0" />
+                                        )}
+                                        <div>
+                                          <span className="font-bold text-slate-900 block leading-tight">
+                                            {isHindi ? act.titleHi : act.title}
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 capitalize">
+                                            {act.type} • {act.durationMinutes} min
+                                          </span>
+                                        </div>
+                                      </div>
 
-                    <div className="flex items-start gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800 font-black text-[10px] shrink-0">
-                        Day 7-10
-                      </span>
-                      <div>
-                        <strong className="text-slate-900 block font-bold text-xs">
-                          {isHindi ? "कोल्ड रूम व स्वतंत्र प्रमाणन" : "Solo Handover & Certification"}
-                        </strong>
-                        <span className="text-slate-500 text-[11px]">
-                          {isHindi ? "कोल्ड चेन, बिना सहायता पूर्ण शिफ्ट, प्रमाणन" : "Cold chain, zero supervisor handholding"}
-                        </span>
-                      </div>
-                    </div>
+                                      {act.score !== undefined && actDone && (
+                                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-mono">
+                                          {act.score}%
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
 
-                {/* Fullscreen Journey Button */}
-                {onOpenFullScreenJourney && (
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsDrawerOpen(false);
-                        setIsTucked(true);
-                        onOpenFullScreenJourney();
-                      }}
-                      className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-98"
-                    >
-                      <span>{isHindi ? "पूर्ण 10-दिन सफर दृश्य खोलें" : "Open Fullscreen Journey View"}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  {/* Fullscreen Journey Button */}
+                  {onOpenFullScreenJourney && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDrawerOpen(false);
+                          setIsTucked(true);
+                          onOpenFullScreenJourney();
+                        }}
+                        className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-black flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-98"
+                      >
+                        <span>{isHindi ? "पूर्ण 10-दिन सफर दृश्य खोलें" : "Open Fullscreen Journey View"}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ========================================================= */}
             {/* TAB CONTENT: AI ASSISTANT CHAT                            */}

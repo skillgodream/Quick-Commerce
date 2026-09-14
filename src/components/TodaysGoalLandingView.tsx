@@ -89,6 +89,9 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   // 3-Tab dial mode state: "day" | "career" | "yesterday"
   const [activeDialTab, setActiveDialTab] = useState<"day" | "career" | "yesterday">("day");
 
+  // Tab mode for "What, Why, and How" goal cards: "what" | "why" | "how"
+  const [activeGoalTab, setActiveGoalTab] = useState<"what" | "why" | "how">("what");
+
   // Expandable sections state (Prescribed training & Required floor actions)
   const [isPrescribedExpanded, setIsPrescribedExpanded] = useState<boolean>(true);
   const [isFloorActionsExpanded, setIsFloorActionsExpanded] = useState<boolean>(true);
@@ -119,7 +122,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   const quizAvg = newHire.quizAverageScore ?? 94;
   const ordersCompleted = currentRecord.workSignal?.ordersCompleted ?? 0;
   const targetOrders = currentRecord.workSignal?.targetOrders ?? 0;
-  const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));
+  const trainingScore = Math.min(100, Math.round(((completedCount / 10) * 50 + (quizAvg / 100) * 50)));
   const speedScore = actualPickRate && targetPickRate ? Math.min(100, Math.round((actualPickRate / targetPickRate) * 100)) : 100;
   const accuracyScore = accuracyRate != null ? Math.min(100, Math.round(accuracyRate)) : 100;
   const ordersScore = targetOrders > 0 ? Math.min(100, Math.round((ordersCompleted / targetOrders) * 100)) : 100;
@@ -150,6 +153,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   );
 
   // Resolve values for the 3-tab dial
+  const isDay10Blocked = (newHire.day10Evaluation && !newHire.day10Evaluation.isReady) || (currentDay === 10 && (completedCount < 10 || liveReadinessPct < 85));
   let displayedPercentage = dailyShiftProgress;
   let dialUnit = isHindi ? "% दैनिक लक्ष्य" : "% Day Goal";
   let dialSubtext = isHindi ? "आज का दैनिक प्रगति स्कोर" : "Present Day Performance";
@@ -159,7 +163,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
     displayedPercentage = liveReadinessPct;
     dialUnit = isHindi ? "% जॉब रेडी" : "% Job Ready";
     dialSubtext = isHindi ? "अब तक का समग्र करियर रेडीनेस" : "Till Date Job Ready Score";
-    dialBadgeText = liveReadinessPct >= 80 ? (isHindi ? "नौकरी के लिए तैयार" : "Role Ready") : (isHindi ? "स्थिर गति" : "Ramping Steady");
+    dialBadgeText = (liveReadinessPct >= 85 && !isDay10Blocked) ? (isHindi ? "नौकरी के लिए तैयार" : "Role Ready") : (isHindi ? "स्थिर गति" : "Ramping Steady");
   } else if (activeDialTab === "yesterday") {
     displayedPercentage = yesterdayScore;
     dialUnit = isHindi ? "% कल का स्कोर" : "% Yesterday";
@@ -203,21 +207,33 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   // Concise Doctor's suggestion for today
   const [isPlanExpanded, setIsPlanExpanded] = useState(false);
 
-  // Today's prescribed modules
+  // Today's assigned/prescribed modules:
+  // 1. Scheduled curriculum module for the current day
+  // 2. Targeted micro-learning module for the recommended capability intervention (if any)
   const targetCapId = (recAction && recAction.targetCapabilityId) || newHire.currentCapabilityId;
   const targetCapability = DARK_STORE_CAPABILITIES.find(c => c.id === targetCapId);
-  const todaysPrescribedModules: CustomModule[] = [];
-    
-  if (targetCapId) {
-    const mappedModules = MANDATORY_TRAINING_MODULES.filter(m => 
-      m.mappedCapabilityIds.includes(targetCapId)
-    );
-    mappedModules.forEach(m => {
-      todaysPrescribedModules.push({
-        ...m,
+  
+  const todaysPrescribedModules: CustomModule[] = useMemo(() => {
+    const modulesMap = new Map<string, CustomModule>();
+
+    // 1. Add today's scheduled curriculum module
+    const dayModules = MANDATORY_TRAINING_MODULES.filter(m => m.dayNumber === currentDay);
+    dayModules.forEach(m => modulesMap.set(m.id, { ...m }));
+
+    // 2. Add targeted intervention module if targetCapId exists
+    if (targetCapId) {
+      const mappedModules = MANDATORY_TRAINING_MODULES.filter(m => 
+        m.mappedCapabilityIds.includes(targetCapId)
+      );
+      mappedModules.forEach(m => {
+        if (!modulesMap.has(m.id)) {
+          modulesMap.set(m.id, { ...m });
+        }
       });
-    });
-  }
+    }
+
+    return Array.from(modulesMap.values());
+  }, [currentDay, targetCapId]);
 
   const unmasteredCaps = useMemo(() => {
     return DARK_STORE_CAPABILITIES.filter((cap) => {
@@ -261,6 +277,26 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
       detailsHi: recAction.description,
     });
   }
+
+  // 1. LMS tasks metrics for today
+  const hasAssignedLms = todaysPrescribedModules.length > 0;
+  const todayLmsTotal = todaysPrescribedModules.length;
+  const todayLmsCompleted = hasAssignedLms
+    ? todaysPrescribedModules.filter((m) => (newHire.completedModuleIds || []).includes(m.id)).length
+    : 0;
+  const lmsProgressPct = !hasAssignedLms
+    ? 100
+    : Math.min(100, Math.round((todayLmsCompleted / todayLmsTotal) * 100));
+
+  // 2. Activity tasks metrics for today
+  const totalActivityTasks = Math.max(1, (todaysTasks.length > 0 ? todaysTasks.length : 1) + 2); // Prescribed floor action + standard floor checks
+  const completedActivityTasks = Math.min(totalActivityTasks, Object.values(completedTaskIds).filter(Boolean).length);
+  const activityProgressPct = Math.min(100, Math.round((completedActivityTasks / totalActivityTasks) * 100));
+
+  // Combined overall completion for today
+  const overallTodayCompletionPct = !hasAssignedLms
+    ? activityProgressPct
+    : Math.round((lmsProgressPct + activityProgressPct) / 2);
 
   const handleStartModule = (modId: string) => {
     setActiveModule(null);
@@ -411,26 +447,129 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
           </div>
           
           {/* Progress Completion Tab positioned UNDER the banner */}
-          <div className="bg-white rounded-[32px] p-5 shadow-sm border border-slate-200 flex flex-col gap-3">
+          <div className="bg-white rounded-[32px] p-4 sm:p-5 shadow-sm border border-slate-200 flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
               <span className="text-base font-black text-black tracking-tight">
                 {isHindi ? "आज के कार्य पूर्णता" : "Today's Task Completion"}
               </span>
               <span className="text-lg font-black text-black leading-none">
-                {Math.round((completedCount / totalActivities) * 100)}%
+                {overallTodayCompletionPct}%
               </span>
             </div>
-            {/* Horizontal Progress Bar */}
-            <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+
+            {/* 2 Grids Tab: LMS Tasks & Activity Tasks */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Grid 1: LMS Tasks */}
               <div 
-                className="h-full bg-[#f97316] rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${(completedCount / totalActivities) * 100}%` }}
-              />
-            </div>
-            <div className="flex justify-start">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                {completedCount}/{totalActivities} TASKS
-              </span>
+                onClick={() => {
+                  if (todaysPrescribedModules.length > 0) {
+                    handleStartModule(todaysPrescribedModules[0].id);
+                  } else if (onSelectSection) {
+                    onSelectSection("modules");
+                  }
+                }}
+                className="bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-xs group"
+              >
+                <div className="flex items-start justify-between gap-1 mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                      <BookOpen className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 leading-tight">
+                      {isHindi ? "LMS कार्य" : "LMS Tasks"}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 ${
+                    !hasAssignedLms
+                      ? "bg-slate-100 text-slate-600 border border-slate-200/60"
+                      : todayLmsCompleted >= todayLmsTotal
+                      ? "bg-emerald-100 text-emerald-800"
+                      : todayLmsCompleted > 0
+                      ? "bg-indigo-100 text-indigo-800"
+                      : "bg-amber-100 text-amber-800"
+                  }`}>
+                    {!hasAssignedLms
+                      ? (isHindi ? "कोई नहीं" : "None")
+                      : todayLmsCompleted >= todayLmsTotal
+                      ? (isHindi ? "पूर्ण" : "Done")
+                      : todayLmsCompleted > 0
+                      ? (isHindi ? "प्रगति में" : "In Progress")
+                      : (isHindi ? "लंबित" : "Pending")}
+                  </span>
+                </div>
+
+                {/* Progress bar and details */}
+                <div className="space-y-1.5 mt-auto pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-slate-500">
+                      {!hasAssignedLms
+                        ? (isHindi ? "आज कोई मॉड्यूल नहीं" : "No modules today")
+                        : `${todayLmsCompleted}/${todayLmsTotal} ${isHindi ? "मॉड्यूल" : "modules"}`}
+                    </span>
+                    <span className="text-indigo-600 font-black">
+                      {!hasAssignedLms ? "100%" : `${lmsProgressPct}%`}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                      style={{ width: `${!hasAssignedLms ? 100 : Math.max(todayLmsCompleted > 0 ? 10 : 0, lmsProgressPct)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid 2: Activity Tasks */}
+              <div 
+                onClick={() => {
+                  if (recAction) {
+                    handleOpenTaskDestination(recAction.id, recAction.targetActor || "work");
+                  } else if (onSelectSection) {
+                    onSelectSection("dial");
+                  }
+                }}
+                className="bg-slate-50 hover:bg-slate-100/80 border border-slate-200/90 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all active:scale-[0.98] shadow-xs group"
+              >
+                <div className="flex items-start justify-between gap-1 mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                      <Activity className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 leading-tight">
+                      {isHindi ? "गतिविधि कार्य" : "Activity Tasks"}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tight shrink-0 ${
+                    completedActivityTasks >= totalActivityTasks
+                      ? "bg-emerald-100 text-emerald-800"
+                      : completedActivityTasks > 0
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-slate-200/80 text-slate-700"
+                  }`}>
+                    {completedActivityTasks >= totalActivityTasks
+                      ? (isHindi ? "पूर्ण" : "Done")
+                      : completedActivityTasks > 0
+                      ? (isHindi ? "सक्रिय" : "Active")
+                      : (isHindi ? "लंबित" : "Pending")}
+                  </span>
+                </div>
+
+                {/* Progress bar and details */}
+                <div className="space-y-1.5 mt-auto pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-slate-500">
+                      {completedActivityTasks}/{totalActivityTasks} {isHindi ? "कार्य" : "tasks"}
+                    </span>
+                    <span className="text-amber-600 font-black">{activityProgressPct}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#f97316] rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(completedActivityTasks > 0 ? 10 : 0, activityProgressPct)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -464,13 +603,13 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "मॉड्यूल" : "Modules"}
                 </span>
-                <div className="my-1.5 py-0.5 flex items-center justify-center">
-                  <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
-                    {Math.min(100, Math.round((completedCount / 4) * 100))}%
+                <div className="my-1 py-0.5 flex items-center justify-center">
+                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
+                    {Math.min(100, Math.round((completedCount / 10) * 100))}%
                   </span>
                 </div>
                 <span className="text-[8px] sm:text-[9px] font-bold text-emerald-600 truncate w-full">
-                  {isHindi ? `${completedCount}/4 पूर्ण` : `${completedCount}/4 Done`}
+                  {isHindi ? `${completedCount}/10 पूर्ण` : `${completedCount}/10 Done`}
                 </span>
               </div>
 
@@ -479,8 +618,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "पिक रेट" : "Pick Rate"}
                 </span>
-                <div className="my-1.5 py-0.5 flex items-center justify-center">
-                  <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
+                <div className="my-1 py-0.5 flex items-center justify-center">
+                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
                     {actualPickRate != null && !Number.isNaN(actualPickRate) ? Math.round(actualPickRate) : 0}
                   </span>
                 </div>
@@ -494,8 +633,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "सटीकता" : "Accuracy"}
                 </span>
-                <div className="my-1.5 py-0.5 flex items-center justify-center">
-                  <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
+                <div className="my-1 py-0.5 flex items-center justify-center">
+                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
                     {accuracyRate != null && !Number.isNaN(accuracyRate) ? Math.round(accuracyRate) : 100}%
                   </span>
                 </div>
@@ -509,8 +648,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 <span className="text-[9px] sm:text-[10px] font-bold uppercase text-slate-500 tracking-tight truncate w-full">
                   {isHindi ? "क्वालिटी" : "QC Check"}
                 </span>
-                <div className="my-1.5 py-0.5 flex items-center justify-center">
-                  <span className="text-2xl sm:text-[26px] font-normal text-slate-950 leading-none inline-block transform scale-y-[1.38] scale-x-[1.06] origin-center tracking-tight">
+                <div className="my-1 py-0.5 flex items-center justify-center">
+                  <span className="text-base sm:text-lg font-bold text-slate-950 leading-none tracking-tight">
                     99%
                   </span>
                 </div>
@@ -617,238 +756,311 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
         </div>
 
         {/* ========================================================= */}
-        {/* TODAY'S ADAPTIVE GOAL: WHAT, WHY, DO, CHECK, NEXT         */}
+        {/* TODAY'S ADAPTIVE GOAL: WHAT, WHY AND HOW (TAB CONTAINER)   */}
         {/* ========================================================= */}
-        <div className="space-y-4 pt-2">
-          {/* WHAT */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                <Target className="w-5 h-5 stroke-[2.5]" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1 block">
-                  {isHindi ? "क्या (WHAT)" : "WHAT AM I DOING?"}
+        <div id="what-why-how-tab-container" className="space-y-4 pt-2">
+          {/* Enclosing Tab Box */}
+          <div className="bg-slate-50/90 border border-slate-200/90 rounded-[32px] p-3.5 sm:p-5 space-y-4 shadow-xs">
+            {/* Header with Title "What, Why, and How" & Tab Pills */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Target className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight leading-none">
+                      {isHindi ? "क्या, क्यों और कैसे" : "What, Why, and How"}
+                    </h3>
+                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                      {isHindi ? "आज के लक्ष्य की स्पष्ट जानकारी और निर्देश" : "Goal breakdown, rationale & verification"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-2xs">
+                  {isHindi ? "लक्ष्य कार्ड्स" : "Goal Cards"}
                 </span>
-                <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-tight">
-                  {targetCapability?.name || "Floor Operations"}
-                </h3>
-                <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed pr-2">
-                  {targetCapability?.description || "General store fulfillment and safety operations."}
-                </p>
+              </div>
+
+              {/* Interactive Tab Switcher */}
+              <div className="bg-slate-200/80 p-1 rounded-2xl flex items-center gap-1 border border-slate-300/60 text-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setActiveGoalTab("what")}
+                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                    activeGoalTab === "what"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {isHindi ? "क्या (What)" : "What"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveGoalTab("why")}
+                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                    activeGoalTab === "why"
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {isHindi ? "क्यों (Why)" : "Why"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveGoalTab("how")}
+                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all text-center cursor-pointer ${
+                    activeGoalTab === "how"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {isHindi ? "कैसे (How)" : "How"}
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* WHY */}
-          <div className="bg-gradient-to-br from-slate-900 to-[#111520] rounded-3xl p-4 sm:p-5 border border-slate-700/60 shadow-lg relative overflow-hidden text-white">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-            <div className="flex items-start gap-3.5 relative z-10">
-              <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
-                <Sparkles className="w-5 h-5 stroke-[2.5]" />
-              </div>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 mb-1 block">
-                  {isHindi ? "क्यों (WHY)" : "WHY THIS GOAL?"}
-                </span>
-                <p className="text-[13px] sm:text-sm text-slate-200 font-medium leading-relaxed">
-                  {doctorDiagnosis}
-                </p>
-                {longitudinalContext && (
-                  <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
-                    <div className="flex items-start gap-2">
-                      <div className="mt-0.5 shrink-0 text-purple-300">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <path d="M12 16v-4"></path>
-                          <path d="M12 8h.01"></path>
-                        </svg>
+            {/* TAB CONTENT CARDS */}
+            <div className="space-y-4 pt-1">
+              {/* WHAT AM I DOING? */}
+              {activeGoalTab === "what" && (
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                      <Target className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 mb-1 block">
+                        {isHindi ? "क्या (WHAT)" : "WHAT AM I DOING?"}
+                      </span>
+                      <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-tight">
+                        {targetCapability?.name || "Floor Operations"}
+                      </h3>
+                      <p className="text-xs text-slate-600 font-medium mt-1.5 leading-relaxed pr-2">
+                        {targetCapability?.description || "General store fulfillment and safety operations."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* WHY THIS GOAL? */}
+              {activeGoalTab === "why" && (
+                <div className="bg-gradient-to-br from-slate-900 to-[#111520] rounded-3xl p-4 sm:p-5 border border-slate-700/60 shadow-lg relative overflow-hidden text-white transition-all">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+                  <div className="flex items-start gap-3.5 relative z-10">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-purple-400 mb-1 block">
+                        {isHindi ? "क्यों (WHY)" : "WHY THIS GOAL?"}
+                      </span>
+                      <p className="text-[13px] sm:text-sm text-slate-200 font-medium leading-relaxed">
+                        {doctorDiagnosis}
+                      </p>
+                      {longitudinalContext && (
+                        <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 relative overflow-hidden">
+                          <div className="flex items-start gap-2">
+                            <div className="mt-0.5 shrink-0 text-purple-300">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wide block mb-0.5">
+                                Dean's Memory
+                              </span>
+                              <p className="text-xs text-purple-100/90 font-medium leading-snug">
+                                {longitudinalContext.evidence}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* WHAT SHOULD I DO NOW? */}
+              {activeGoalTab === "what" && (
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500" />
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                      <Activity className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div className="w-full">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 mb-1 block">
+                        {isHindi ? "कार्य (DO)" : "WHAT SHOULD I DO NOW?"}
+                      </span>
+                      <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight">
+                        {recAction ? recAction.title : "Follow standard floor routine"}
+                      </h3>
+                      <p className="text-xs sm:text-[13px] text-slate-600 font-medium mt-1.5 mb-4 leading-relaxed pr-2">
+                        {recAction ? recAction.description : "Execute assigned tasks safely and maintain pacing standards."}
+                      </p>
+                      
+                      {recAction && (
+                        <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-slate-400" />
+                              <span className="text-xs font-bold text-slate-700">{recAction.smallestPracticalStep || "15 mins"}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <UserCheck className="w-4 h-4 text-slate-400" />
+                              <span className="text-xs font-bold text-slate-700">{recAction.targetActor || "Self"}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTaskDestination(recAction.id, recAction.targetActor || "work")}
+                            className="px-4 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
+                          >
+                            {isHindi ? "गतिविधि प्रारंभ करें" : "Start Activity"}
+                          </button>
+                        </div>
+                      )}
+                      
+                      {todaysPrescribedModules.length > 0 && (
+                        <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between mt-2">
+                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-purple-400" />
+                              <span className="text-xs font-bold text-purple-900 line-clamp-1">{todaysPrescribedModules[0].title}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleStartModule(todaysPrescribedModules[0].id)}
+                            className="px-4 py-2.5 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm shrink-0"
+                          >
+                            {isHindi ? "लर्निंग शुरू करें" : "Start LMS"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* HOW IT'S CHECKED & WHAT COMES NEXT Container */}
+              {activeGoalTab === "how" && (
+                <div className="grid grid-cols-2 gap-3.5 pb-1">
+                  {/* CHECK */}
+                  <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-3 block">
+                      {isHindi ? "चेक (CHECK)" : "HOW IT'S CHECKED"}
+                    </span>
+                    <div className="space-y-3 mt-auto">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Pace</span>
+                        <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minPickRate || 40} items/hr</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wide block mb-0.5">
-                          Dean's Memory
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Quality</span>
+                        <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minAccuracy || 98}% acc</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RESULT */}
+                  {actionOutcome && (
+                    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-3 block">
+                        {isHindi ? "परिणाम (RESULT)" : "RESULT"}
+                      </span>
+                      
+                      <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight mb-2">
+                        {actionOutcome.improved === "yes" ? "Improved" : actionOutcome.improved === "partial" ? "Partially improved" : actionOutcome.improved === "no" ? "Not improved yet" : "Not enough evidence yet"}
+                      </h3>
+                      
+                      <p className="text-xs sm:text-[13px] text-slate-600 font-medium mb-3 leading-relaxed">
+                        {actionOutcome.improved === "yes" 
+                          ? "Your latest evidence shows improvement." 
+                          : actionOutcome.improved === "partial" 
+                          ? "You're improving, but more evidence/practice is needed." 
+                          : actionOutcome.improved === "no"
+                          ? "Dean is adjusting the next step based on the latest evidence."
+                          : "Dean needs more evidence before confirming improvement."}
+                      </p>
+                      
+                      {/* Evidence Metrics */}
+                      {(actionOutcome.subsequentPickRate || actionOutcome.subsequentAccuracy) && (
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 grid grid-cols-2 gap-3 mt-1 mb-3">
+                          {actionOutcome.subsequentPickRate && (
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Pick Rate</span>
+                              <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentPickRate} items/hr</span>
+                            </div>
+                          )}
+                          {actionOutcome.subsequentAccuracy && (
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Accuracy</span>
+                              <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentAccuracy}%</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Environmental Context / Blocker */}
+                      {actionOutcome.treatmentContext?.reason && (
+                        <div className="mt-1 flex items-start gap-2 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/50">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                          <span className="text-[11px] font-semibold text-amber-800 leading-snug">
+                            {actionOutcome.treatmentContext.reason}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* REPLAN */}
+                  {actionOutcome && (
+                    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500" />
+                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-600 mb-2 block">
+                        {isHindi ? "अगला कदम (NEXT STEP)" : "NEXT STEP"}
+                      </span>
+                      <p className="text-xs sm:text-[13px] text-slate-700 font-semibold leading-relaxed">
+                        {recAction ? recAction.title : newHire.recommendedActionSnippet || "Follow standard floor routine"}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* NEXT */}
+                  {!actionOutcome && (
+                    <div className="bg-slate-50 rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400" />
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2 block">
+                          {isHindi ? "आगे क्या (NEXT)" : "WHAT COMES NEXT"}
                         </span>
-                        <p className="text-xs text-purple-100/90 font-medium leading-snug">
-                          {longitudinalContext.evidence}
+                        <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
+                          {isHindi
+                            ? "प्रदर्शन का मूल्यांकन होने के बाद डीन आपका अगला कदम तय करेगा।"
+                            : "Dean will determine your next step after evaluating your performance."}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* DO */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500" />
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                <Activity className="w-5 h-5 stroke-[2.5]" />
-              </div>
-              <div className="w-full">
-                <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 mb-1 block">
-                  {isHindi ? "कार्य (DO)" : "WHAT SHOULD I DO NOW?"}
-                </span>
-                <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight">
-                  {recAction ? recAction.title : "Follow standard floor routine"}
-                </h3>
-                <p className="text-xs sm:text-[13px] text-slate-600 font-medium mt-1.5 mb-4 leading-relaxed pr-2">
-                  {recAction ? recAction.description : "Execute assigned tasks safely and maintain pacing standards."}
-                </p>
-                
-                {recAction && (
-                  <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs font-bold text-slate-700">{recAction.smallestPracticalStep || "15 mins"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <UserCheck className="w-4 h-4 text-slate-400" />
-                        <span className="text-xs font-bold text-slate-700">{recAction.targetActor || "Self"}</span>
+                      <div className="mt-3 flex items-start sm:items-center gap-2">
+                        <ArrowRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5 sm:mt-0" />
+                        <span className="text-xs font-black text-slate-900 leading-tight">
+                          {isHindi ? "मूल्यांकन की प्रतीक्षा है" : "Awaiting Evaluation"}
+                        </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenTaskDestination(recAction.id, recAction.targetActor || "work")}
-                      className="px-4 py-2.5 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
-                    >
-                      {isHindi ? "गतिविधि प्रारंभ करें" : "Start Activity"}
-                    </button>
-                  </div>
-                )}
-                
-                {todaysPrescribedModules.length > 0 && (
-                  <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between mt-2">
-                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs font-bold text-purple-900 line-clamp-1">{todaysPrescribedModules[0].title}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleStartModule(todaysPrescribedModules[0].id)}
-                      className="px-4 py-2.5 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm shrink-0"
-                    >
-                      {isHindi ? "लर्निंग शुरू करें" : "Start LMS"}
-                    </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* CHECK & NEXT Container */}
-          <div className="grid grid-cols-2 gap-3.5 pb-2">
-            {/* CHECK */}
-            <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-3 block">
-                {isHindi ? "चेक (CHECK)" : "HOW IT'S CHECKED"}
-              </span>
-              <div className="space-y-3 mt-auto">
-                <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Pace</span>
-                  <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minPickRate || 40} items/hr</span>
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Target Quality</span>
-                  <span className="text-sm font-black text-slate-900">{targetCapability?.targetMetrics?.minAccuracy || 98}% acc</span>
-                </div>
-              </div>
-            </div>
-
-                        {/* RESULT */}
-            {actionOutcome && (
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-3 block">
-                  {isHindi ? "परिणाम (RESULT)" : "RESULT"}
-                </span>
-                
-                <h3 className="text-[15px] sm:text-base font-black text-slate-900 leading-tight mb-2">
-                  {actionOutcome.improved === "yes" ? "Improved" : actionOutcome.improved === "partial" ? "Partially improved" : actionOutcome.improved === "no" ? "Not improved yet" : "Not enough evidence yet"}
-                </h3>
-                
-                <p className="text-xs sm:text-[13px] text-slate-600 font-medium mb-3 leading-relaxed">
-                  {actionOutcome.improved === "yes" 
-                    ? "Your latest evidence shows improvement." 
-                    : actionOutcome.improved === "partial" 
-                    ? "You're improving, but more evidence/practice is needed." 
-                    : actionOutcome.improved === "no"
-                    ? "Dean is adjusting the next step based on the latest evidence."
-                    : "Dean needs more evidence before confirming improvement."}
-                </p>
-                
-                {/* Evidence Metrics */}
-                {(actionOutcome.subsequentPickRate || actionOutcome.subsequentAccuracy) && (
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 grid grid-cols-2 gap-3 mt-1 mb-3">
-                    {actionOutcome.subsequentPickRate && (
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Pick Rate</span>
-                        <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentPickRate} items/hr</span>
-                      </div>
-                    )}
-                    {actionOutcome.subsequentAccuracy && (
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Accuracy</span>
-                        <span className="text-sm font-black text-slate-900">{actionOutcome.subsequentAccuracy}%</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Environmental Context / Blocker */}
-                {actionOutcome.treatmentContext?.reason && (
-                  <div className="mt-1 flex items-start gap-2 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100/50">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                    <span className="text-[11px] font-semibold text-amber-800 leading-snug">
-                      {actionOutcome.treatmentContext.reason}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* REPLAN */}
-            {actionOutcome && (
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500" />
-                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-600 mb-2 block">
-                  {isHindi ? "अगला कदम (NEXT STEP)" : "NEXT STEP"}
-                </span>
-                <p className="text-xs sm:text-[13px] text-slate-700 font-semibold leading-relaxed">
-                  {recAction ? recAction.title : newHire.recommendedActionSnippet || "Follow standard floor routine"}
-                </p>
-              </div>
-            )}
-
-            {/* NEXT */}
-            {!actionOutcome && (
-              <div className="bg-slate-50 rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400" />
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2 block">
-                    {isHindi ? "आगे क्या (NEXT)" : "WHAT COMES NEXT"}
-                  </span>
-                  <p className="text-[11px] text-slate-500 font-semibold leading-relaxed">
-                    {isHindi
-                      ? "प्रदर्शन का मूल्यांकन होने के बाद डीन आपका अगला कदम तय करेगा।"
-                      : "Dean will determine your next step after evaluating your performance."}
-                  </p>
-                </div>
-                <div className="mt-3 flex items-start sm:items-center gap-2">
-                  <ArrowRight className="w-4 h-4 text-slate-400 shrink-0 mt-0.5 sm:mt-0" />
-                  <span className="text-xs font-black text-slate-900 leading-tight">
-                    {isHindi ? "मूल्यांकन की प्रतीक्षा है" : "Awaiting Evaluation"}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

@@ -87,8 +87,8 @@ const HOME_LEARNING_METRICS = [
   },
   {
     id: "exceptions",
-    titleEn: "Floor Exceptions",
-    titleHi: "फ़्लोर अपवाद",
+    titleEn: "Floor Execution & Exceptions",
+    titleHi: "फ़्लोर निष्पादन और अपवाद",
     capIds: [11, 12, 13, 18]
   },
   {
@@ -111,7 +111,6 @@ interface NewHireViewProps {
   setIsHindi?: (isHindi: boolean) => void;
   activeSection?: LearnerSection;
   onSelectSection?: (section: LearnerSection) => void;
-  onOpenOnboarding?: () => void;
   onOpenManagerConsole?: () => void;
   onOpenSimulator?: () => void;
   newHires?: NewHire[];
@@ -131,7 +130,6 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   setIsHindi: propSetIsHindi,
   activeSection: propActiveSection,
   onSelectSection: propOnSelectSection,
-  onOpenOnboarding,
   onOpenManagerConsole,
   onOpenSimulator,
   newHires,
@@ -176,7 +174,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const targetOrders = prevWork?.targetOrders ?? (currentDay === 1 ? 20 : 42);
   const isOrdersBad = ordersCompleted < targetOrders;
 
-  const trainingScore = Math.min(100, Math.round(((completedModulesCount / 3) * 50 + ((newHire.quizAverageScore ?? 94) / 100) * 50)));
+  const trainingScore = Math.min(100, Math.round(((completedModulesCount / totalModulesCount) * 50 + ((newHire.quizAverageScore ?? 94) / 100) * 50)));
   const speedScore = Math.min(100, Math.round((actualPickRate / targetPickRate) * 100));
   const accuracyScore = Math.min(100, Math.round(accuracyRate));
   const ordersScore = Math.min(100, Math.round((ordersCompleted / targetOrders) * 100));
@@ -190,6 +188,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const readinessEval = (newHire.day10Evaluation || { isCommercialReady: false, isReady: false, reasons: [], unresolvedBlockers: [], criteria: {} });
   const blockerCount = readinessEval.unresolvedBlockers.length;
   const isCertifiedReady = readinessEval.isReady;
+  const currentCertificationDate = currentRecord?.date || (isHindi ? `दिन ${currentDay}` : `Day ${currentDay}`);
   const automatedDate = yesterdayRecord?.date || (isHindi ? `दिन ${yesterdayNumber}` : `Day ${yesterdayNumber}`);
   const demonstratedCount = newHire.capabilitiesDemonstrated?.length || 2;
 
@@ -279,8 +278,21 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   // Authoritative Overall Job Readiness calculation
   const authoritativeReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
-  // Derive simple human state from existing intelligence ledger
-  const effectiveStatus = currentRecord.statusAtEnd || newHire.status || "Doing well";
+  // Derive simple human state from existing intelligence ledger with dynamic live readiness checks
+  const requiredModulesForDay = currentDay === 10 ? 10 : Math.min(10, currentDay);
+  const requiredCapabilitiesForDay = currentDay === 10 ? 14 : Math.min(20, Math.round((currentDay / 10) * 14));
+  const isTrainingMet = completedModulesCount >= requiredModulesForDay;
+  const isCapabilitiesMet = demonstratedCount >= requiredCapabilitiesForDay;
+  const hasActiveBlockers = blockerCount > 0 || isPickRateBad || isAccuracyBad || !isTrainingMet || !isCapabilitiesMet;
+
+  const dynamicStatus = (
+    (currentRecord.statusAtEnd === "At risk" || newHire.status === "At risk")
+      ? "At risk"
+      : (currentRecord.statusAtEnd === "Needs attention" || newHire.status === "Needs attention" || hasActiveBlockers)
+      ? "Needs attention"
+      : "Doing well"
+  );
+  const effectiveStatus = dynamicStatus;
   const isSupportCompleted = Boolean(
     (currentRecord.actionOutcome && currentRecord.actionOutcome.improved) ||
     currentRecord.recommendedAction?.status === "completed" ||
@@ -872,10 +884,10 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           >
             <span>
               {effectiveStatus === "Doing well"
-                ? (isHindi ? "ट्रैक पर" : "Doing well")
+                ? (isHindi ? "काम: अच्छा प्रदर्शन" : "Work: Doing well")
                 : effectiveStatus === "Needs attention"
-                ? (isHindi ? "ध्यान आवश्यक" : "Needs attention")
-                : (isHindi ? "जोखिम में" : "At risk")}
+                ? (isHindi ? "काम: ध्यान आवश्यक" : "Work: Needs attention")
+                : (isHindi ? "काम: जोखिम में" : "Work: At risk")}
             </span>
           </div>
         </div>
@@ -903,71 +915,78 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
         </div>
 
-        {/* 4-Grid Visual Capability Dashboard */}
-        <div className="grid grid-cols-2 gap-2 mb-6">
-          {HOME_LEARNING_METRICS.map(metric => {
-            // Check if any capability in this metric needs attention
-            let hasAttention = false;
-            let hasEvidence = false;
-            
-            metric.capIds.forEach(capId => {
-              const state = newHire.capabilities?.[capId];
-              if (state && state.evidence !== "none") {
-                hasEvidence = true;
-              }
-              if (state && state.performance === "below_target" && effectiveStatus !== "Doing well" && !isSupportCompleted) {
-                hasAttention = true;
-              }
-            });
-
-            return (
-              <div 
-                key={metric.id}
-                onClick={() => {
-                  setActiveSection("learner_dashboard");
-                }}
-                className={`rounded-2xl p-3 border ${hasAttention ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'} flex flex-col justify-between min-h-[88px] cursor-pointer active:scale-95 transition-all shadow-sm`}
-              >
-                <div className="flex items-start justify-between gap-1 mb-2">
-                  <span className={`text-xs font-bold leading-tight ${hasAttention ? 'text-rose-900' : 'text-slate-700'}`}>
-                    {isHindi ? metric.titleHi : metric.titleEn}
-                  </span>
-                  {hasAttention && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
-                </div>
-                <div className="mt-auto">
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${hasAttention ? 'text-rose-600' : 'text-slate-400'}`}>
-                    {hasAttention 
-                      ? (isHindi ? "ध्यान आवश्यक" : "Needs attention") 
-                      : (!hasEvidence 
-                          ? (isHindi ? "पर्याप्त साक्ष्य नहीं" : "Not enough evidence") 
-                          : (isHindi ? "ट्रैक पर" : "On track"))
-                    }
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Course Completion Card */}
-        <div 
-          onClick={() => setActiveSection("modules")}
-          className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs mb-6 space-y-3 cursor-pointer hover:border-slate-300 transition-all active:scale-[0.99] group"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-black text-black tracking-tight group-hover:text-slate-800 transition-colors">
-              {isHindi ? "आज के कार्य पूर्णता" : "Today's Task Completion"}
-            </h2>
-            <span className="ref-num text-lg font-black text-black tracking-[-0.04em]">
-              {courseCompletionPercentage}%
+        {/* MY SKILLS 4-Grid Visual Capability Dashboard */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 tracking-wider uppercase flex items-center gap-2">
+              <span>{isHindi ? "मेरी स्किल्स" : "MY SKILLS"}</span>
+            </h3>
+            <span className="text-[11px] font-bold text-slate-500">
+              {isHindi ? "4 मुख्य क्षेत्र" : "4 Core Areas"}
             </span>
           </div>
 
-          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-black rounded-full transition-all duration-500" 
-              style={{ width: `${Math.max(4, courseCompletionPercentage)}%` }}
-            />
+          <div className="grid grid-cols-2 gap-2.5">
+            {HOME_LEARNING_METRICS.map(metric => {
+              // Check if any capability in this metric needs attention or has positive demonstrated evidence
+              let hasAttention = false;
+              let hasDemonstrated = false;
+              
+              metric.capIds.forEach(capId => {
+                const state = newHire.capabilities?.[capId];
+                if (!state) return;
+                
+                // Real below-target capability problem or inconsistent evidence
+                if (state.performance === "below_target" || state.evidence === "inconsistent") {
+                  hasAttention = true;
+                }
+                
+                // Real positive demonstrated/mastered capability evidence
+                if (state.evidence === "demonstrated" || state.mastery === "proficient" || state.mastery === "mastered") {
+                  hasDemonstrated = true;
+                }
+              });
+
+              const statusText = hasAttention
+                ? (isHindi ? "ध्यान आवश्यक" : "Needs attention")
+                : (hasDemonstrated
+                    ? (isHindi ? "ट्रैक पर" : "On track")
+                    : (isHindi ? "पर्याप्त साक्ष्य नहीं" : "Not enough evidence"));
+
+              return (
+                <div 
+                  key={metric.id}
+                  onClick={() => {
+                    setActiveSection("learner_dashboard");
+                  }}
+                  className={`rounded-2xl p-3.5 border ${
+                    hasAttention 
+                      ? 'bg-rose-50 border-rose-200' 
+                      : hasDemonstrated 
+                      ? 'bg-emerald-50/40 border-emerald-200/70' 
+                      : 'bg-slate-50 border-slate-200'
+                  } flex flex-col justify-between min-h-[92px] cursor-pointer active:scale-95 transition-all shadow-sm hover:border-slate-300`}
+                >
+                  <div className="flex items-start justify-between gap-1 mb-2">
+                    <span className={`text-xs font-bold leading-tight ${hasAttention ? 'text-rose-900' : 'text-slate-800'}`}>
+                      {isHindi ? metric.titleHi : metric.titleEn}
+                    </span>
+                    {hasAttention && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
+                  </div>
+                  <div className="mt-auto">
+                    <span className={`text-[10px] font-black uppercase tracking-wider ${
+                      hasAttention 
+                        ? 'text-rose-600' 
+                        : hasDemonstrated 
+                        ? 'text-emerald-700' 
+                        : 'text-slate-400'
+                    }`}>
+                      {statusText}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -1074,7 +1093,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               </h3>
             </div>
             <span className="ref-num text-[10px] font-black uppercase tracking-wider text-slate-400 bg-white/5 px-2.5 py-1 rounded-full border border-white/10">
-              {automatedDate}
+              {currentCertificationDate}
             </span>
           </div>
 
@@ -1083,12 +1102,12 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               { 
                 label: isHindi ? "अनिवार्य ट्रेनिंग पूरी" : "Mandatory training completed", 
                 value: `${completedModulesCount}/${totalModulesCount}`, 
-                met: completedModulesCount >= 10 
+                met: isTrainingMet 
               },
               { 
                 label: isHindi ? "आवश्यक क्षमताएं प्रदर्शित" : "Required capabilities demonstrated", 
                 value: `${demonstratedCount}/20`, 
-                met: demonstratedCount >= 14 
+                met: isCapabilitiesMet 
               },
               { 
                 label: isHindi ? "फ्लोर उत्पादकता लक्ष्य" : "Floor productivity target", 
@@ -1102,8 +1121,8 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               },
               { 
                 label: isHindi ? "समग्र शिफ्ट स्कोर" : "Overall shift score", 
-                value: `${yesterdayShiftScore}% (${yesterdayShiftScore >= targetShiftScore ? (isHindi ? "उत्तीर्ण" : "Cleared") : (isHindi ? "प्रगति पर" : "In progress")})`, 
-                met: !isShiftScoreBad 
+                value: `${yesterdayShiftScore}% (${(!isShiftScoreBad && isTrainingMet && isCapabilitiesMet) ? (isHindi ? "उत्तीर्ण" : "Cleared") : (isHindi ? "प्रगति पर" : "In progress")})`, 
+                met: !isShiftScoreBad && isTrainingMet && isCapabilitiesMet 
               },
             ].map((item, idx) => (
               <div

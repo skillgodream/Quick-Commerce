@@ -70,7 +70,7 @@ export const YesterdayShiftDetailModal: React.FC<YesterdayShiftDetailModalProps>
   const completedCount = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore ?? 94;
 
-  const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));
+  const trainingScore = Math.min(100, Math.round(((completedCount / totalModules) * 50 + (quizAvg / 100) * 50)));
   const speedScore = Math.min(100, Math.round((actualPace / targetPace) * 100));
   const accuracyScore = Math.min(100, Math.round(accuracy));
   const ordersScore = Math.min(100, Math.round((ordersCompleted / targetOrders) * 100));

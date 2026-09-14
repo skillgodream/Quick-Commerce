@@ -58,7 +58,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
   const completedCount = newHire.completedModuleIds?.length ?? 0;
   const quizAvg = newHire.quizAverageScore ?? 94;
 
-  const trainingScore = Math.min(100, Math.round(((completedCount / 3) * 50 + (quizAvg / 100) * 50)));
+  const trainingScore = Math.min(100, Math.round(((completedCount / 10) * 50 + (quizAvg / 100) * 50)));
   const speedScore = Math.min(100, Math.round((actualPace / targetPace) * 100));
   const accuracyScore = Math.min(100, Math.round(accuracy));
   const ordersScore = Math.min(100, Math.round((ordersCompleted / targetOrders) * 100));
@@ -146,7 +146,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
               TRAI...
             </span>
             <span className="text-3xl font-black text-black leading-none my-1 tracking-tight">
-              {completedCount}/3
+              {completedCount}/10
             </span>
             <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
               {quizAvg}%<br/>quiz
@@ -267,7 +267,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
           </div>
           <div>
             <div className="flex items-baseline gap-1">
-              <span className="text-base sm:text-lg font-black text-white leading-none">{completedCount}/3</span>
+              <span className="text-base sm:text-lg font-black text-white leading-none">{completedCount}/10</span>
               {isTrainingRed && <span className="text-red-400 font-extrabold text-[10px] ml-1">⚠️</span>}
             </div>
           </div>

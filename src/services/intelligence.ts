@@ -359,8 +359,18 @@ export function assessReadiness(
   let baseScore = Math.min(100, Math.round((scoreSum / totalCaps) * 100));
 
   // If mandatory training is incomplete, strong floor performance cannot override mandatory requirements
-  if (hire && typeof hire.modulesCompleted === "number" && hire.modulesCompleted < 10) {
-    const trainingFactor = hire.modulesCompleted / 10;
+  let modulesCount = 10;
+  if (hire) {
+    if (hire.completedModuleIds && typeof hire.modulesCompleted === "number") {
+      modulesCount = Math.max(hire.completedModuleIds.length, hire.modulesCompleted);
+    } else if (hire.completedModuleIds) {
+      modulesCount = hire.completedModuleIds.length;
+    } else if (typeof hire.modulesCompleted === "number") {
+      modulesCount = hire.modulesCompleted;
+    }
+  }
+  if (modulesCount < 10) {
+    const trainingFactor = modulesCount / 10;
     baseScore = Math.min(baseScore, Math.round(50 + trainingFactor * 35)); // Max 85% if modules < 10
   }
 
@@ -805,7 +815,7 @@ export function extractAndSelectPreviousDaySnapshot(
       category: "required_training_incomplete",
       titleEn: "Mandatory Training Gap",
       titleHi: "अनिवार्य ट्रेनिंग अधूरी",
-      metricValue: `${modulesCompleted}/3`,
+      metricValue: `${modulesCompleted}/10`,
       metricUnit: "modules",
       contextTextEn: "Foundation safety & terminal LMS modules must be completed",
       contextTextHi: "सुरक्षा व टर्मिनल के बुनियादी ट्रेनिंग मॉड्यूल पूरे करना जरूरी",
@@ -2785,7 +2795,8 @@ export async function executeCoordinationLoopAsync(input: LoopExecutionInput, hi
       return arbitrationResult;
     })();
 
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("AI Timeout")), 4500));
+    const timeoutMs = (typeof process !== "undefined" && process.env.NODE_ENV === "test") ? 2000 : 4500;
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("AI Timeout")), timeoutMs));
     candidateAction = await Promise.race([aiPipeline, timeoutPromise]) as DecidedAction;
   } catch (err: any) {
     if (process.env.NODE_ENV === "development" && process.env.DEBUG_AI) {

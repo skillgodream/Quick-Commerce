@@ -3,11 +3,8 @@ import { Header, ActiveTab } from "./components/Header";
 import { NewHireView } from "./components/NewHireView";
 import { ManagerView } from "./components/ManagerView";
 import { OrganizationView } from "./components/OrganizationView";
-import { OnboardingView } from "./components/OnboardingView";
 import { LoopInspectorModal } from "./components/LoopInspectorModal";
 import { TelemetryDialModal } from "./components/TelemetryDialModal";
-import { GoogleFormFeedModal } from "./components/GoogleFormFeedModal";
-import { ClientDemoModal } from "./components/ClientDemoModal";
 import { SyncSimulatorModal } from "./components/SyncSimulatorModal";
 import { ChatBotPullout } from "./components/ChatBotPullout";
 import { SplashScreen } from "./components/SplashScreen";
@@ -24,10 +21,6 @@ import {
   CandidatePattern,
 } from "./types";
 import { executeCoordinationLoop, executeCoordinationLoopAsync, askCompanion, analyzeOutcomeNotes, analyzeLongitudinalHistory, LoopExecutionInput } from "./services/intelligence";
-import {
-  GoogleFormFeedPayload,
-  adaptGoogleFormFeedRow,
-} from "./services/googleFormFeedAdapter";
 import {
   fetchSimulatorEvidence,
   adaptSimulatorToLoopInput,
@@ -82,8 +75,6 @@ export default function App() {
   const [orgSummary, setOrgSummary] = useState(initialOrgSummary);
   const [isLoopModalOpen, setIsLoopModalOpen] = useState<boolean>(false);
   const [isTelemetryModalOpen, setIsTelemetryModalOpen] = useState<boolean>(false);
-  const [isFeedModalOpen, setIsFeedModalOpen] = useState<boolean>(false);
-  const [isClientDemoModalOpen, setIsClientDemoModalOpen] = useState<boolean>(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
   const [isSimulatorLabOpen, setIsSimulatorLabOpen] = useState<boolean>(false);
   const [isSyncingCohort, setIsSyncingCohort] = useState<boolean>(false);
@@ -92,9 +83,7 @@ export default function App() {
   const [isFramed, setIsFramed] = useState<boolean>(true);
   const [isHindi, setIsHindi] = useState<boolean>(false);
   const [learnerSection, setLearnerSection] = useState<LearnerSection>("home");
-  // Splash Screen and Onboarding disabled by default so the home screen loads immediately matching user request
   const [showSplash, setShowSplash] = useState<boolean>(false);
-  const [isOnboarding, setIsOnboarding] = useState<boolean>(false);
 
   // Real-time Cloud Firestore continuous listener (sub-second broadcast from Simulator)
   useEffect(() => {
@@ -611,45 +600,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
     }
   };
 
-  // 5. Client Demo Work-Signal Feed Ingested (Google Form / Sheet adapter)
-  const handleGoogleFormFeedIngested = (payload: GoogleFormFeedPayload) => {
-    const knownHires = newHires.map((h) => ({ id: h.id, name: h.name }));
-    const result = adaptGoogleFormFeedRow(payload, knownHires);
-
-    if (result.modulesCompleted !== undefined) {
-      setNewHires((prev) =>
-        prev.map((h) =>
-          h.id === result.newHireId
-            ? { ...h, modulesCompleted: result.modulesCompleted }
-            : h
-        )
-      );
-    }
-
-    // Switch view to the target hire & day
-    setActiveHireId(result.newHireId);
-    setCurrentDay(result.dayNumber);
-
-    // Pass signals through authoritative updateHireAndRecalculate pipeline
-    fetchLongitudinalPattern(result.newHireId, result.dayNumber, { 
-      workSignal: result.workSignal, 
-      dailySignal: result.dailySignal, 
-      managerSignal: result.managerSignal 
-    }).then(({ pattern, historyText }) => {
-      updateHireAndRecalculateAsync(result.newHireId, result.dayNumber, () => {
-        const partial: Partial<DayRecord> = {
-        workSignal: result.workSignal,
-        dailySignal: result.dailySignal,
-        managerSignal: result.managerSignal,
-      };
-      if (result.actionOutcome) {
-        partial.actionOutcome = result.actionOutcome;
-      }
-      return partial;
-      }, pattern, historyText);
-    });
-  };
-
   // Select day in scenario
   const handleSelectDay = (day: number) => {
     lastSyncedKeyRef.current = null;
@@ -663,12 +613,10 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
       localStorage.removeItem(STORAGE_KEY_HIRES);
       localStorage.removeItem(STORAGE_KEY_DAY);
       localStorage.removeItem(STORAGE_KEY_ACTIVE_HIRE);
-      localStorage.removeItem("checkin_checkout_onboarding_state");
     } catch (e) {}
     setNewHires(initialCohort);
     setCurrentDay(1);
     setActiveHireId("nh-rahul-01");
-    setIsOnboarding(true);
     setLearnerSection("home");
   };
 
@@ -1098,11 +1046,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
       {/* Mobile Device Chassis Shell */}
       <div
         className={`w-full mx-auto flex flex-col transition-all duration-300 ${
-          isOnboarding
-            ? isFramed
-              ? "max-w-[390px] md:rounded-[44px] md:shadow-[0_24px_60px_rgba(0,0,0,0.6)] md:overflow-hidden min-h-screen md:min-h-[844px] bg-[#14161d]"
-              : "max-w-md min-h-screen bg-[#14161d]"
-            : isFramed
+          isFramed
             ? `max-w-md md:rounded-[36px] md:shadow-2xl md:border md:border-white/10 md:overflow-hidden md:ring-8 md:ring-slate-950 min-h-screen md:min-h-[850px] ${
                 activeTab === "new_hire" && learnerSection === "journey"
                   ? "bg-[#eaedf2]"
@@ -1120,7 +1064,7 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         }`}
       >
         {/* Subtle phone speaker notch for framed mobile experience on desktop (only during active shift views) */}
-        {isFramed && !isOnboarding && (
+        {isFramed && (
           <div className={`hidden md:flex items-center justify-center pt-2 pb-1 border-b ${
             activeTab === "new_hire" && learnerSection === "journey"
               ? "bg-[#eaedf2] border-slate-300"
@@ -1137,16 +1081,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
           </div>
         )}
 
-        {/* 1. ONBOARDING FIRST PAGE (MOBILE UI FIRST PAGE) */}
-        {isOnboarding ? (
-          <OnboardingView
-            onStartDay={() => setIsOnboarding(false)}
-            learnerName={activeHire.name}
-            isHindi={isHindi}
-            onToggleLanguage={() => setIsHindi((prev) => !prev)}
-          />
-        ) : (
-          <>
             {/* Global Mobile Header (Only during active shift views) */}
             {!(activeTab === "new_hire" && (learnerSection === "modules" || learnerSection === "home" || learnerSection === "journey" || learnerSection === "dashboard" || learnerSection === "dial" || learnerSection === "learner_dashboard")) && (
               <Header
@@ -1164,9 +1098,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   setActiveTab("new_hire");
                   setLearnerSection("buddy");
                 }}
-                onOpenOnboarding={() => setIsOnboarding(true)}
-                onOpenFeedModal={() => setIsFeedModalOpen(true)}
-                onOpenClientDemo={() => setIsClientDemoModalOpen(true)}
                 onOpenSimulatorLab={() => setActiveTab("simulator")}
                 hasApiKey={hasApiKey}
                 doingWellCount={doingWellCount}
@@ -1222,7 +1153,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                   setIsHindi={setIsHindi}
                   activeSection={learnerSection}
                   onSelectSection={setLearnerSection}
-                  onOpenOnboarding={() => setIsOnboarding(true)}
                   onOpenManagerConsole={() => setActiveTab("manager")}
                   onOpenSimulator={() => setActiveTab("simulator")}
                   newHires={newHires}
@@ -1287,8 +1217,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
                 currentDay={effectiveDay}
               />
             )}
-          </>
-        )}
       </div>
 
       {/* Core Loop Inspector Modal */}
@@ -1307,15 +1235,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         currentDay={effectiveDay}
       />
 
-      {/* Client Demo Work-Signal Feed (Google Form / Sheet Ingestor) Modal */}
-      <GoogleFormFeedModal
-        isOpen={isFeedModalOpen}
-        onClose={() => setIsFeedModalOpen(false)}
-        newHires={newHires}
-        onIngestFeed={handleGoogleFormFeedIngested}
-        isHindi={isHindi}
-      />
-
       {/* Live Simulator Sync & Push Hub Modal */}
       <SyncSimulatorModal
         isOpen={isSyncModalOpen}
@@ -1329,20 +1248,6 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         }}
         lastSyncedTimestamp={lastSyncedTime}
         isSyncing={isSyncingCohort}
-      />
-
-      {/* Interactive Client Demo Experience Hub */}
-      <ClientDemoModal
-        isOpen={isClientDemoModalOpen}
-        onClose={() => setIsClientDemoModalOpen(false)}
-        onRunScenario={handleGoogleFormFeedIngested}
-        currentHire={activeHire}
-        currentDay={effectiveDay}
-        onOpenLoopInspector={() => setIsLoopModalOpen(true)}
-        onSelectTab={setActiveTab}
-        onResetDemo={handleResetDemo}
-        isHindi={isHindi}
-        onOpenSplash={() => setShowSplash(true)}
       />
     </div>
   );

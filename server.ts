@@ -8,6 +8,7 @@ dotenv.config();
 
 const app = express();
 const PORT = 3000;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 app.use(express.json());
 
@@ -20,9 +21,57 @@ function getGenAI(): GoogleGenAI | null {
   if (!genAIClient) {
     genAIClient = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
     });
   }
   return genAIClient;
+}
+
+const CANDIDATE_MODELS = [
+  process.env.GEMINI_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-2.0-flash-lite",
+].filter((m, i, self) => Boolean(m) && self.indexOf(m) === i) as string[];
+
+async function generateContentWithFallback(
+  ai: GoogleGenAI,
+  options: {
+    contents: any;
+    config?: any;
+    timeoutMs?: number;
+  }
+) {
+  const timeoutMs = options.timeoutMs || 4000;
+  let lastError: any = null;
+
+  for (const model of CANDIDATE_MODELS) {
+    try {
+      const fetchPromise = ai.models.generateContent({
+        model,
+        contents: options.contents,
+        config: options.config,
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`AI model ${model} timeout`)), timeoutMs)
+      );
+
+      const response: any = await Promise.race([fetchPromise, timeoutPromise]);
+      if (response && (response.text || response.candidates)) {
+        return response;
+      }
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("AI models unavailable");
 }
 
 // 1. Health Check
@@ -164,20 +213,14 @@ EXPECTED JSON SCHEMA:
   "companionResponse": "A 1-2 sentence direct, friendly response to the worker in simple spoken English. Reassure them, but do not promise mastery."
 }`;
 
-        const fetchPromise = ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response: any = await generateContentWithFallback(ai, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
             temperature: 0.1,
           },
+          timeoutMs: 12000,
         });
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
-        );
-
-        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
@@ -198,11 +241,11 @@ EXPECTED JSON SCHEMA:
               companionResponse: parsed.companionResponse ? String(parsed.companionResponse) : fallbackResult.companionResponse
             });
           } else {
-             console.warn("AI interpretation failed validation gate. Falling back to deterministic rules.");
+             console.debug("AI interpretation failed validation gate. Falling back to deterministic rules.");
           }
         }
       } catch (aiErr) {
-        console.warn("AI generation/validation failed, using deterministic structured signal:", aiErr);
+        console.debug("AI generation unavailable, using deterministic structured signal:", (aiErr as any)?.message || aiErr);
       }
     }
 
@@ -247,20 +290,14 @@ EXPECTED JSON SCHEMA:
   "remainingIssue": "Any specific issue or blocker mentioned that was NOT resolved (e.g., 'Aisle 7 navigation'). Use 'None' if completely resolved."
 }`;
 
-        const fetchPromise = ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response: any = await generateContentWithFallback(ai, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
             temperature: 0.1,
           },
+          timeoutMs: 12000,
         });
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
-        );
-
-        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
@@ -273,14 +310,14 @@ EXPECTED JSON SCHEMA:
           }
         }
       } catch (aiErr) {
-        console.warn("AI generation/validation failed for outcome:", aiErr);
+        console.debug("AI generation/validation unavailable for outcome:", (aiErr as any)?.message || aiErr);
       }
     }
 
     res.json(fallbackResult);
   } catch (err) {
     console.error("Error in understand-outcome:", err);
-    res.status(500).json({ error: err.message || "Failed to analyze outcome" });
+    res.status(500).json({ error: (err as any).message || "Failed to analyze outcome" });
   }
 });
 
@@ -327,34 +364,28 @@ EXPECTED JSON SCHEMA:
   "supportingEvidence": "1 concise sentence explaining the pattern and the evidence supporting it." (omit if false)
 }`;
 
-        const fetchPromise = ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response: any = await generateContentWithFallback(ai, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
             temperature: 0.1,
           },
+          timeoutMs: 12000,
         });
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
-        );
-
-        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
           return res.json(parsed);
         }
       } catch (aiErr) {
-        console.warn("AI generation failed for longitudinal pattern:", aiErr);
+        console.debug("AI generation unavailable for longitudinal pattern:", (aiErr as any)?.message || aiErr);
       }
     }
 
     res.json(fallbackResult);
   } catch (err) {
     console.error("Error in understand-longitudinal:", err);
-    res.status(500).json({ error: err.message || "Failed to analyze longitudinal pattern" });
+    res.status(500).json({ error: (err as any).message || "Failed to analyze longitudinal pattern" });
   }
 });
 
@@ -413,34 +444,28 @@ Previous Intervention Failed: ${observed?.previousInterventionFailed}
 History: ${historyText || "None"}
 `;
 
-        const fetchPromise = ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response: any = await generateContentWithFallback(ai, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
             temperature: 0.1,
           },
+          timeoutMs: 12000,
         });
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
-        );
-
-        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
           return res.json(parsed);
         }
       } catch (aiErr) {
-        console.warn("AI generation failed for intervene:", aiErr);
+        console.debug("AI generation unavailable for intervene, using deterministic fallback:", (aiErr as any)?.message || aiErr);
       }
     }
     
     res.json(fallbackResult);
   } catch (err) {
     console.error("Error in intervene:", err);
-    res.status(500).json({ error: err.message || "Failed to generate intervention" });
+    res.status(500).json({ error: (err as any).message || "Failed to generate intervention" });
   }
 });
 
@@ -494,34 +519,28 @@ Previous Intervention Failed: ${observed?.previousInterventionFailed}
 History: ${historyText || "None"}
 `;
 
-        const fetchPromise = ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response: any = await generateContentWithFallback(ai, {
           contents: prompt,
           config: {
             responseMimeType: "application/json",
             temperature: 0.1,
           },
+          timeoutMs: 12000,
         });
-
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("AI Request timed out")), 5000)
-        );
-
-        const response: any = await Promise.race([fetchPromise, timeoutPromise]);
         
         if (response && response.text) {
           const parsed = JSON.parse(response.text.trim());
           return res.json(parsed);
         }
       } catch (aiErr) {
-        console.warn("AI generation failed for arbitrate:", aiErr);
+        console.debug("AI generation unavailable for arbitrate, using deterministic fallback:", (aiErr as any)?.message || aiErr);
       }
     }
     
     res.json(fallbackResult);
   } catch (err) {
     console.error("Error in arbitrate:", err);
-    res.status(500).json({ error: err.message || "Failed to arbitrate intervention" });
+    res.status(500).json({ error: (err as any).message || "Failed to arbitrate intervention" });
   }
 });
 
@@ -553,8 +572,7 @@ app.post("/api/companion/ask", async (req, res) => {
 
     if (ai) {
       try {
-        const response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+        const response = await generateContentWithFallback(ai, {
           contents: `You are a helpful, respectful, friendly peer work companion for a blue-collar ${role} in a high-speed quick-commerce dark store (Day ${dayNumber} on the job).
 The worker asked: "${question}"
 Answer in 2-3 simple, very practical sentences.
@@ -562,13 +580,14 @@ Rules:
 - NO corporate buzzwords, NO course or LMS references.
 - Concrete store instructions (e.g. rack numbers, scanner taps, buddy help).
 - Warm, plain English or clear language.`,
+          timeoutMs: 10000,
         });
 
         if (response.text) {
           answer = response.text.trim();
         }
       } catch (e) {
-        console.warn("Companion ask fallback used:", e);
+        console.debug("Companion ask fallback used:", (e as any)?.message || e);
       }
     }
 

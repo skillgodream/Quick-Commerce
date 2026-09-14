@@ -12,7 +12,6 @@ import {
   Gauge,
   Languages,
   UserCheck,
-  FileSpreadsheet,
   Cpu,
 } from "lucide-react";
 import { Logo } from "./Logo";
@@ -27,9 +26,6 @@ interface HeaderProps {
   onOpenLoopModal: () => void;
   onOpenTelemetryDial?: () => void;
   onOpenBuddy?: () => void;
-  onOpenOnboarding?: () => void;
-  onOpenFeedModal?: () => void;
-  onOpenClientDemo?: () => void;
   onOpenSimulatorLab?: () => void;
   hasApiKey: boolean;
   doingWellCount?: number;
@@ -54,9 +50,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLoopModal,
   onOpenTelemetryDial,
   onOpenBuddy,
-  onOpenOnboarding,
-  onOpenFeedModal,
-  onOpenClientDemo,
   onOpenSimulatorLab,
   hasApiKey,
   doingWellCount = 8,
@@ -157,23 +150,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-[11px] font-black tracking-tight hidden sm:inline">Lab</span>
             </button>
 
-            {/* Top Bar Menu Items (Client Demo & Eye Menu) - ONLY visible on Home Screen or Backstage */}
+            {/* Top Bar Menu Items - Eye Menu ONLY visible on Home Screen or Backstage */}
             {(isHomeScreen || isBackstageActive) && (
               <>
-                {/* Client Demo Story Quick Launcher */}
-                {onOpenClientDemo && (
-                  <button
-                    id="header-client-demo-btn"
-                    onClick={onOpenClientDemo}
-                    title="Client Demo Story & Closed-Loop Scenarios"
-                    aria-label="Client Demo Story"
-                    className="px-2.5 py-1.5 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-xs font-black text-xs"
-                  >
-                    <span className="text-xs">🎯</span>
-                    <span className="text-[11px] font-black tracking-tight hidden sm:inline">Demo</span>
-                  </button>
-                )}
-
                 {/* Eye Icon Button & Exclusive Backstage Dropdown Menu */}
                 <div className="relative" ref={eyeMenuRef}>
                   <button
@@ -322,87 +301,6 @@ export const Header: React.FC<HeaderProps> = ({
                             Inspect
                           </span>
                         </button>
-
-                        {/* Item 5: Onboarding Welcome Screen */}
-                        {onOpenOnboarding && (
-                          <button
-                            id="eye-menu-onboarding"
-                            onClick={() => {
-                              onOpenOnboarding();
-                              setIsEyeMenuOpen(false);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
-                                <Sparkles className="w-3.5 h-3.5 stroke-[2.2]" />
-                              </div>
-                              <div className="text-left">
-                                <div className="leading-tight">Onboarding Page</div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  Start my day landing
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded-md">
-                              Intro
-                            </span>
-                          </button>
-                        )}
-
-                        {/* Item 6: Client Demo Story */}
-                        {onOpenClientDemo && (
-                          <button
-                            id="eye-menu-client-demo"
-                            onClick={() => {
-                              onOpenClientDemo();
-                              setIsEyeMenuOpen(false);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-400">
-                                <Sparkles className="w-3.5 h-3.5 stroke-[2.2]" />
-                              </div>
-                              <div className="text-left">
-                                <div className="leading-tight">Client Demo Story</div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  Demos 1–8 & 6-stage closed loop
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded-md">
-                              Story
-                            </span>
-                          </button>
-                        )}
-
-                        {/* Item 7: Client Demo Work-Signal Feed */}
-                        {onOpenFeedModal && (
-                          <button
-                            id="eye-menu-feed-ingestor"
-                            onClick={() => {
-                              onOpenFeedModal();
-                              setIsEyeMenuOpen(false);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
-                                <FileSpreadsheet className="w-3.5 h-3.5 stroke-[2.2]" />
-                              </div>
-                              <div className="text-left">
-                                <div className="leading-tight">Demo Signal Feed</div>
-                                <div className="text-[10px] text-slate-400 font-normal">
-                                  Form / Sheet 12-field live test
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">
-                              Feed
-                            </span>
-                          </button>
-                        )}
 
                         {isBackstageActive && (
                           <div className="pt-1 mt-1 border-t border-white/10">

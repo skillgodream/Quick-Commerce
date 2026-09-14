@@ -1,4 +1,4 @@
-import { CanonicalEvidence, LoopExecutionInput } from "./intelligence";
+import { CanonicalEvidence, LoopExecutionInput, assessReadiness } from "./intelligence";
 import { WorkSignal } from "../types";
 import { sanitizeInputText, validateEvidenceIdFormat } from "./ai/securityGuard";
 
@@ -896,10 +896,8 @@ export function applyEvidenceToCohort(
     if (latestRecord) {
       hire.status = latestRecord.statusAtEnd;
       hire.statusReason = latestRecord.statusReason;
-      if (latestRecord.workSignal) {
-        const paceRatio = Math.min(1.0, latestRecord.workSignal.actualPickRate / (latestRecord.workSignal.targetPickRate || 60));
-        const accRatio = Math.min(1.0, latestRecord.workSignal.accuracyRate / 100);
-        hire.overallReadinessScore = Math.round((paceRatio * 0.5 + accRatio * 0.5) * 100);
+      if (hire.capabilities) {
+        hire.overallReadinessScore = assessReadiness(hire.capabilities, hire);
       }
     }
   });
