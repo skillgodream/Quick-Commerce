@@ -1148,6 +1148,7 @@ export interface ObservedSignals {
   managerObservesSpeed: boolean;
   previousInterventionFailed: boolean;
   previousInterventionPartial: boolean;
+  previousInterventionImproved?: boolean;
   previousTreatmentContext?: string;
   dailySignal?: DailySignal;
   managerSignal?: ManagerSignal;
@@ -1322,6 +1323,7 @@ export function observe(input: LoopExecutionInput): ObservedSignals {
   const prevOutcome = actionOutcome || previousRecord?.actionOutcome;
   const prevImproved = canonicalEvidence?.outcome?.improved ?? prevOutcome?.improved;
   const previousInterventionPartial = Boolean(prevImproved === "partial");
+  const previousInterventionImproved = Boolean(prevImproved === "yes");
 
   let previousTreatmentContext = undefined;
   const contextText = canonicalEvidence?.outcome?.treatmentContext ?? prevOutcome?.treatmentContext?.reason;
@@ -1478,6 +1480,7 @@ export function observe(input: LoopExecutionInput): ObservedSignals {
     managerObservesSpeed,
     previousInterventionFailed,
     previousInterventionPartial,
+    previousInterventionImproved,
     previousTreatmentContext,
     dailySignal,
     managerSignal,
@@ -1913,7 +1916,15 @@ function understandInternal(
   }
 
   const { canonicalEvidence } = observed;
-  const isPerformanceImpacted = observed.speedGap > 5 || observed.managerObservesSupport || observed.managerObservesStruggle || observed.managerObservesSpeed || observed.previousInterventionFailed || canonicalEvidence?.support?.supervisorAssistance === true;
+  const isFloorObservationDoingWell = observed.managerSignal?.state === "Doing well" || observed.previousInterventionImproved === true || existingAction?.status === "completed";
+  const isPerformanceImpacted = !isFloorObservationDoingWell && (
+    observed.speedGap > 5 ||
+    observed.managerObservesSupport ||
+    observed.managerObservesStruggle ||
+    observed.managerObservesSpeed ||
+    observed.previousInterventionFailed ||
+    canonicalEvidence?.support?.supervisorAssistance === true
+  );
 
   // 2. Check for external facility bottleneck (Environment context overrides raw metric)
   const isEnvBottleneckSupported = observed.workerReportsExternalBottleneck || 
@@ -2618,9 +2629,7 @@ export function check(stageInput: CheckStageInput): {
       capState.performance =
         outcomePickRate > observed.targetPickRate
           ? "exceeding"
-          : outcomePickRate === observed.targetPickRate
-          ? "on_target"
-          : "below_target";
+          : "on_target";
       capState.mastery = "proficient";
       capState.notes = `Intervention closed: ${actionOutcome.notes || "Standard met on floor"}`;
       if (actionOutcome.treatmentContext?.reason) {
@@ -2656,7 +2665,17 @@ export function check(stageInput: CheckStageInput): {
       }
     }
   } else {
-    if (decisionType === "reinforce_current" || decisionType === "return_prerequisite" || decisionType === "supervisor_demo" || decisionType === "communication_support") {
+    if (observed.managerSignal?.state === "Doing well") {
+      finalStatus = "Doing well";
+      finalStatusReason = observed.managerSignal.notes || "Floor check observation: trainee is performing on track.";
+      if (action) {
+        action.status = "completed";
+      }
+      capState.exposure = "reinforced";
+      capState.evidence = "demonstrated";
+      capState.performance = "on_target";
+      capState.mastery = "proficient";
+    } else if (decisionType === "reinforce_current" || decisionType === "return_prerequisite" || decisionType === "supervisor_demo" || decisionType === "communication_support") {
       capState.exposure = capState.exposure === "not_exposed" ? "exposed" : "reinforced";
       capState.evidence = "inconsistent";
       capState.performance = "below_target";

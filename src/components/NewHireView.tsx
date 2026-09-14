@@ -278,8 +278,11 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const authoritativeReadiness = (typeof newHire.overallReadinessScore === "number" ? (newHire.overallReadinessScore <= 1 ? Math.round(newHire.overallReadinessScore * 100) : Math.round(newHire.overallReadinessScore)) : 0);
 
   // Derive simple human state from existing intelligence ledger
+  const effectiveStatus = currentRecord.statusAtEnd || newHire.status || "Doing well";
   const isSupportCompleted = Boolean(
-    currentRecord.actionOutcome && currentRecord.actionOutcome.improved
+    (currentRecord.actionOutcome && currentRecord.actionOutcome.improved) ||
+    currentRecord.recommendedAction?.status === "completed" ||
+    effectiveStatus === "Doing well"
   );
   const isSupportAssigned = Boolean(
     !isSupportCompleted &&
@@ -289,8 +292,8 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   const isNeedsHelp = Boolean(
     !isSupportCompleted &&
       !isSupportAssigned &&
-      (currentRecord.statusAtEnd === "Needs attention" ||
-        currentRecord.statusAtEnd === "At risk" ||
+      (effectiveStatus === "Needs attention" ||
+        effectiveStatus === "At risk" ||
         (currentRecord.dailySignal && currentRecord.dailySignal.confidence === "Low"))
   );
 
@@ -873,9 +876,21 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
           </div>
           <div
             onClick={() => setShowNextStepModal(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-100/90 border border-amber-300 text-amber-950 text-xs font-black tracking-tight shadow-xs shrink-0 cursor-pointer hover:bg-amber-200 transition-colors"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black tracking-tight shadow-xs shrink-0 cursor-pointer transition-colors ${
+              effectiveStatus === "Doing well"
+                ? "bg-emerald-100/90 border border-emerald-300 text-emerald-950 hover:bg-emerald-200"
+                : effectiveStatus === "Needs attention"
+                ? "bg-amber-100/90 border border-amber-300 text-amber-950 hover:bg-amber-200"
+                : "bg-rose-100/90 border border-rose-300 text-rose-950 hover:bg-rose-200"
+            }`}
           >
-            <span>{isHindi ? "ध्यान आवश्यक" : "Needs attention"}</span>
+            <span>
+              {effectiveStatus === "Doing well"
+                ? (isHindi ? "ट्रैक पर" : "Doing well")
+                : effectiveStatus === "Needs attention"
+                ? (isHindi ? "ध्यान आवश्यक" : "Needs attention")
+                : (isHindi ? "जोखिम में" : "At risk")}
+            </span>
           </div>
         </div>
 
@@ -914,7 +929,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
               if (state && state.evidence !== "none") {
                 hasEvidence = true;
               }
-              if (state && state.performance === "below_target") {
+              if (state && state.performance === "below_target" && effectiveStatus !== "Doing well" && !isSupportCompleted) {
                 hasAttention = true;
               }
             });

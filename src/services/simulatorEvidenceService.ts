@@ -214,8 +214,9 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
   }
 
   // Category & Type
+  const rawType = String(rawItem.type || rawItem.evidence_type || rawItem.evidenceType || "").trim();
   if (rawItem.category) sanitizedRecord.category = sanitizeInputText(String(rawItem.category)).sanitizedText;
-  if (rawItem.type) sanitizedRecord.type = sanitizeInputText(String(rawItem.type)).sanitizedText;
+  if (rawType) sanitizedRecord.type = sanitizeInputText(rawType).sanitizedText;
   if (rawItem.unit) sanitizedRecord.unit = sanitizeInputText(String(rawItem.unit)).sanitizedText;
 
   // Confidence score
@@ -236,17 +237,20 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
 
   // 1. Performance Health
   const perf = nested.performance || {};
+  const lowerType = rawType.toLowerCase();
+  const isPickVelocity =
+    rawItem.category === "work_performance" ||
+    rawItem.category === "productivity" ||
+    lowerType.includes("productivity") ||
+    lowerType.includes("pick_velocity") ||
+    lowerType.includes("pick_volume") ||
+    lowerType.includes("velocity") ||
+    lowerType.includes("uph");
+
   if (typeof perf.productivity === "number" && Number.isFinite(perf.productivity)) {
     canonical.performance = canonical.performance || {};
     canonical.performance.productivity = Math.max(0, Math.min(300, perf.productivity));
-  } else if (
-    rawItem.category === "work_performance" ||
-    rawItem.category === "productivity" ||
-    rawItem.type === "productivity" ||
-    rawItem.type === "pick_velocity" ||
-    rawItem.type === "pick_volume" ||
-    rawItem.type === "uph"
-  ) {
+  } else if (isPickVelocity) {
     const val = Number(rawItem.value);
     if (Number.isFinite(val)) {
       canonical.performance = canonical.performance || {};
@@ -254,10 +258,12 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
     }
   }
 
-  if (typeof perf.targetProductivity === "number" && Number.isFinite(perf.targetProductivity)) {
+  // Target Productivity: check nested, top-level target/target_productivity, or explicit type
+  const rawTarget = perf.targetProductivity ?? rawItem.target ?? rawItem.target_productivity;
+  if (typeof rawTarget === "number" && Number.isFinite(rawTarget)) {
     canonical.performance = canonical.performance || {};
-    canonical.performance.targetProductivity = Math.max(1, Math.min(300, perf.targetProductivity));
-  } else if (rawItem.type === "expected_volume" || rawItem.type === "target_productivity") {
+    canonical.performance.targetProductivity = Math.max(1, Math.min(300, rawTarget));
+  } else if (lowerType.includes("expected_volume") || lowerType.includes("target_productivity")) {
     const val = Number(rawItem.value);
     if (Number.isFinite(val)) {
       canonical.performance = canonical.performance || {};
@@ -265,10 +271,12 @@ export function validateAndSanitizeEvidenceRecord(rawItem: any): SimulatorEviden
     }
   }
 
-  if (typeof perf.accuracy === "number" && Number.isFinite(perf.accuracy)) {
+  // Accuracy: check nested, top-level accuracy/accuracy_score, or explicit type
+  const rawAccuracy = perf.accuracy ?? rawItem.accuracy ?? rawItem.accuracy_score;
+  if (typeof rawAccuracy === "number" && Number.isFinite(rawAccuracy)) {
     canonical.performance = canonical.performance || {};
-    canonical.performance.accuracy = Math.max(0, Math.min(100, perf.accuracy));
-  } else if (rawItem.type === "accuracy" || rawItem.type === "accuracy_score" || rawItem.category === "quality" || rawItem.category === "accuracy") {
+    canonical.performance.accuracy = Math.max(0, Math.min(100, rawAccuracy));
+  } else if (lowerType.includes("accuracy") || rawItem.category === "quality" || rawItem.category === "accuracy") {
     const val = Number(rawItem.value);
     if (Number.isFinite(val)) {
       canonical.performance = canonical.performance || {};
@@ -538,8 +546,8 @@ export function adaptSimulatorToLoopInput(
   if (records.length === 0) {
     return {
       ...baseInput,
-      workSignal: undefined,
-      canonicalEvidence: undefined,
+      workSignal: baseInput.workSignal,
+      canonicalEvidence: baseInput.canonicalEvidence,
     };
   }
 
@@ -548,11 +556,12 @@ export function adaptSimulatorToLoopInput(
 
   const updatedWorkSignal: WorkSignal = {
     dayNumber: baseInput.dayNumber,
-    targetPickRate: 50,
-    actualPickRate: 0,
-    accuracyRate: 100,
-    ordersCompleted: 0,
-    targetOrders: 50,
+    targetPickRate: baseInput.workSignal?.targetPickRate ?? 50,
+    actualPickRate: baseInput.workSignal?.actualPickRate ?? 0,
+    accuracyRate: baseInput.workSignal?.accuracyRate ?? 99,
+    ordersCompleted: baseInput.workSignal?.ordersCompleted ?? 0,
+    targetOrders: baseInput.workSignal?.targetOrders ?? 50,
+    hasWorkEvidence: baseInput.workSignal?.hasWorkEvidence ?? false,
   };
 
   for (const item of records) {
@@ -574,6 +583,7 @@ export function adaptSimulatorToLoopInput(
       if (simCanonical.performance.accuracy !== undefined) {
         updatedWorkSignal.accuracyRate = Number(simCanonical.performance.accuracy);
       }
+      updatedWorkSignal.hasWorkEvidence = true;
     }
 
     if (simCanonical.attendance) {
@@ -627,10 +637,33 @@ export function adaptSimulatorToLoopInput(
   }
 
   const finalCanonical = Object.keys(mergedCanonical).length > 0 ? mergedCanonical : undefined;
-  const finalWorkSignal = hasPerformance ? updatedWorkSignal : undefined;
+  let finalWorkSignal = hasPerformance ? updatedWorkSignal : baseInput.workSignal;
+
+  // Outcome Preservation Guard:
+  // If an actionOutcome has already been recorded, preserve the post-intervention performance metrics
+  if (baseInput.actionOutcome) {
+    if (finalWorkSignal) {
+      if (baseInput.actionOutcome.improved === "yes") {
+        finalWorkSignal.actualPickRate = Math.max(
+          finalWorkSignal.actualPickRate,
+          baseInput.actionOutcome.subsequentPickRate ?? 48
+        );
+        finalWorkSignal.accuracyRate = Math.max(
+          finalWorkSignal.accuracyRate,
+          baseInput.actionOutcome.subsequentAccuracy ?? 99
+        );
+      } else if (baseInput.actionOutcome.improved === "partial" && baseInput.actionOutcome.subsequentPickRate) {
+        finalWorkSignal.actualPickRate = Math.max(
+          finalWorkSignal.actualPickRate,
+          baseInput.actionOutcome.subsequentPickRate
+        );
+      }
+    }
+  }
 
   return {
     ...baseInput,
+    actionOutcome: baseInput.actionOutcome,
     workSignal: finalWorkSignal,
     canonicalEvidence: finalCanonical,
   };
@@ -732,19 +765,55 @@ export function applyEvidenceToCohort(
           timeTaken = Math.round(numVal);
         } else if (type.includes("note") || type.includes("observation")) {
           supervisorNote = String(item.value || "");
+        } else if (type === "action_outcome" || type.includes("outcome") || type.includes("intervention")) {
+          const rawAny = item as any;
+          const payload = rawAny.payload || rawAny.canonicalEvidence?.outcome || {};
+          if (!dayRecord.actionOutcome) {
+            const rawValStr = String(item.value || "").toLowerCase();
+            const improvedVal: "yes" | "no" | "partial" = 
+              payload.improved || 
+              (rawValStr.includes("yes") || rawValStr.includes("improved") ? "yes" : rawValStr.includes("partial") ? "partial" : rawValStr.includes("no") ? "no" : "yes");
+            dayRecord.actionOutcome = {
+              id: item.evidence_id || item.id || `out-sim-${d}`,
+              actionId: payload.actionId || "act-sim",
+              dayNumber: d,
+              performedBy: payload.performedBy || "Supervisor & Buddy",
+              performedAt: payload.performedAt || "Floor Check completed",
+              improved: improvedVal,
+              notes: payload.notes || rawAny.notes || String(item.value || "Intervention logged in simulator"),
+              subsequentPickRate: payload.subsequentPickRate,
+              subsequentAccuracy: payload.subsequentAccuracy,
+            };
+          }
         }
       }
 
-      const actualPickRate = pickVel ?? pickVol ?? (d === 1 ? 52 : 50);
+      const rawActualPickRate = pickVel ?? pickVol ?? (d === 1 ? 52 : 50);
       const targetPickRate = expVol ?? 60;
-      const accuracyRate = accScore ?? (d === 1 ? 94.5 : 96.0);
-      const ordersCompleted = pickVol ?? actualPickRate;
+      const rawAccuracyRate = accScore ?? (d === 1 ? 94.5 : 96.0);
+      const ordersCompleted = pickVol ?? rawActualPickRate;
+
+      // Check if this day has a recorded actionOutcome (either from existing state or incoming evidence)
+      const existingOutcome = dayRecord.actionOutcome;
+      const isImproved = existingOutcome?.improved === "yes";
+      const isPartial = existingOutcome?.improved === "partial";
+      const isStalled = existingOutcome?.improved === "no";
+
+      const effectivePickRate = isImproved
+        ? Math.max(rawActualPickRate, existingOutcome?.subsequentPickRate ?? 48)
+        : isPartial
+        ? Math.max(rawActualPickRate, existingOutcome?.subsequentPickRate ?? rawActualPickRate)
+        : rawActualPickRate;
+
+      const effectiveAccuracyRate = isImproved
+        ? Math.max(rawAccuracyRate, existingOutcome?.subsequentAccuracy ?? 99)
+        : rawAccuracyRate;
 
       dayRecord.workSignal = {
         dayNumber: d,
         targetPickRate,
-        actualPickRate,
-        accuracyRate,
+        actualPickRate: effectivePickRate,
+        accuracyRate: effectiveAccuracyRate,
         ordersCompleted,
         targetOrders: targetPickRate,
         hasWorkEvidence: true,
@@ -754,13 +823,13 @@ export function applyEvidenceToCohort(
         dayRecord.dailySignal = {
           id: `ds-${hire.id}-d${d}`,
           dayNumber: d,
-          rawText: `Day ${d} shift completed. Pick pace: ${actualPickRate} UPH (target: ${targetPickRate}). Accuracy: ${accuracyRate}%.`,
+          rawText: `Day ${d} shift completed. Pick pace: ${effectivePickRate} UPH (target: ${targetPickRate}). Accuracy: ${effectiveAccuracyRate}%.`,
           inputMethod: "voice",
-          issue: actualPickRate < targetPickRate * 0.85 ? "Aisle navigation pacing" : "None",
+          issue: effectivePickRate < targetPickRate * 0.85 ? "Aisle navigation pacing" : "None",
           confidence: "High",
           possibleImpact: "Ramp velocity",
           category: "Work / Tools",
-          summary: `Day ${d} telemetry: ${actualPickRate}/${targetPickRate} UPH, ${accuracyRate}% accuracy.`,
+          summary: `Day ${d} telemetry: ${effectivePickRate}/${targetPickRate} UPH, ${effectiveAccuracyRate}% accuracy.`,
           timestamp: new Date().toISOString(),
           helpRequestsCount: helpReqs ?? 1,
         };
@@ -771,18 +840,36 @@ export function applyEvidenceToCohort(
           id: `ms-${hire.id}-d${d}`,
           dayNumber: d,
           managerName: "Suresh K.",
-          state: actualPickRate < targetPickRate * 0.85 ? "Needs support" : "Doing well",
-          notes: supervisorNote || `Observed floor picking shift. Speed: ${actualPickRate} UPH, duration: ${timeTaken || 60}m.`,
+          state: effectivePickRate < targetPickRate * 0.85 ? "Needs support" : "Doing well",
+          notes: supervisorNote || `Observed floor picking shift. Speed: ${effectivePickRate} UPH, duration: ${timeTaken || 60}m.`,
           timestamp: new Date().toISOString(),
         };
       }
 
-      if (actualPickRate < targetPickRate * 0.82) {
-        dayRecord.statusAtEnd = "Needs attention";
-        dayRecord.statusReason = `Pick rate (${actualPickRate} UPH) below target (${targetPickRate} UPH).`;
+      // Authoritative outcome preservation guard
+      if (existingOutcome) {
+        dayRecord.actionOutcome = existingOutcome;
+        if (dayRecord.recommendedAction) {
+          dayRecord.recommendedAction.status = "completed";
+        }
+        if (isImproved) {
+          dayRecord.statusAtEnd = "Doing well";
+          dayRecord.statusReason = existingOutcome.notes || `Intervention completed: pick pace recovered to ${effectivePickRate} UPH.`;
+        } else if (isPartial) {
+          dayRecord.statusAtEnd = "Needs attention";
+          dayRecord.statusReason = existingOutcome.notes || `Partial improvement observed (${effectivePickRate} UPH); buddy follow-up active.`;
+        } else if (isStalled) {
+          dayRecord.statusAtEnd = "At risk";
+          dayRecord.statusReason = existingOutcome.notes || `Intervention stalled at ${effectivePickRate} UPH; reassessing root cause.`;
+        }
       } else {
-        dayRecord.statusAtEnd = "Doing well";
-        dayRecord.statusReason = `On track with ${actualPickRate} UPH and ${accuracyRate}% accuracy.`;
+        if (effectivePickRate < targetPickRate * 0.82) {
+          dayRecord.statusAtEnd = "Needs attention";
+          dayRecord.statusReason = `Pick rate (${effectivePickRate} UPH) below target (${targetPickRate} UPH).`;
+        } else {
+          dayRecord.statusAtEnd = "Doing well";
+          dayRecord.statusReason = `On track with ${effectivePickRate} UPH and ${effectiveAccuracyRate}% accuracy.`;
+        }
       }
     }
 

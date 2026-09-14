@@ -33,7 +33,7 @@ import {
   adaptSimulatorToLoopInput,
   applyEvidenceToCohort,
 } from "./services/simulatorEvidenceService";
-import { subscribeToFirestoreEvidence, fetchEvidenceFromFirestore } from "./services/firestoreSyncService";
+import { subscribeToFirestoreEvidence, fetchEvidenceFromFirestore, pushEvidenceToFirestore } from "./services/firestoreSyncService";
 
 const STORAGE_KEY_HIRES = "checkin_checkout_cohort_v5";
 const STORAGE_KEY_DAY = "checkin_checkout_day_v5";
@@ -238,11 +238,47 @@ export default function App() {
           ...mergedRecord,
           workSignal: finalLoopInput.workSignal,
           canonicalEvidence: finalLoopInput.canonicalEvidence,
+          actionOutcome: mergedRecord.actionOutcome,
         };
         updatedMergedRecord.identifiedPattern = execution.pattern;
         updatedMergedRecord.recommendedAction = execution.action;
         updatedMergedRecord.statusAtEnd = execution.updatedStatus;
         updatedMergedRecord.statusReason = execution.statusReason;
+
+        // Authoritative Outcome and Floor Check Guard
+        if (mergedRecord.managerSignal?.state === "Doing well" || mergedRecord.actionOutcome?.improved === "yes") {
+          if (updatedMergedRecord.recommendedAction) {
+            updatedMergedRecord.recommendedAction.status = "completed";
+          }
+          updatedMergedRecord.statusAtEnd = "Doing well";
+          updatedMergedRecord.statusReason =
+            mergedRecord.actionOutcome?.notes ||
+            mergedRecord.managerSignal?.notes ||
+            "Intervention completed successfully; pick pace recovered.";
+
+          // Ensure target capability is proficient and on_target in execution.updatedCapabilities
+          const targetCapId = updatedMergedRecord.recommendedAction?.targetCapabilityId || execution.currentCapabilityId || 3;
+          if (execution.updatedCapabilities[targetCapId]) {
+            execution.updatedCapabilities[targetCapId].performance = "on_target";
+            execution.updatedCapabilities[targetCapId].evidence = "demonstrated";
+            execution.updatedCapabilities[targetCapId].mastery = "proficient";
+          }
+          if (execution.updatedCapabilities[3]) {
+            execution.updatedCapabilities[3].performance = "on_target";
+            execution.updatedCapabilities[3].evidence = "demonstrated";
+            execution.updatedCapabilities[3].mastery = "proficient";
+          }
+        } else if (mergedRecord.actionOutcome?.improved === "partial") {
+          updatedMergedRecord.statusAtEnd = "Needs attention";
+          updatedMergedRecord.statusReason =
+            mergedRecord.actionOutcome.notes ||
+            "Partial improvement observed; ongoing buddy support.";
+        } else if (mergedRecord.actionOutcome?.improved === "no") {
+          updatedMergedRecord.statusAtEnd = "At risk";
+          updatedMergedRecord.statusReason =
+            mergedRecord.actionOutcome.notes ||
+            "Intervention stalled; reassessing root cause.";
+        }
 
         const newHistory = [...hire.daysHistory];
         const updatedExistingRecordIndex = hire.daysHistory.findIndex((d) => d.dayNumber === dayNum);
@@ -341,6 +377,29 @@ export default function App() {
         mergedRecord.statusAtEnd = execution.updatedStatus;
         mergedRecord.statusReason = execution.statusReason;
 
+        // Authoritative Outcome Preservation Guard
+        if (mergedRecord.actionOutcome) {
+          if (mergedRecord.recommendedAction) {
+            mergedRecord.recommendedAction.status = "completed";
+          }
+          if (mergedRecord.actionOutcome.improved === "yes") {
+            mergedRecord.statusAtEnd = "Doing well";
+            mergedRecord.statusReason =
+              mergedRecord.actionOutcome.notes ||
+              "Intervention completed successfully; pick pace recovered.";
+          } else if (mergedRecord.actionOutcome.improved === "partial") {
+            mergedRecord.statusAtEnd = "Needs attention";
+            mergedRecord.statusReason =
+              mergedRecord.actionOutcome.notes ||
+              "Partial improvement observed; ongoing buddy support.";
+          } else if (mergedRecord.actionOutcome.improved === "no") {
+            mergedRecord.statusAtEnd = "At risk";
+            mergedRecord.statusReason =
+              mergedRecord.actionOutcome.notes ||
+              "Intervention stalled; reassessing root cause.";
+          }
+        }
+
         // Update daysHistory array
         const newHistory = [...hire.daysHistory];
         if (existingRecordIndex >= 0) {
@@ -372,22 +431,6 @@ export default function App() {
   useEffect(() => {
     if (!activeHireId || !currentDay) return;
     updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
-  }, [activeHireId, currentDay]);
-
-  // Refetch when window regains focus or becomes visible (e.g. user returns from Simulator tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (activeHireId && currentDay) {
-        lastSyncedKeyRef.current = null;
-        updateHireAndRecalculateAsync(activeHireId, currentDay, () => ({}));
-      }
-    };
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("visibilitychange", handleFocus);
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("visibilitychange", handleFocus);
-    };
   }, [activeHireId, currentDay]);
 
   // Helper for longitudinal pattern discovery
@@ -438,46 +481,96 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
 
   // 2. Manager Fast 5-sec signal submitted
   const handleManagerSignalSubmitted = async (hireId: string, signal: ManagerSignal) => {
-    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { managerSignal: signal });
-    await updateHireAndRecalculateAsync(hireId, currentDay, () => ({
-      managerSignal: signal,
-    }), pattern, historyText);
+    const targetDay = signal.dayNumber || currentDay;
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, targetDay, { managerSignal: signal });
+    await updateHireAndRecalculateAsync(hireId, targetDay, (currentRecord) => {
+      if (signal.state === "Doing well") {
+        const effectiveTarget = currentRecord.workSignal?.targetPickRate || 50;
+        // Parse speed from note if present e.g. "Pick speed up to 46 items/hr"
+        const speedMatch = signal.notes?.match(/(\d+)\s*(?:items|picks|uph|\/hr)/i);
+        const observedSpeed = speedMatch ? Number(speedMatch[1]) : Math.max(effectiveTarget + 2, (currentRecord.workSignal?.actualPickRate || 0) + 10);
+        
+        const updatedWorkSignal: WorkSignal = {
+          ...currentRecord.workSignal,
+          dayNumber: targetDay,
+          targetPickRate: effectiveTarget,
+          actualPickRate: observedSpeed,
+          accuracyRate: currentRecord.workSignal?.accuracyRate || 99,
+          hasWorkEvidence: true,
+        };
+
+        const updatedAction = currentRecord.recommendedAction
+          ? { ...currentRecord.recommendedAction, status: "completed" as const }
+          : undefined;
+
+        const autoOutcome: ActionOutcome = {
+          id: `out-floor-${Date.now()}`,
+          actionId: currentRecord.recommendedAction?.id || "act-default",
+          dayNumber: targetDay,
+          performedBy: signal.managerName || "Shift Supervisor",
+          performedAt: "Floor Check completed",
+          improved: "yes",
+          notes: signal.notes || "Supervisor confirmed doing well on floor check.",
+          subsequentPickRate: observedSpeed,
+          subsequentAccuracy: updatedWorkSignal.accuracyRate,
+        };
+
+        return {
+          managerSignal: signal,
+          workSignal: updatedWorkSignal,
+          recommendedAction: updatedAction,
+          actionOutcome: currentRecord.actionOutcome || autoOutcome,
+        };
+      }
+
+      return {
+        managerSignal: signal,
+      };
+    }, pattern, historyText);
   };
 
   // 3. Work Signal manual or automated update
   const handleWorkSignalUpdated = async (hireId: string, workSignal: WorkSignal) => {
-    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { workSignal });
-    await updateHireAndRecalculateAsync(hireId, currentDay, () => ({
+    const targetDay = workSignal.dayNumber || currentDay;
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, targetDay, { workSignal });
+    await updateHireAndRecalculateAsync(hireId, targetDay, () => ({
       workSignal,
     }), pattern, historyText);
   };
 
   // 4. Action Outcome recorded (Closing the loop)
   const handleActionOutcomeRecorded = async (hireId: string, outcome: ActionOutcome) => {
+    const targetDay = outcome.dayNumber || currentDay;
     
     // Add AI Outcome Interpretation
     let treatmentContext = undefined;
     if (outcome.notes) {
        // Get the action title if available
        const hire = newHires.find(h => h.id === hireId);
-       const currentRecord = hire?.daysHistory.find(d => d.dayNumber === currentDay);
+       const currentRecord = hire?.daysHistory.find(d => d.dayNumber === targetDay);
        const actionTitle = currentRecord?.recommendedAction?.title;
        treatmentContext = await analyzeOutcomeNotes(outcome.notes, actionTitle);
     }
     
     const augmentedOutcome = { ...outcome, treatmentContext };
 
-    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, currentDay, { actionOutcome: augmentedOutcome });
+    const { pattern, historyText } = await fetchLongitudinalPattern(hireId, targetDay, { actionOutcome: augmentedOutcome });
 
-    await updateHireAndRecalculateAsync(hireId, currentDay, (currentRecord) => {
+    await updateHireAndRecalculateAsync(hireId, targetDay, (currentRecord) => {
       const updatedAction = currentRecord.recommendedAction
         ? { ...currentRecord.recommendedAction, status: "completed" as const }
         : undefined;
 
+      const effectiveTarget = currentRecord.workSignal?.targetPickRate || 50;
+      const subsequentRate = outcome.subsequentPickRate || (outcome.improved === "yes" ? Math.max(52, effectiveTarget + 2) : currentRecord.workSignal?.actualPickRate || 40);
+
       const updatedWorkSignal: WorkSignal = {
         ...currentRecord.workSignal,
-        actualPickRate: outcome.subsequentPickRate || 48,
+        dayNumber: targetDay,
+        targetPickRate: effectiveTarget,
+        actualPickRate: subsequentRate,
         accuracyRate: outcome.subsequentAccuracy || 99,
+        hasWorkEvidence: true,
       };
 
       return {
@@ -486,6 +579,33 @@ const fetchLongitudinalPattern = async (hireId: string, dayNum: number, extraUpd
         workSignal: updatedWorkSignal,
       };
     }, pattern, historyText);
+
+    // Also persist the outcome into the shared cloud database so all views and the simulator stay aligned
+    try {
+      pushEvidenceToFirestore([{
+        evidence_id: `ev-outcome-${hireId}-d${targetDay}-${Date.now()}`,
+        employee_id: hireId,
+        journey_day: targetDay,
+        evidence_type: "action_outcome",
+        evidence_kind: "observed",
+        value: augmentedOutcome.improved,
+        notes: augmentedOutcome.notes,
+        payload: augmentedOutcome,
+        canonicalEvidence: {
+          outcome: {
+            improved: augmentedOutcome.improved,
+            notes: augmentedOutcome.notes,
+            subsequentPickRate: augmentedOutcome.subsequentPickRate,
+            subsequentAccuracy: augmentedOutcome.subsequentAccuracy,
+          },
+        },
+        timestamp: new Date().toISOString(),
+      }]).catch((err) => {
+        console.warn("Could not push action outcome to Firestore:", err);
+      });
+    } catch (e) {
+      // Non-blocking
+    }
   };
 
   // 5. Client Demo Work-Signal Feed Ingested (Google Form / Sheet adapter)
