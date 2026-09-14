@@ -336,10 +336,17 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
         <div className="space-y-3">
           <div
             id="circular-telemetry-dial-widget"
-            className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-[32px] p-5 shadow-xl space-y-3 select-none relative overflow-hidden text-white border border-slate-700/60"
+            className="bg-[#12131c] rounded-[32px] p-5 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] space-y-3 select-none relative overflow-hidden text-white border border-white/10"
           >
-            {/* Subtle decorative glow */}
-            <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            {/* Hero Banner Background - Replicated from Screenshot (Blue and Red Dual Radial Glows) */}
+            <div className="absolute inset-0 pointer-events-none rounded-[32px] overflow-hidden">
+              {/* Left Royal Blue Ambient Radial Glow */}
+              <div className="absolute -top-12 -left-12 w-72 h-72 bg-[#1d4ed8]/65 rounded-full blur-3xl pointer-events-none" />
+              {/* Right Crimson/Red Ambient Radial Glow */}
+              <div className="absolute top-1/4 -right-12 w-72 h-72 bg-[#e11d48]/60 rounded-full blur-3xl pointer-events-none" />
+              {/* Vignette Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+            </div>
 
             {/* Top Bar inside Hero Banner: Back Button, Blinking Green Dot, and Hindi Language Icon */}
             <div className="flex items-center justify-between relative z-20">
@@ -573,8 +580,18 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             </h3>
           </div>
 
-          <div className="bg-[#242426] rounded-[32px] p-4 text-white shadow-lg border border-[#38383c]/80 space-y-3 relative">
-            <div className="flex items-center justify-between">
+          <div className="bg-[#12131c] rounded-[32px] p-4 text-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] border border-white/10 space-y-3 relative overflow-hidden">
+            {/* Background Glows - Replicated from Screenshot (Blue and Red Dual Radial Glows) */}
+            <div className="absolute inset-0 pointer-events-none rounded-[32px] overflow-hidden">
+              {/* Left Royal Blue Ambient Radial Glow */}
+              <div className="absolute -top-12 -left-12 w-72 h-72 bg-[#1d4ed8]/65 rounded-full blur-3xl pointer-events-none" />
+              {/* Right Crimson/Red Ambient Radial Glow */}
+              <div className="absolute top-1/4 -right-12 w-72 h-72 bg-[#e11d48]/60 rounded-full blur-3xl pointer-events-none" />
+              {/* Vignette Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+            </div>
+
+            <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-black uppercase tracking-wider text-[#ebebf5]/90 flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30d158] opacity-75" />
@@ -582,12 +599,12 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                 </span>
                 {isHindi ? "लाइव शिफ्ट मेट्रिक्स" : "LIVE SHIFT METRICS"}
               </span>
-              <span className="text-[10px] font-bold text-[#ebebf5]/80 bg-[#353538] px-2.5 py-0.5 rounded-full border border-[#48484a]/60">
+              <span className="text-[10px] font-bold text-[#ebebf5]/80 bg-black/40 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10">
                 {isHindi ? `दिन ${currentDay} लाइव` : `Day ${currentDay} Live`}
               </span>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2 relative z-10">
               {/* 1. Live Module Completion % */}
               <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
                 <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
