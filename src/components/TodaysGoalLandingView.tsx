@@ -580,34 +580,30 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
             </h3>
           </div>
 
-          <div className="bg-[#12131c] rounded-[32px] p-4 text-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] border border-white/10 space-y-3 relative overflow-hidden">
-            {/* Background Glows - Replicated from Screenshot (Blue and Red Dual Radial Glows) */}
+          <div className="bg-gradient-to-br from-[#1d4ed8] via-[#4f46e5] to-[#7e22ce] rounded-[32px] p-4 text-white shadow-xl shadow-indigo-500/15 border border-white/20 space-y-3 relative overflow-hidden">
+            {/* Background Ambient Glows */}
             <div className="absolute inset-0 pointer-events-none rounded-[32px] overflow-hidden">
-              {/* Left Royal Blue Ambient Radial Glow */}
-              <div className="absolute -top-12 -left-12 w-72 h-72 bg-[#1d4ed8]/65 rounded-full blur-3xl pointer-events-none" />
-              {/* Right Crimson/Red Ambient Radial Glow */}
-              <div className="absolute top-1/4 -right-12 w-72 h-72 bg-[#e11d48]/60 rounded-full blur-3xl pointer-events-none" />
-              {/* Vignette Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+              <div className="absolute -top-10 -right-10 w-44 h-44 bg-white/15 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-44 h-44 bg-cyan-400/20 rounded-full blur-2xl pointer-events-none" />
             </div>
 
             <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-black uppercase tracking-wider text-[#ebebf5]/90 flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30d158] opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#30d158]" />
                 </span>
                 {isHindi ? "लाइव शिफ्ट मेट्रिक्स" : "LIVE SHIFT METRICS"}
               </span>
-              <span className="text-[10px] font-bold text-[#ebebf5]/80 bg-black/40 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/10">
+              <span className="text-[10px] font-extrabold text-white bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/25 shadow-xs">
                 {isHindi ? `दिन ${currentDay} लाइव` : `Day ${currentDay} Live`}
               </span>
             </div>
 
             <div className="grid grid-cols-4 gap-2 relative z-10">
               {/* 1. Live Module Completion % */}
-              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
-                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
+              <div className="bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all shadow-inner">
+                <span className="text-[9px] font-bold uppercase text-white/80 tracking-wider truncate w-full">
                   {isHindi ? "मॉड्यूल" : "Modules"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
@@ -615,14 +611,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     {Math.min(100, Math.round((completedCount / 10) * 100))}%
                   </span>
                 </div>
-                <span className="text-[9px] font-extrabold text-[#30d158] truncate w-full">
+                <span className="text-[9px] font-extrabold text-emerald-300 truncate w-full drop-shadow-xs">
                   {isHindi ? `${completedCount}/10 पूर्ण` : `${completedCount}/10 Done`}
                 </span>
               </div>
 
               {/* 2. Pick Rate Live */}
-              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
-                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
+              <div className="bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all shadow-inner">
+                <span className="text-[9px] font-bold uppercase text-white/80 tracking-wider truncate w-full">
                   {isHindi ? "पिक रेट" : "Pick Rate"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
@@ -630,14 +626,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     {actualPickRate != null && !Number.isNaN(actualPickRate) ? Math.round(actualPickRate) : 0}
                   </span>
                 </div>
-                <span className="text-[9px] font-extrabold text-[#64d2ff] truncate w-full">
+                <span className="text-[9px] font-extrabold text-cyan-200 truncate w-full drop-shadow-xs">
                   /{targetPickRate != null && !Number.isNaN(targetPickRate) ? Math.round(targetPickRate) : 25} P/H
                 </span>
               </div>
 
               {/* 3. Accuracy Live */}
-              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
-                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
+              <div className="bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all shadow-inner">
+                <span className="text-[9px] font-bold uppercase text-white/80 tracking-wider truncate w-full">
                   {isHindi ? "सटीकता" : "Accuracy"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
@@ -645,14 +641,14 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     {accuracyRate != null && !Number.isNaN(accuracyRate) ? Math.round(accuracyRate) : 100}%
                   </span>
                 </div>
-                <span className="text-[9px] font-extrabold text-[#30d158] truncate w-full">
+                <span className="text-[9px] font-extrabold text-emerald-300 truncate w-full drop-shadow-xs">
                   {isHindi ? "लक्ष्य पार" : "On Target"}
                 </span>
               </div>
 
               {/* 4. Quality Check */}
-              <div className="bg-[#353538] hover:bg-[#3d3d42] rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-[#48484a]/40 transition-all">
-                <span className="text-[9px] font-bold uppercase text-[#8e8e93] tracking-wider truncate w-full">
+              <div className="bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl p-2.5 text-center flex flex-col items-center justify-center overflow-hidden border border-white/20 transition-all shadow-inner">
+                <span className="text-[9px] font-bold uppercase text-white/80 tracking-wider truncate w-full">
                   {isHindi ? "क्वालिटी" : "QC Check"}
                 </span>
                 <div className="my-1 py-0.5 flex items-center justify-center">
@@ -660,7 +656,7 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                     99%
                   </span>
                 </div>
-                <span className="text-[9px] font-extrabold text-[#64d2ff] truncate w-full">
+                <span className="text-[9px] font-extrabold text-cyan-200 truncate w-full drop-shadow-xs">
                   {isHindi ? "पास (OK)" : "Passed"}
                 </span>
               </div>

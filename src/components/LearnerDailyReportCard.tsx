@@ -145,7 +145,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
               TRAI...
             </span>
-            <span className="text-3xl font-black text-black leading-none my-1 tracking-tight">
+            <span className="text-lg sm:text-xl font-black text-black leading-none my-1 tracking-tight">
               {completedCount}/10
             </span>
             <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
@@ -158,7 +158,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
               SPEED
             </span>
             <div className="flex items-center gap-1 my-1">
-              <span className={`text-3xl font-black leading-none tracking-tight ${isSpeedRed ? "text-black" : "text-black"}`}>
+              <span className={`text-lg sm:text-xl font-black leading-none tracking-tight ${isSpeedRed ? "text-black" : "text-black"}`}>
                 {actualPace}
               </span>
               {isSpeedRed && <AlertTriangle className="w-[18px] h-[18px] text-[#db4a39] stroke-[2.5]" />}
@@ -172,7 +172,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">
               ACC...
             </span>
-            <span className="text-3xl font-black text-black leading-none my-1 tracking-tight">
+            <span className="text-lg sm:text-xl font-black text-black leading-none my-1 tracking-tight">
               {accuracy}%
             </span>
             <span className="text-[12px] font-medium text-slate-600 leading-tight mb-1">
@@ -185,7 +185,7 @@ export const LearnerDailyReportCard: React.FC<LearnerDailyReportCardProps> = ({
               ORDE...
             </span>
             <div className="flex items-center gap-1 my-1">
-              <span className={`text-3xl font-black leading-none tracking-tight ${isOrdersRed ? "text-black" : "text-black"}`}>
+              <span className={`text-lg sm:text-xl font-black leading-none tracking-tight ${isOrdersRed ? "text-black" : "text-black"}`}>
                 {ordersCompleted}
               </span>
               {isOrdersRed && <AlertTriangle className="w-[18px] h-[18px] text-[#db4a39] stroke-[2.5]" />}

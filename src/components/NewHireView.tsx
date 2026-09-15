@@ -929,42 +929,45 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
         <div
           id="home-current-focus-card"
           onClick={() => setShowTodaysGoalView(true)}
-          className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/80 rounded-[28px] p-5 sm:p-6 shadow-xs mb-5 cursor-pointer transition-all active:scale-[0.99] group text-left"
+          className="bg-gradient-to-br from-[#f43f5e] via-[#e11d48] to-[#fb7185] rounded-[32px] p-6 text-white shadow-lg shadow-rose-500/20 mb-5 cursor-pointer transition-all active:scale-[0.99] group relative overflow-hidden text-left"
         >
-          <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-3.5">
-            {isHindi ? "अगला कदम" : "NEXT STEP"}
-          </div>
-
-          <div className="flex items-start justify-between gap-3 mb-5">
-            <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100/70 transition-colors">
-                <Target className="w-6 h-6 text-blue-600 stroke-[2.2]" />
-              </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">
-                  {isHindi ? "पिकिंग सटीकता में सुधार करें" : "Improve picking accuracy"}
-                </h3>
-                <p className="text-xs sm:text-sm font-normal text-slate-500 leading-relaxed mt-1">
-                  {isHindi 
-                    ? "आपके हाल के काम के साक्ष्य से आइटम की पहचान में लगातार समस्याएं दिखाई देती हैं।" 
-                    : "Your recent work evidence shows repeated issues with item identification."}
-                </p>
+          {/* Right-side 3D Target Illustration / Graphic */}
+          <div className="absolute -right-2 top-3 sm:top-4 w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center pointer-events-none">
+            <div className="absolute inset-0 bg-white/20 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl rotate-12 group-hover:rotate-6 transition-transform duration-300">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl bg-white/30 border border-white/40 flex items-center justify-center shadow-inner">
+                <Target className="w-10 h-10 sm:w-11 sm:h-11 text-white drop-shadow-md stroke-[2.2]" />
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 self-center group-hover:text-slate-600 transition-colors ml-1" />
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowTodaysGoalView(true);
-            }}
-            className="w-full bg-[#1b64f2] hover:bg-[#1553d1] text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-full flex items-center justify-center gap-2 shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
-          >
-            <span>{isHindi ? "अभ्यास शुरू करें" : "Start practice"}</span>
-            <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
-          </button>
+          <div className="relative z-10 max-w-[210px] sm:max-w-[240px]">
+            <div className="text-[11px] font-black tracking-widest text-white/80 uppercase mb-2">
+              {isHindi ? "अगला कदम" : "NEXT STEP"}
+            </div>
+
+            <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug mb-1.5">
+              {isHindi ? "पिकिंग सटीकता में सुधार करें" : "Improve picking accuracy"}
+            </h3>
+
+            <p className="text-xs sm:text-sm font-medium text-white/90 leading-relaxed mb-5">
+              {isHindi 
+                ? "आपके हाल के काम के साक्ष्य से आइटम की पहचान में लगातार समस्याएं दिखाई देती हैं।" 
+                : "Your recent work evidence shows repeated issues with item identification."}
+            </p>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTodaysGoalView(true);
+              }}
+              className="bg-white hover:bg-slate-50 text-slate-900 font-extrabold text-xs sm:text-sm py-2.5 px-5 rounded-full inline-flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              <span>{isHindi ? "अभ्यास शुरू करें" : "Start practice"}</span>
+              <ArrowRight className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
         {/* MY SKILLS 4-Grid Visual Capability Dashboard */}

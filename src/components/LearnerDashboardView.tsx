@@ -153,7 +153,11 @@ export const LearnerDashboardView: React.FC<LearnerDashboardViewProps> = ({ newH
         <h2 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-2">Independent Work</h2>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-bold">Autonomous Picking</h3>
-          <span className="text-2xl font-black text-emerald-400">{newHire.overallReadinessScore ?? 0}%</span>
+          {(() => {
+            const raw = newHire.overallReadinessScore;
+            const score = typeof raw === "number" ? (raw <= 1 ? Math.round(raw * 100) : Math.round(raw)) : 0;
+            return <span className="text-2xl font-black text-emerald-400">{score}%</span>;
+          })()}
         </div>
         <p className="text-sm text-slate-300">
           This outcome is unlocked when you have demonstrated enough safe, accurate, and fast capabilities on the floor.

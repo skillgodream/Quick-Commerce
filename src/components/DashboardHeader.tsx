@@ -188,12 +188,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     },
   ];
 
-  // Progression circle parameters for exactly 22%
+  // Progression circle parameters for live readiness score
   const radius = 17;
   const strokeWidth = 3.5;
   const circumference = 2 * Math.PI * radius;
-  const progressValue = 22; // Exactly 22% as requested
-  const strokeDashoffset = circumference - (circumference * progressValue) / 100;
+  const rawReadiness = newHire?.overallReadinessScore;
+  const progressValue = typeof rawReadiness === "number"
+    ? (rawReadiness <= 1 ? Math.round(rawReadiness * 100) : Math.round(rawReadiness))
+    : 35;
+  const clampedProgress = Math.min(100, Math.max(0, progressValue));
+  const strokeDashoffset = circumference - (circumference * clampedProgress) / 100;
 
   return (
     <>
@@ -228,7 +232,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 >
                   हिंदी
                 </button>
-              </div>
+                </div>
             )}
           </div>
 
@@ -243,9 +247,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
               </p>
             </div>
 
-            {/* Right side: 22% circular progress ring */}
+            {/* Right side: Live circular progress ring */}
             <button
-              id="dashboard-22-percent-circle"
+              id="dashboard-role-readiness-circle"
               onClick={() => onSelectSection("control_tower")}
               className="relative w-[60px] h-[60px] shrink-0 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 hover:scale-105 transition-transform cursor-pointer"
             >
@@ -267,7 +271,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 />
               </svg>
               <span className="text-[13px] font-black text-[#1c1c1c] tracking-tight z-10">
-                22%
+                {progressValue}%
               </span>
             </button>
           </div>
