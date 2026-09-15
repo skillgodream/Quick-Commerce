@@ -447,7 +447,7 @@ export const MANDATORY_TRAINING_MODULES: TrainingModule[] = [
     description: "Multi-unit picking, serpentine path traversal without backtracking, and pacing under 10-minute SLA timers.",
     descriptionHi: "एक साथ कई सामान उठाना, बिना भटके तेज चलना और 10 मिनट के ऑर्डर टाइमर में पूरा करना।",
     durationMinutes: 75,
-    mappedCapabilityIds: [9, 14, 15],
+    mappedCapabilityIds: [9, 11, 12, 13, 14, 15],
     passingScore: 80,
     activities: [
       {
@@ -501,7 +501,7 @@ export const MANDATORY_TRAINING_MODULES: TrainingModule[] = [
     description: "Dispatch buffer staging, tamper-evident bag sealing, rider handoff, terminal dock charging, and shift log.",
     descriptionHi: "डिस्पैच टेबल पर टोट रखना, राइडर बैग में सील लगाना, स्कैनर चार्जिंग पर लगाना और शिफ्ट खत्म करना।",
     durationMinutes: 70,
-    mappedCapabilityIds: [16, 17, 19],
+    mappedCapabilityIds: [16, 17, 18, 19, 20],
     passingScore: 80,
     activities: [
       {

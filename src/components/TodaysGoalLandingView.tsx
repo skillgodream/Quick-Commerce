@@ -212,28 +212,36 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
   // 2. Targeted micro-learning module for the recommended capability intervention (if any)
   const targetCapId = (recAction && recAction.targetCapabilityId) || newHire.currentCapabilityId;
   const targetCapability = DARK_STORE_CAPABILITIES.find(c => c.id === targetCapId);
+  const scheduledCandidateModule = MANDATORY_TRAINING_MODULES.find(m => m.dayNumber === currentDay);
+  
+  // DEAN Authority check: Is DEAN re-prioritizing an actual telemetry intervention over the scheduled candidate module?
+  const isDeanInterventionActive = Boolean(
+    recAction && 
+    recAction.targetCapabilityId && 
+    scheduledCandidateModule && 
+    !scheduledCandidateModule.mappedCapabilityIds.includes(recAction.targetCapabilityId) &&
+    recAction.decisionType !== "advance_default" &&
+    recAction.decisionType !== "no_action_monitor"
+  );
   
   const todaysPrescribedModules: CustomModule[] = useMemo(() => {
     const modulesMap = new Map<string, CustomModule>();
 
-    // 1. Add today's scheduled curriculum module
-    const dayModules = MANDATORY_TRAINING_MODULES.filter(m => m.dayNumber === currentDay);
-    dayModules.forEach(m => modulesMap.set(m.id, { ...m }));
-
-    // 2. Add targeted intervention module if targetCapId exists
+    // 1. Add targeted module for DEAN's actual priority capability
     if (targetCapId) {
       const mappedModules = MANDATORY_TRAINING_MODULES.filter(m => 
         m.mappedCapabilityIds.includes(targetCapId)
       );
-      mappedModules.forEach(m => {
-        if (!modulesMap.has(m.id)) {
-          modulesMap.set(m.id, { ...m });
-        }
-      });
+      mappedModules.forEach(m => modulesMap.set(m.id, { ...m }));
+    }
+
+    // 2. If no target capability module exists, fall back to scheduled day module
+    if (modulesMap.size === 0 && scheduledCandidateModule) {
+      modulesMap.set(scheduledCandidateModule.id, { ...scheduledCandidateModule });
     }
 
     return Array.from(modulesMap.values());
-  }, [currentDay, targetCapId]);
+  }, [currentDay, targetCapId, scheduledCandidateModule]);
 
   const unmasteredCaps = useMemo(() => {
     return DARK_STORE_CAPABILITIES.filter((cap) => {
@@ -248,8 +256,12 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
     const path = [];
     let capIndex = 0;
     for (let d = currentDay + 1; d <= 10; d++) {
-      if (d === 10) {
-        path.push({ day: 10, isCheckpoint: true });
+      if (d === 4) {
+        path.push({ day: 4, isCheckpoint: true, checkpointName: "Pit Stop #1", checkpointDesc: "Early trajectory check" });
+      } else if (d === 8) {
+        path.push({ day: 8, isCheckpoint: true, checkpointName: "Pit Stop #2", checkpointDesc: "Final trajectory correction" });
+      } else if (d === 10) {
+        path.push({ day: 10, isCheckpoint: true, checkpointName: "Final Commercial Readiness Gate", checkpointDesc: "Commercial readiness decision" });
       } else if (capIndex < unmasteredCaps.length) {
         path.push({ day: d, cap: unmasteredCaps[capIndex] });
         capIndex++;
@@ -731,8 +743,8 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                       </span>
                       {step.isCheckpoint ? (
                         <>
-                          <h4 className="text-[13px] font-bold text-slate-900 leading-snug">Independent Picking</h4>
-                          <span className="text-[11px] text-slate-500 font-medium">Readiness checkpoint</span>
+                          <h4 className="text-[13px] font-bold text-slate-900 leading-snug">{step.checkpointName}</h4>
+                          <span className="text-[11px] text-slate-500 font-medium">{step.checkpointDesc}</span>
                         </>
                       ) : step.cap ? (
                         <>
@@ -933,16 +945,19 @@ export const TodaysGoalLandingView: React.FC<TodaysGoalLandingViewProps> = ({
                       
                       {todaysPrescribedModules.length > 0 && (
                         <div className="bg-purple-50/80 border border-purple-200/80 rounded-2xl p-3 flex flex-col sm:flex-row gap-3 sm:items-center justify-between mt-2">
-                          <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 px-1">
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="w-4 h-4 text-purple-400" />
+                          <div className="flex items-center gap-2.5 px-1">
+                            <BookOpen className="w-4 h-4 text-purple-600 shrink-0" />
+                            <div>
+                              <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block">
+                                {isHindi ? "आज का शिक्षण लक्ष्य" : "Today's Learning Focus"}
+                              </span>
                               <span className="text-xs font-bold text-purple-900 line-clamp-1">{todaysPrescribedModules[0].title}</span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleStartModule(todaysPrescribedModules[0].id)}
-                            className="px-4 py-2.5 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm shrink-0"
+                            className="px-4 py-2 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-purple-700 active:scale-95 transition-all shadow-sm shrink-0 self-start sm:self-auto"
                           >
                             {isHindi ? "लर्निंग शुरू करें" : "Start LMS"}
                           </button>

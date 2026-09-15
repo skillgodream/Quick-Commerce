@@ -85,6 +85,14 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
   const [practiceChecked, setPracticeChecked] = useState<boolean>(false);
   const [selectedSkillCategory, setSelectedSkillCategory] = useState<string>("basics");
 
+  const handleStartModule = (modId: string) => {
+    const mod = MANDATORY_TRAINING_MODULES.find((m) => m.id === modId);
+    if (mod) {
+      setSelectedModuleId(modId);
+      setActiveDetailModule(mod);
+    }
+  };
+
 
 
   const SKILL_CATEGORIES = [
@@ -277,8 +285,19 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 
 
   const currentRecord = newHire.daysHistory.find(d => d.dayNumber === currentDay) || newHire.daysHistory[newHire.daysHistory.length - 1];
-  const targetCapId = currentRecord?.recommendedAction?.targetCapabilityId;
+  const recAction = currentRecord?.recommendedAction || (newHire as any).recommendedAction;
+  const targetCapId = recAction?.targetCapabilityId || newHire.currentCapabilityId;
   const targetCapDef = targetCapId ? DARK_STORE_CAPABILITIES.find(c => c.id === targetCapId) : null;
+  const currentDayCurriculumMod = MANDATORY_TRAINING_MODULES.find(m => m.dayNumber === currentDay);
+
+  const isDeanInterventionActive = Boolean(
+    recAction && 
+    recAction.targetCapabilityId && 
+    currentDayCurriculumMod && 
+    !currentDayCurriculumMod.mappedCapabilityIds.includes(recAction.targetCapabilityId) &&
+    recAction.decisionType !== "advance_default" &&
+    recAction.decisionType !== "no_action_monitor"
+  );
 
   const getModulesForCapability = (capId: number) => {
     return MANDATORY_TRAINING_MODULES.filter((m) => m.mappedCapabilityIds.includes(capId));
@@ -431,45 +450,94 @@ export const ModulesView: React.FC<ModulesViewProps> = ({
 
 
       {/* ========================================================= */}
-      {/* YOUR CURRENT FOCUS / NEXT STEP (TARGET CAPABILITY)         */}
+      {/* YOUR CURRENT FOCUS / NEXT STEP (DEAN SINGLE TARGET)        */}
       {/* ========================================================= */}
-      {targetCapDef && (
+      {(targetCapDef || currentDayCurriculumMod) && (
         <div 
-          onClick={() => setActiveCapabilityModal(targetCapDef.id)}
+          onClick={() => {
+            if (targetCapDef) setActiveCapabilityModal(targetCapDef.id);
+            else if (currentDayCurriculumMod) handleStartModule(currentDayCurriculumMod.id);
+          }}
           className="bg-[#f8fafc] hover:bg-[#f1f5f9] border border-slate-200/80 rounded-[28px] p-5 sm:p-6 shadow-xs mb-5 cursor-pointer transition-all active:scale-[0.99] group text-left"
         >
-          <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-3.5">
-            {isHindi ? "अगला कदम" : "NEXT STEP"}
+          <div className="flex items-center justify-between mb-3.5">
+            <div className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+              {isHindi ? "आज का प्राथमिक लक्ष्य" : "TODAY'S PRIMARY GOAL"}
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              {isHindi ? `डे ${currentDay} फोकस` : `Day ${currentDay} Focus`}
+            </span>
           </div>
 
-          <div className="flex items-start justify-between gap-3 mb-5">
-            <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-2xl bg-blue-50 border border-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 group-hover:bg-blue-100/70 transition-colors">
-                <Target className="w-6 h-6 text-blue-600 stroke-[2.2]" />
+          <div className="mb-5">
+            {targetCapDef ? (
+              <div className="bg-gradient-to-r from-blue-50/90 to-indigo-50/90 rounded-2xl p-4 border border-blue-200/80 shadow-2xs flex items-center justify-between gap-3">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-blue-700 font-mono uppercase tracking-wider block">
+                      #{targetCapDef.code}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 tracking-tight mt-0.5">
+                      {targetCapDef.name}
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                      {recAction?.title ? `${recAction.title} • ${recAction.targetActor}` : targetCapDef.description}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveCapabilityModal(targetCapDef.id);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shrink-0 transition-colors shadow-2xs"
+                >
+                  {isHindi ? "अभ्यास शुरू करें" : "Start Practice"}
+                </button>
               </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-snug">
-                  {targetCapDef.name}
-                </h3>
-                <p className="text-xs sm:text-sm font-normal text-slate-500 leading-relaxed mt-1">
-                  {isHindi 
-                    ? "आपके हाल के काम के साक्ष्य से आइटम की पहचान में सुधार की आवश्यकता दिखाई देती है।" 
-                    : "Your recent work evidence shows repeated issues with item identification."}
-                </p>
+            ) : currentDayCurriculumMod ? (
+              <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-purple-700 font-mono uppercase tracking-wider block">
+                      {currentDayCurriculumMod.code}
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 tracking-tight mt-0.5">
+                      {isHindi ? currentDayCurriculumMod.titleHi : currentDayCurriculumMod.title}
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartModule(currentDayCurriculumMod.id);
+                  }}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shrink-0 transition-colors shadow-2xs"
+                >
+                  {isHindi ? "लर्निंग शुरू करें" : "Start LMS"}
+                </button>
               </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-slate-400 shrink-0 self-center group-hover:text-slate-600 transition-colors ml-1" />
+            ) : null}
           </div>
 
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setActiveCapabilityModal(targetCapDef.id);
+              if (targetCapDef) setActiveCapabilityModal(targetCapDef.id);
+              else if (currentDayCurriculumMod) handleStartModule(currentDayCurriculumMod.id);
             }}
             className="w-full bg-[#1b64f2] hover:bg-[#1553d1] text-white font-extrabold text-sm sm:text-base py-3.5 px-6 rounded-full flex items-center justify-center gap-2 shadow-sm shadow-blue-500/20 active:scale-[0.98] transition-all"
           >
-            <span>{isHindi ? "अभ्यास शुरू करें" : "Start practice"}</span>
+            <span>{isHindi ? "आज का लक्ष्य शुरू करें" : "Start Today's Goal"}</span>
             <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
           </button>
         </div>

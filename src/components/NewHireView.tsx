@@ -47,7 +47,7 @@ import {
   User,
   ArrowRight,
   ArrowLeft,
-  ChevronRight, ChevronUp,
+  ChevronRight, ChevronUp, ChevronDown,
   Footprints,
   ShieldCheck,
   PackageCheck,
@@ -59,7 +59,6 @@ import {
   Compass,
   Eye,
   Globe,
-  ChevronDown,
   Check,
   Bell,
   ArrowUpRight,
@@ -249,6 +248,7 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
   // Active quick action modal
   const [activeModal, setActiveModal] = useState<"map" | "buddy" | "scanner" | "target" | "work" | "yesterday_detail" | null>(null);
   const [isPerformanceExpanded, setIsPerformanceExpanded] = useState<boolean>(false);
+  const [isCertCriteriaExpanded, setIsCertCriteriaExpanded] = useState<boolean>(false);
   const [buddyAlertSent, setBuddyAlertSent] = useState<boolean>(false);
   const [showTodaysGoalView, setShowTodaysGoalView] = useState<boolean>(false);
   const [showDailyCoachReport, setShowDailyCoachReport] = useState<boolean>(false);
@@ -1044,151 +1044,169 @@ export const NewHireView: React.FC<NewHireViewProps> = ({
             {isPerformanceExpanded ? <ChevronUp className="w-5 h-5 text-slate-800"/> : <ChevronDown className="w-5 h-5 text-slate-800"/>}
           </button>
 
-          {isPerformanceExpanded && (
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              {
-                id: "speed",
-                label: isHindi ? "पिक स्पीड" : "Pick Speed",
-                value: `${actualPickRate}`,
-                unit: "/hr",
-                icon: Zap,
-                isBad: isPickRateBad,
-              },
-              {
-                id: "accuracy",
-                label: isHindi ? "एक्यूरेसी" : "Accuracy",
-                value: `${accuracyRate}%`,
-                unit: "",
-                icon: CheckCircle2,
-                isBad: isAccuracyBad,
-              },
-              {
-                id: "orders",
-                label: isHindi ? "ऑर्डर्स" : "Orders Done",
-                value: `${ordersCompleted}`,
-                unit: "",
-                icon: Package,
-                isBad: isOrdersBad,
-              },
-              {
-                id: "score",
-                label: isHindi ? "शिफ्ट स्कोर" : "Shift Score",
-                value: `${yesterdayShiftScore}%`,
-                unit: "",
-                icon: Award,
-                isBad: isShiftScoreBad,
-              },
-            ].map((metric) => {
-              const IconComponent = metric.icon;
-              return (
-                <button
-                  key={metric.id}
-                  type="button"
-                  onClick={() => setActiveModal("yesterday_detail")}
-                  className={`relative rounded-2xl p-2.5 flex flex-col items-center justify-center text-center border transition-all cursor-pointer active:scale-95 group ${
-                    metric.isBad 
-                      ? "bg-rose-50/50 border-rose-200/80 shadow-2xs hover:border-rose-300 hover:bg-rose-50/80"
-                      : "bg-white border-slate-200/80 shadow-2xs hover:border-slate-300"
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-colors ${
-                    metric.isBad ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-700 group-hover:bg-slate-200"
-                  }`}>
-                    <IconComponent className="w-4 h-4" />
-                  </div>
-                  <span className={`text-[10px] font-bold tracking-tight leading-none mb-1.5 uppercase ${
-                    metric.isBad ? "text-rose-700 font-black" : "text-slate-500"
-                  }`}>
-                    {metric.label}
-                  </span>
-                  <div className="flex items-baseline justify-center gap-0.5">
-                    <span
-                      className={`ref-num text-base sm:text-lg font-black leading-tight tracking-[-0.05em] ${
-                        metric.isBad ? "text-rose-600" : "text-black"
+          {isPerformanceExpanded && (() => {
+            const actualPickRate = currentRecord?.workSignal?.actualPickRate ?? 35;
+            const targetPickRate = currentRecord?.workSignal?.targetPickRate ?? 50;
+            const accuracyRate = currentRecord?.workSignal?.accuracyRate ?? 98;
+            const ordersCompleted = currentRecord?.workSignal?.ordersCompleted ?? 32;
+            const targetOrders = currentRecord?.workSignal?.targetOrders ?? 40;
+            const isPickRateBad = actualPickRate < targetPickRate;
+            const isAccuracyBad = accuracyRate < 98;
+            const isOrdersBad = ordersCompleted < targetOrders;
+            const yesterdayShiftScore = Math.round(((actualPickRate / targetPickRate) * 0.5 + (accuracyRate / 100) * 0.5) * 100);
+            const isShiftScoreBad = yesterdayShiftScore < 80;
+
+            return (
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  {
+                    id: "speed",
+                    label: isHindi ? "पिक स्पीड" : "Pick Speed",
+                    value: `${actualPickRate}`,
+                    unit: "/hr",
+                    icon: Zap,
+                    isBad: isPickRateBad,
+                  },
+                  {
+                    id: "accuracy",
+                    label: isHindi ? "एक्यूरेसी" : "Accuracy",
+                    value: `${accuracyRate}%`,
+                    unit: "",
+                    icon: CheckCircle2,
+                    isBad: isAccuracyBad,
+                  },
+                  {
+                    id: "orders",
+                    label: isHindi ? "ऑर्डर्स" : "Orders Done",
+                    value: `${ordersCompleted}`,
+                    unit: "",
+                    icon: Package,
+                    isBad: isOrdersBad,
+                  },
+                  {
+                    id: "score",
+                    label: isHindi ? "शिफ्ट स्कोर" : "Shift Score",
+                    value: `${yesterdayShiftScore}%`,
+                    unit: "",
+                    icon: Award,
+                    isBad: isShiftScoreBad,
+                  },
+                ].map((metric) => {
+                  const IconComponent = metric.icon;
+                  return (
+                    <button
+                      key={metric.id}
+                      type="button"
+                      onClick={() => setActiveModal("yesterday_detail")}
+                      className={`p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                        metric.isBad ? "bg-rose-50 border border-rose-200" : "bg-white border border-slate-200/80 shadow-2xs"
                       }`}
                     >
-                      {metric.value}
-                    </span>
-                    {metric.unit && (
-                      <span className={`text-[9px] font-bold tracking-tight ${metric.isBad ? "text-rose-600" : "text-slate-500"}`}>
-                        {metric.unit}
+                      <IconComponent className={`w-4 h-4 mb-1 ${metric.isBad ? "text-rose-600" : "text-slate-700"}`} />
+                      <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-tight block">{metric.label}</span>
+                      <span className="text-sm font-black text-slate-900 font-mono mt-0.5">
+                        {metric.value}
+                        <span className="text-[10px] font-bold text-slate-400">{metric.unit}</span>
                       </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Certification Criteria Checklist (Automated Fetched Data) */}
-        <div className="relative overflow-hidden bg-gradient-to-b from-[#1e2230]/85 via-[#12141c]/90 to-[#0a0c12]/95 text-white rounded-[28px] p-5 sm:p-6 shadow-2xl border border-white/15 backdrop-blur-2xl space-y-4 mb-24 font-ref">
+        {/* Certification Criteria Checklist (Automated Fetched Data) - Expandable (Closed by default) */}
+        <div className="relative overflow-hidden bg-gradient-to-b from-[#1e2230]/85 via-[#12141c]/90 to-[#0a0c12]/95 text-white rounded-[28px] p-5 sm:p-6 shadow-2xl border border-white/15 backdrop-blur-2xl mb-24 font-ref transition-all duration-300">
           <div className="absolute -top-24 -right-24 w-52 h-52 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-52 h-52 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-emerald-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+          <button
+            type="button"
+            onClick={() => setIsCertCriteriaExpanded(!isCertCriteriaExpanded)}
+            className={`w-full relative z-10 flex items-center justify-between transition-colors text-left cursor-pointer group ${isCertCriteriaExpanded ? "border-b border-white/10 pb-3 mb-4" : ""}`}
+          >
+            <div className="flex items-center gap-2.5 pr-2">
+              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md flex items-center justify-center text-emerald-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] shrink-0">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <h3 className="text-sm sm:text-base font-black text-white tracking-tight">
-                {isCertifiedReady
-                  ? (isHindi ? "प्रमाणन मानदंड स्थिति" : "Certification Criteria Status")
-                  : (isHindi ? "प्रमाणन ब्लॉकर्स और मानदंड" : "Certification Criteria & Blockers")}
-              </h3>
-            </div>
-            <span className="ref-num text-[10px] font-black uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20 backdrop-blur-md">
-              {currentCertificationDate}
-            </span>
-          </div>
-
-          <div className="relative z-10 space-y-2.5 pt-1">
-            {[
-              { 
-                label: isHindi ? "अनिवार्य ट्रेनिंग पूरी" : "Mandatory training completed", 
-                value: `${completedModulesCount}/${totalModulesCount}`, 
-                met: isTrainingMet 
-              },
-              { 
-                label: isHindi ? "आवश्यक क्षमताएं प्रदर्शित" : "Required capabilities demonstrated", 
-                value: `${demonstratedCount}/19`, 
-                met: isCapabilitiesMet 
-              },
-              { 
-                label: isHindi ? "फ्लोर उत्पादकता लक्ष्य" : "Floor productivity target", 
-                value: `${actualPickRate}/${targetPickRate} picks/hr`, 
-                met: !isPickRateBad 
-              },
-              { 
-                label: isHindi ? "स्कैनिंग एक्यूरेसी" : "Scanning accuracy", 
-                value: `${accuracyRate}%`, 
-                met: !isAccuracyBad 
-              },
-              { 
-                label: isHindi ? "समग्र शिफ्ट स्कोर" : "Overall shift score", 
-                value: `${yesterdayShiftScore}% (${(!isShiftScoreBad && isTrainingMet && isCapabilitiesMet) ? (isHindi ? "उत्तीर्ण" : "Cleared") : (isHindi ? "प्रगति पर" : "In progress")})`, 
-                met: !isShiftScoreBad && isTrainingMet && isCapabilitiesMet 
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="relative overflow-hidden bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/15 hover:border-white/25 rounded-2xl p-3.5 flex items-center justify-between text-xs transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.2)] group"
-              >
-                {/* iOS Specular Sheen */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none opacity-80" />
-                
-                <div className="relative z-10 flex items-center gap-3">
-                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.met ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"}`} />
-                  <span className="font-bold text-white/95 tracking-tight text-[13px]">{item.label}</span>
-                </div>
-                <span className={`relative z-10 font-black tracking-tight text-xs ${item.met ? "text-emerald-300" : "text-rose-300 font-mono"}`}>
-                  {item.value}
-                </span>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-2">
+                  <span>
+                    {isCertifiedReady
+                      ? (isHindi ? "प्रमाणन मानदंड स्थिति" : "Certification Criteria Status")
+                      : (isHindi ? "प्रमाणन ब्लॉकर्स और मानदंड" : "Certification Criteria & Blockers")}
+                  </span>
+                </h3>
+                {!isCertCriteriaExpanded && (
+                  <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                    {isHindi ? "विवरण देखने के लिए टैप करें (5 मानदंड)" : "Tap to view details (5 criteria items)"}
+                  </p>
+                )}
               </div>
-            ))}
-          </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="ref-num text-[10px] font-black uppercase tracking-wider text-cyan-300 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20 backdrop-blur-md">
+                {currentCertificationDate}
+              </span>
+              <div className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-white/80 group-hover:text-white transition-all">
+                {isCertCriteriaExpanded ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </div>
+            </div>
+          </button>
+
+          {isCertCriteriaExpanded && (
+            <div className="relative z-10 space-y-2.5 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+              {[
+                { 
+                  label: isHindi ? "अनिवार्य ट्रेनिंग पूरी" : "Mandatory training completed", 
+                  value: `${completedModulesCount}/${totalModulesCount}`, 
+                  met: isTrainingMet 
+                },
+                { 
+                  label: isHindi ? "आवश्यक क्षमताएं प्रदर्शित" : "Required capabilities demonstrated", 
+                  value: `${demonstratedCount}/19`, 
+                  met: isCapabilitiesMet 
+                },
+                { 
+                  label: isHindi ? "फ्लोर उत्पादकता लक्ष्य" : "Floor productivity target", 
+                  value: `${actualPickRate}/${targetPickRate} picks/hr`, 
+                  met: !isPickRateBad 
+                },
+                { 
+                  label: isHindi ? "स्कैनिंग एक्यूरेसी" : "Scanning accuracy", 
+                  value: `${accuracyRate}%`, 
+                  met: !isAccuracyBad 
+                },
+                { 
+                  label: isHindi ? "समग्र शिफ्ट स्कोर" : "Overall shift score", 
+                  value: `${yesterdayShiftScore}% (${(!isShiftScoreBad && isTrainingMet && isCapabilitiesMet) ? (isHindi ? "उत्तीर्ण" : "Cleared") : (isHindi ? "प्रगति पर" : "In progress")})`, 
+                  met: !isShiftScoreBad && isTrainingMet && isCapabilitiesMet 
+                },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  className="relative overflow-hidden bg-white/10 hover:bg-white/15 backdrop-blur-xl border border-white/15 hover:border-white/25 rounded-2xl p-3.5 flex items-center justify-between text-xs transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.2)] group"
+                >
+                  {/* iOS Specular Sheen */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-transparent pointer-events-none opacity-80" />
+                  
+                  <div className="relative z-10 flex items-center gap-3">
+                    <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.met ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)]"}`} />
+                    <span className="font-bold text-white/95 tracking-tight text-[13px]">{item.label}</span>
+                  </div>
+                  <span className={`relative z-10 font-black tracking-tight text-xs ${item.met ? "text-emerald-300" : "text-rose-300 font-mono"}`}>
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Action Highlights & Context Pop-out Modal */}

@@ -43,15 +43,15 @@ export interface MilestoneDefinition {
 
 export const CANONICAL_MILESTONES: MilestoneDefinition[] = [
   {
-    dayNumber: 3,
-    name: "Level 1: Safe & Steady Picker",
-    shortTitle: "Basic Execution",
-    description: "Mastering safety gear, pairing your scanner, and finding items quickly in Aisles 1-4.",
-    encouragingNote: "You're building your foundation! Focus on accurate barcode scans over speed.",
+    dayNumber: 4,
+    name: "Pit Stop #1: Early Trajectory Check",
+    shortTitle: "Pit Stop #1",
+    description: "Early trajectory review on foundation skills, safety gear, scanner tool stability, and aisle navigation.",
+    encouragingNote: "Pit Stop #1 checkpoint! DEAN evaluates your early floor trajectory and tool readiness.",
     expectedCapabilities: [
       "Safety gear & high-vis vest verified",
       "Handheld scanner & Bluetooth ring pairing",
-      "Smooth navigation in Aisles 1-4",
+      "Smooth navigation in Aisles 1-4 & Cold Room basics",
     ],
     requiredCapabilities: [
       { capabilityId: 1, minEvidenceLevel: "demonstrated" },
@@ -60,62 +60,29 @@ export const CANONICAL_MILESTONES: MilestoneDefinition[] = [
     ],
   },
   {
-    dayNumber: 5,
-    name: "Level 2: Core Consistency Pro",
-    shortTitle: "Core Consistency",
-    description: "Handling fragile items with care, checking item variants, and packing tidy totes.",
-    encouragingNote: "Great rhythm! Keep fragile items protected at the bottom of your tote.",
+    dayNumber: 8,
+    name: "Pit Stop #2: Final Trajectory Correction",
+    shortTitle: "Pit Stop #2",
+    description: "Final trajectory correction before commercial certification. Reviewing multi-item batching, route pacing, and stock exception handling.",
+    encouragingNote: "Pit Stop #2 checkpoint! Final tuning before Day 10 commercial readiness certification.",
     expectedCapabilities: [
-      "Variant checking & barcode discipline",
-      "Fragile item cushioning & care",
-      "Balanced tote placement",
+      "Cold chain & produce weighment check",
+      "Multi-item batching & tote balancing",
+      "Route optimization & SLA timer pacing (>45 UPH)",
     ],
     requiredCapabilities: [
       { capabilityId: 4, minEvidenceLevel: "demonstrated" },
       { capabilityId: 5, minEvidenceLevel: "demonstrated" },
-      { capabilityId: 6, minEvidenceLevel: "emerging" },
-    ],
-  },
-  {
-    dayNumber: 7,
-    name: "Level 3: Multi-Tasking Expert",
-    shortTitle: "Multi-Tasking",
-    description: "Mastering cold chain freshness, produce scale checks, and stock exceptions like a pro.",
-    encouragingNote: "You're handling complex orders smoothly. Keep cold items moving fast!",
-    expectedCapabilities: [
-      "Cold chain item priority picking",
-      "Produce weight & quality check",
-      "Stock exception reporting",
-    ],
-    requiredCapabilities: [
-      { capabilityId: 7, minEvidenceLevel: "demonstrated" },
-      { capabilityId: 8, minEvidenceLevel: "demonstrated" },
-      { capabilityId: 9, minEvidenceLevel: "emerging" },
-    ],
-  },
-  {
-    dayNumber: 9,
-    name: "Level 4: Speed & Route Master",
-    shortTitle: "Near Job-Ready",
-    description: "Optimizing your serpentine walking path, beating SLA timers, and pre-dispatch QC.",
-    encouragingNote: "Lightning fast! You're moving through store zones with total confidence.",
-    expectedCapabilities: [
-      "SLA timer pacing (>45 UPH)",
-      "Serpentine route optimization",
-      "Pre-dispatch quality inspection",
-    ],
-    requiredCapabilities: [
-      { capabilityId: 10, minEvidenceLevel: "demonstrated" },
-      { capabilityId: 11, minEvidenceLevel: "demonstrated" },
-      { capabilityId: 12, minEvidenceLevel: "emerging" },
+      { capabilityId: 6, minEvidenceLevel: "demonstrated" },
+      { capabilityId: 9, minEvidenceLevel: "demonstrated" },
     ],
   },
   {
     dayNumber: 10,
-    name: "Level 5: Certified Autonomous Picker",
-    shortTitle: "Certified Pro",
-    description: "Full shift autonomy, zero safety issues, and ready to lead your own waves!",
-    encouragingNote: "You've arrived! Ready for autonomous shift certification and top earnings.",
+    name: "Final Commercial Readiness Gate",
+    shortTitle: "Final Readiness Gate",
+    description: "Final commercial readiness decision for autonomous shift certification and top earnings.",
+    encouragingNote: "You've arrived! Final commercial readiness gate for independent wave execution.",
     expectedCapabilities: [
       "Full shift autonomy (>50 UPH)",
       "Zero safety incidents",
@@ -132,11 +99,9 @@ export const CANONICAL_MILESTONES: MilestoneDefinition[] = [
 ];
 
 export function getMilestoneForDay(day: number): MilestoneDefinition | undefined {
-  if (day <= 3) return CANONICAL_MILESTONES[0];
-  if (day <= 5) return CANONICAL_MILESTONES[1];
-  if (day <= 7) return CANONICAL_MILESTONES[2];
-  if (day <= 9) return CANONICAL_MILESTONES[3];
-  return CANONICAL_MILESTONES[4];
+  if (day <= 4) return CANONICAL_MILESTONES[0];
+  if (day <= 8) return CANONICAL_MILESTONES[1];
+  return CANONICAL_MILESTONES[2];
 }
 
 export interface MilestoneComparisonResult {
@@ -221,7 +186,7 @@ export const TenDaySkillJourneyView: React.FC<TenDaySkillJourneyViewProps> = ({
   // Authoritative Overall Job Readiness calculation
   const authoritativeReadiness = (typeof activeHire.overallReadinessScore === "number" ? (activeHire.overallReadinessScore <= 1 ? Math.round(activeHire.overallReadinessScore * 100) : Math.round(activeHire.overallReadinessScore)) : 0);
 
-  const [expandedLevel, setExpandedLevel] = useState<number | null>(learnerDay <= 3 ? 3 : learnerDay <= 5 ? 5 : learnerDay <= 7 ? 7 : learnerDay <= 9 ? 9 : 10);
+  const [expandedLevel, setExpandedLevel] = useState<number | null>(learnerDay <= 4 ? 4 : learnerDay <= 8 ? 8 : 10);
 
   const currentMilestoneDef = getMilestoneForDay(learnerDay) || CANONICAL_MILESTONES[0];
 
